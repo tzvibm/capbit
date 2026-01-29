@@ -1,454 +1,241 @@
-//! Capbit: Entity-Relationship Bitmask Access Control System
+//! Capbit: Entity-Relationship Access Control System
 //!
-//! A minimal, high-performance access control system where everything is an entity,
-//! relationships are bitmasks, and capability semantics are defined per-entity.
+//! A minimal, high-performance access control system where:
+//! - Everything is an entity (opaque IDs)
+//! - Relationships are strings (unlimited types: "editor", "viewer", etc.)
+//! - Capabilities are bitmasks (O(1) evaluation)
 //!
-//! ## Path Patterns
-//!
-//! Six patterns define the entire system:
+//! ## Storage Patterns
 //!
 //! | Pattern | Purpose |
 //! |---------|---------|
-//! | `entity/rel_mask/entity` | Relationship between entities |
-//! | `entity/policy/entity` | Conditional relationship (code outputs rel_mask) |
-//! | `entity/rel_mask/cap_mask` | Capability definition (per-entity) |
-//! | `entity/entity/entity` | Inheritance reference |
-//! | `entity/rel_mask/label` | Human-readable relationship name |
-//! | `entity/cap_mask/label` | Human-readable capability name |
+//! | `subject/rel_type/object` | Relationship between entities |
+//! | `object/rel_type` → cap_mask | Capability definition |
+//! | `subject/object/source` | Inheritance reference |
+
+pub mod core;
 
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use std::path::Path;
-use std::sync::OnceLock;
 
-use heed::types::*;
-use heed::{Database, Env, EnvOpenOptions};
+// ============================================================================
+// NAPI Bindings - Thin wrappers around core module
+// ============================================================================
 
-/// Global environment singleton
-static ENV: OnceLock<Env> = OnceLock::new();
-
-/// Sub-databases for the six path patterns + reverse indices
-struct Databases {
-    /// entity/rel_mask/entity -> epoch (relationships)
-    relationships: Database<Str, U64<byteorder::BigEndian>>,
-    /// Reverse: entity/rel_mask/entity (for "who has access to X" queries)
-    relationships_rev: Database<Str, U64<byteorder::BigEndian>>,
-    /// entity/policy/entity -> epoch (conditional relationships)
-    policies: Database<Str, U64<byteorder::BigEndian>>,
-    /// Reverse policies
-    policies_rev: Database<Str, U64<byteorder::BigEndian>>,
-    /// entity/rel_mask/cap_mask -> epoch (capability definitions)
-    capabilities: Database<Str, U64<byteorder::BigEndian>>,
-    /// entity/entity/entity -> epoch (inheritance)
-    inheritance: Database<Str, U64<byteorder::BigEndian>>,
-    /// Reverse inheritance
-    inheritance_rev: Database<Str, U64<byteorder::BigEndian>>,
-    /// Labels: entity/rel_mask/label and entity/cap_mask/label
-    labels: Database<Str, Str>,
+fn to_napi_error(e: core::CapbitError) -> Error {
+    Error::from_reason(e.message)
 }
-
-static DBS: OnceLock<Databases> = OnceLock::new();
 
 /// Initialize the LMDB environment
 #[napi]
 pub fn init(db_path: String) -> Result<()> {
-    let path = Path::new(&db_path);
-    std::fs::create_dir_all(path).map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let env = unsafe {
-        EnvOpenOptions::new()
-            .map_size(1024 * 1024 * 1024) // 1GB
-            .max_dbs(10)
-            .open(path)
-            .map_err(|e| Error::from_reason(e.to_string()))?
-    };
-
-    let mut wtxn = env.write_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let dbs = Databases {
-        relationships: env
-            .create_database(&mut wtxn, Some("relationships"))
-            .map_err(|e| Error::from_reason(e.to_string()))?,
-        relationships_rev: env
-            .create_database(&mut wtxn, Some("relationships_rev"))
-            .map_err(|e| Error::from_reason(e.to_string()))?,
-        policies: env
-            .create_database(&mut wtxn, Some("policies"))
-            .map_err(|e| Error::from_reason(e.to_string()))?,
-        policies_rev: env
-            .create_database(&mut wtxn, Some("policies_rev"))
-            .map_err(|e| Error::from_reason(e.to_string()))?,
-        capabilities: env
-            .create_database(&mut wtxn, Some("capabilities"))
-            .map_err(|e| Error::from_reason(e.to_string()))?,
-        inheritance: env
-            .create_database(&mut wtxn, Some("inheritance"))
-            .map_err(|e| Error::from_reason(e.to_string()))?,
-        inheritance_rev: env
-            .create_database(&mut wtxn, Some("inheritance_rev"))
-            .map_err(|e| Error::from_reason(e.to_string()))?,
-        labels: env
-            .create_database(&mut wtxn, Some("labels"))
-            .map_err(|e| Error::from_reason(e.to_string()))?,
-    };
-
-    wtxn.commit().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    ENV.set(env).map_err(|_| Error::from_reason("Environment already initialized"))?;
-    DBS.set(dbs).map_err(|_| Error::from_reason("Databases already initialized"))?;
-
-    Ok(())
-}
-
-fn get_env() -> Result<&'static Env> {
-    ENV.get().ok_or_else(|| Error::from_reason("Database not initialized. Call init() first."))
-}
-
-fn get_dbs() -> Result<&'static Databases> {
-    DBS.get().ok_or_else(|| Error::from_reason("Database not initialized. Call init() first."))
-}
-
-fn current_epoch() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64
+    core::init(&db_path).map_err(to_napi_error)
 }
 
 // ============================================================================
-// Relationship Operations (entity/rel_mask/entity)
+// Relationship Operations
 // ============================================================================
 
 /// Set a relationship between two entities
-/// Path: subject/rel_mask/object -> epoch
+/// rel_type is a string (e.g., "editor", "viewer", "member")
 #[napi]
-pub fn set_relationship(subject: String, rel_mask: i64, object: String) -> Result<i64> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let mut wtxn = env.write_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let epoch = current_epoch();
-    let forward_key = format!("{}/{:016x}/{}", subject, rel_mask as u64, object);
-    let reverse_key = format!("{}/{:016x}/{}", object, rel_mask as u64, subject);
-
-    dbs.relationships
-        .put(&mut wtxn, &forward_key, &epoch)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-    dbs.relationships_rev
-        .put(&mut wtxn, &reverse_key, &epoch)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-    wtxn.commit().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(epoch as i64)
+pub fn set_relationship(subject: String, rel_type: String, object: String) -> Result<i64> {
+    core::set_relationship(&subject, &rel_type, &object)
+        .map(|e| e as i64)
+        .map_err(to_napi_error)
 }
 
-/// Get all relationship masks between subject and object
+/// Get all relationship types between subject and object
+/// Returns array of relation type strings (e.g., ["editor", "viewer"])
 #[napi]
-pub fn get_relationships(subject: String, object: String) -> Result<Vec<i64>> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let rtxn = env.read_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let prefix = format!("{}/", subject);
-    let suffix = format!("/{}", object);
-    let mut results = Vec::new();
-
-    let iter = dbs
-        .relationships
-        .prefix_iter(&rtxn, &prefix)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-    for item in iter {
-        let (key, _epoch) = item.map_err(|e| Error::from_reason(e.to_string()))?;
-        if key.ends_with(&suffix) {
-            // Extract rel_mask from key: subject/rel_mask/object
-            let parts: Vec<&str> = key.split('/').collect();
-            if parts.len() == 3 {
-                if let Ok(mask) = u64::from_str_radix(parts[1], 16) {
-                    results.push(mask as i64);
-                }
-            }
-        }
-    }
-
-    Ok(results)
+pub fn get_relationships(subject: String, object: String) -> Result<Vec<String>> {
+    core::get_relationships(&subject, &object).map_err(to_napi_error)
 }
 
 /// Delete a relationship
 #[napi]
-pub fn delete_relationship(subject: String, rel_mask: i64, object: String) -> Result<bool> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let mut wtxn = env.write_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let forward_key = format!("{}/{:016x}/{}", subject, rel_mask as u64, object);
-    let reverse_key = format!("{}/{:016x}/{}", object, rel_mask as u64, subject);
-
-    let deleted = dbs
-        .relationships
-        .delete(&mut wtxn, &forward_key)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-    dbs.relationships_rev
-        .delete(&mut wtxn, &reverse_key)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-    wtxn.commit().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(deleted)
+pub fn delete_relationship(subject: String, rel_type: String, object: String) -> Result<bool> {
+    core::delete_relationship(&subject, &rel_type, &object).map_err(to_napi_error)
 }
 
 // ============================================================================
-// Capability Operations (entity/rel_mask/cap_mask)
+// Capability Operations
 // ============================================================================
 
-/// Define what capabilities a relationship grants on an entity
-/// Path: entity/rel_mask/cap_mask -> epoch
+/// Define what capabilities a relationship type grants on an entity
+/// e.g., setCapability("slack", "editor", READ | WRITE | DELETE)
 #[napi]
-pub fn set_capability(entity: String, rel_mask: i64, cap_mask: i64) -> Result<i64> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let mut wtxn = env.write_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let epoch = current_epoch();
-    let key = format!("{}/{:016x}/{:016x}", entity, rel_mask as u64, cap_mask as u64);
-
-    dbs.capabilities
-        .put(&mut wtxn, &key, &epoch)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-    wtxn.commit().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(epoch as i64)
+pub fn set_capability(entity: String, rel_type: String, cap_mask: i64) -> Result<i64> {
+    core::set_capability(&entity, &rel_type, cap_mask as u64)
+        .map(|e| e as i64)
+        .map_err(to_napi_error)
 }
 
-/// Get capability mask for a relationship on an entity
+/// Get capability mask for a relationship type on an entity
 #[napi]
-pub fn get_capability(entity: String, rel_mask: i64) -> Result<Option<i64>> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let rtxn = env.read_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let prefix = format!("{}/{:016x}/", entity, rel_mask as u64);
-
-    let iter = dbs
-        .capabilities
-        .prefix_iter(&rtxn, &prefix)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-    for item in iter {
-        let (key, _epoch) = item.map_err(|e| Error::from_reason(e.to_string()))?;
-        let parts: Vec<&str> = key.split('/').collect();
-        if parts.len() == 3 {
-            if let Ok(cap) = u64::from_str_radix(parts[2], 16) {
-                return Ok(Some(cap as i64));
-            }
-        }
-    }
-
-    Ok(None)
+pub fn get_capability(entity: String, rel_type: String) -> Result<Option<i64>> {
+    core::get_capability(&entity, &rel_type)
+        .map(|o| o.map(|c| c as i64))
+        .map_err(to_napi_error)
 }
 
 // ============================================================================
-// Inheritance Operations (entity/entity/entity)
+// Inheritance Operations
 // ============================================================================
 
 /// Set inheritance: subject inherits source's relationship to object
-/// Path: subject/object/source -> epoch
 #[napi]
 pub fn set_inheritance(subject: String, object: String, source: String) -> Result<i64> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let mut wtxn = env.write_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let epoch = current_epoch();
-    let forward_key = format!("{}/{}/{}", subject, object, source);
-    let reverse_key = format!("{}/{}/{}", source, object, subject);
-
-    dbs.inheritance
-        .put(&mut wtxn, &forward_key, &epoch)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-    dbs.inheritance_rev
-        .put(&mut wtxn, &reverse_key, &epoch)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-    wtxn.commit().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(epoch as i64)
+    core::set_inheritance(&subject, &object, &source)
+        .map(|e| e as i64)
+        .map_err(to_napi_error)
 }
 
 /// Get inheritance sources for subject's relationship to object
 #[napi]
 pub fn get_inheritance(subject: String, object: String) -> Result<Vec<String>> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let rtxn = env.read_txn().map_err(|e| Error::from_reason(e.to_string()))?;
+    core::get_inheritance(&subject, &object).map_err(to_napi_error)
+}
 
-    let prefix = format!("{}/{}/", subject, object);
-    let mut results = Vec::new();
+/// Delete an inheritance rule
+#[napi]
+pub fn delete_inheritance(subject: String, object: String, source: String) -> Result<bool> {
+    core::delete_inheritance(&subject, &object, &source).map_err(to_napi_error)
+}
 
-    let iter = dbs
-        .inheritance
-        .prefix_iter(&rtxn, &prefix)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
+/// Get all subjects that inherit from source for a specific object
+#[napi]
+pub fn get_inheritors_from_source(source: String, object: String) -> Result<Vec<String>> {
+    core::get_inheritors_from_source(&source, &object).map_err(to_napi_error)
+}
 
-    for item in iter {
-        let (key, _epoch) = item.map_err(|e| Error::from_reason(e.to_string()))?;
-        let parts: Vec<&str> = key.split('/').collect();
-        if parts.len() == 3 {
-            results.push(parts[2].to_string());
-        }
-    }
-
-    Ok(results)
+/// Get all inheritance rules for an object
+/// Returns array of [source, subject] pairs
+#[napi]
+pub fn get_inheritance_for_object(object: String) -> Result<Vec<Vec<String>>> {
+    core::get_inheritance_for_object(&object)
+        .map(|v| v.into_iter().map(|(src, subj)| vec![src, subj]).collect())
+        .map_err(to_napi_error)
 }
 
 // ============================================================================
 // Label Operations
 // ============================================================================
 
-/// Set a label for a relationship mask on an entity
+/// Set a label for a capability bit on an entity
+/// e.g., setCapLabel("myapp", 0x01, "read")
 #[napi]
-pub fn set_rel_label(entity: String, rel_mask: i64, label: String) -> Result<()> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let mut wtxn = env.write_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let key = format!("{}/rel/{:016x}", entity, rel_mask as u64);
-
-    dbs.labels
-        .put(&mut wtxn, &key, &label)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-    wtxn.commit().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(())
+pub fn set_cap_label(entity: String, cap_bit: i64, label: String) -> Result<()> {
+    core::set_cap_label(&entity, cap_bit as u64, &label).map_err(to_napi_error)
 }
 
-/// Set a label for a capability mask on an entity
+/// Get label for a capability bit
 #[napi]
-pub fn set_cap_label(entity: String, cap_mask: i64, label: String) -> Result<()> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let mut wtxn = env.write_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-
-    let key = format!("{}/cap/{:016x}", entity, cap_mask as u64);
-
-    dbs.labels
-        .put(&mut wtxn, &key, &label)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-    wtxn.commit().map_err(|e| Error::from_reason(e.to_string()))?;
-    Ok(())
+pub fn get_cap_label(entity: String, cap_bit: i64) -> Result<Option<String>> {
+    core::get_cap_label(&entity, cap_bit as u64).map_err(to_napi_error)
 }
 
 // ============================================================================
 // Access Evaluation
 // ============================================================================
 
-/// Check if subject can perform action on object
+/// Check what capabilities subject has on object
 /// Returns the effective capability mask (0 if no access)
 #[napi]
 pub fn check_access(subject: String, object: String, max_depth: Option<i32>) -> Result<i64> {
-    let env = get_env()?;
-    let dbs = get_dbs()?;
-    let rtxn = env.read_txn().map_err(|e| Error::from_reason(e.to_string()))?;
-    let depth_limit = max_depth.unwrap_or(3) as usize;
-
-    let mut effective_cap: u64 = 0;
-
-    // Step 1: Get direct relationships
-    let prefix = format!("{}/", subject);
-    let suffix = format!("/{}", object);
-
-    let iter = dbs
-        .relationships
-        .prefix_iter(&rtxn, &prefix)
-        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-    for item in iter {
-        let (key, _epoch) = item.map_err(|e| Error::from_reason(e.to_string()))?;
-        if key.ends_with(&suffix) {
-            let parts: Vec<&str> = key.split('/').collect();
-            if parts.len() == 3 {
-                if let Ok(rel_mask) = u64::from_str_radix(parts[1], 16) {
-                    // Step 2: Get capabilities for this relationship on object
-                    let cap_prefix = format!("{}/{:016x}/", object, rel_mask);
-                    let cap_iter = dbs
-                        .capabilities
-                        .prefix_iter(&rtxn, &cap_prefix)
-                        .map_err(|e| Error::from_reason(e.to_string()))?;
-
-                    for cap_item in cap_iter {
-                        let (cap_key, _) = cap_item.map_err(|e| Error::from_reason(e.to_string()))?;
-                        let cap_parts: Vec<&str> = cap_key.split('/').collect();
-                        if cap_parts.len() == 3 {
-                            if let Ok(cap) = u64::from_str_radix(cap_parts[2], 16) {
-                                effective_cap |= cap;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Step 3: Check inheritance (depth-limited)
-    if depth_limit > 0 {
-        let inherit_prefix = format!("{}/{}/", subject, object);
-        let inherit_iter = dbs
-            .inheritance
-            .prefix_iter(&rtxn, &inherit_prefix)
-            .map_err(|e| Error::from_reason(e.to_string()))?;
-
-        for item in inherit_iter {
-            let (key, _epoch) = item.map_err(|e| Error::from_reason(e.to_string()))?;
-            let parts: Vec<&str> = key.split('/').collect();
-            if parts.len() == 3 {
-                let source = parts[2];
-                // Recursively check source's access (simplified - should use proper recursion)
-                let source_prefix = format!("{}/", source);
-                let source_suffix = format!("/{}", object);
-
-                let source_iter = dbs
-                    .relationships
-                    .prefix_iter(&rtxn, &source_prefix)
-                    .map_err(|e| Error::from_reason(e.to_string()))?;
-
-                for source_item in source_iter {
-                    let (source_key, _) =
-                        source_item.map_err(|e| Error::from_reason(e.to_string()))?;
-                    if source_key.ends_with(&source_suffix) {
-                        let source_parts: Vec<&str> = source_key.split('/').collect();
-                        if source_parts.len() == 3 {
-                            if let Ok(rel_mask) = u64::from_str_radix(source_parts[1], 16) {
-                                let cap_prefix = format!("{}/{:016x}/", object, rel_mask);
-                                let cap_iter = dbs
-                                    .capabilities
-                                    .prefix_iter(&rtxn, &cap_prefix)
-                                    .map_err(|e| Error::from_reason(e.to_string()))?;
-
-                                for cap_item in cap_iter {
-                                    let (cap_key, _) =
-                                        cap_item.map_err(|e| Error::from_reason(e.to_string()))?;
-                                    let cap_parts: Vec<&str> = cap_key.split('/').collect();
-                                    if cap_parts.len() == 3 {
-                                        if let Ok(cap) = u64::from_str_radix(cap_parts[2], 16) {
-                                            effective_cap |= cap;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(effective_cap as i64)
+    core::check_access(&subject, &object, max_depth.map(|d| d as usize))
+        .map(|c| c as i64)
+        .map_err(to_napi_error)
 }
 
 /// Check if subject has specific capability on object
 #[napi]
 pub fn has_capability(subject: String, object: String, required_cap: i64) -> Result<bool> {
-    let effective = check_access(subject, object, None)?;
-    Ok((effective & required_cap) == required_cap)
+    core::has_capability(&subject, &object, required_cap as u64).map_err(to_napi_error)
+}
+
+// ============================================================================
+// Batch Operations
+// ============================================================================
+
+/// Batch set relationships
+/// Each entry is [subject, rel_type, object]
+#[napi]
+pub fn batch_set_relationships(entries: Vec<Vec<String>>) -> Result<i64> {
+    let parsed: Vec<(String, String, String)> = entries
+        .into_iter()
+        .filter_map(|e| {
+            if e.len() != 3 {
+                return None;
+            }
+            Some((e[0].clone(), e[1].clone(), e[2].clone()))
+        })
+        .collect();
+
+    core::batch_set_relationships(&parsed)
+        .map(|c| c as i64)
+        .map_err(to_napi_error)
+}
+
+/// Batch set capabilities
+/// Each entry is [entity, rel_type, cap_mask]
+#[napi]
+pub fn batch_set_capabilities(entries: Vec<Vec<String>>) -> Result<i64> {
+    let parsed: Vec<(String, String, u64)> = entries
+        .into_iter()
+        .filter_map(|e| {
+            if e.len() != 3 {
+                return None;
+            }
+            let cap_mask: u64 = e[2].parse().ok()?;
+            Some((e[0].clone(), e[1].clone(), cap_mask))
+        })
+        .collect();
+
+    core::batch_set_capabilities(&parsed)
+        .map(|c| c as i64)
+        .map_err(to_napi_error)
+}
+
+/// Batch set inheritance
+/// Each entry is [subject, object, source]
+#[napi]
+pub fn batch_set_inheritance(entries: Vec<Vec<String>>) -> Result<i64> {
+    let parsed: Vec<(String, String, String)> = entries
+        .into_iter()
+        .filter_map(|e| {
+            if e.len() != 3 {
+                return None;
+            }
+            Some((e[0].clone(), e[1].clone(), e[2].clone()))
+        })
+        .collect();
+
+    core::batch_set_inheritance(&parsed)
+        .map(|c| c as i64)
+        .map_err(to_napi_error)
+}
+
+// ============================================================================
+// Query Operations
+// ============================================================================
+
+/// List all entities that subject has any relationship with
+/// Returns array of [object, rel_type] pairs
+#[napi]
+pub fn list_accessible(subject: String) -> Result<Vec<Vec<String>>> {
+    core::list_accessible(&subject)
+        .map(|v| v.into_iter().map(|(obj, rel)| vec![obj, rel]).collect())
+        .map_err(to_napi_error)
+}
+
+/// List all subjects that have any relationship to object
+/// Returns array of [subject, rel_type] pairs
+#[napi]
+pub fn list_subjects(object: String) -> Result<Vec<Vec<String>>> {
+    core::list_subjects(&object)
+        .map(|v| v.into_iter().map(|(subj, rel)| vec![subj, rel]).collect())
+        .map_err(to_napi_error)
 }
 
 // ============================================================================
@@ -458,6 +245,6 @@ pub fn has_capability(subject: String, object: String, required_cap: i64) -> Res
 /// Close the database (for cleanup)
 #[napi]
 pub fn close() -> Result<()> {
-    // LMDB handles cleanup on drop
+    core::close();
     Ok(())
 }

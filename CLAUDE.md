@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-Capbit is a minimal, high-performance access control system where everything is an entity, relationships are bitmasks, and capability semantics are defined per-entity. The system achieves O(log N) lookup and O(1) evaluation with linear scaling, no global schema, and deterministic ordering via epochs.
+Capbit is a minimal, high-performance access control system where everything is an entity, relationships are strings (e.g., "editor", "viewer"), and capability semantics are defined per-entity as bitmasks. The system achieves O(log N) lookup and O(1) evaluation with linear scaling, no global schema, and deterministic ordering via epochs.
 
 ## Commands
 
@@ -25,83 +25,77 @@ Everything is an **entity**. The system doesn't know what entities represent—t
 
 The storage layer contains only:
 - IDs (entity identifiers)
-- Bitmasks (relationships and capabilities)
+- Relationship types (strings like "editor", "viewer", "member")
+- Capability bitmasks (for O(1) permission evaluation)
 - Epochs (timestamps for ordering)
 
-No types. No schema. Just paths and bits.
+No types. No schema. Just paths, strings, and bits.
 
 ### Path Patterns
 
-Six patterns define the entire system:
+Four patterns define the entire system:
 
 | Pattern | Purpose |
 |---------|---------|
-| `entity/rel_mask/entity` | Relationship between entities |
-| `entity/policy/entity` | Conditional relationship (code outputs rel_mask) |
-| `entity/rel_mask/cap_mask` | Capability definition (per-entity) |
-| `entity/entity/entity` | Inheritance reference |
-| `entity/rel_mask/label` | Human-readable relationship name |
-| `entity/cap_mask/label` | Human-readable capability name |
+| `subject/rel_type/object` | Relationship between entities |
+| `entity/rel_type` → cap_mask | Capability definition (per-entity) |
+| `subject/object/source` | Inheritance reference |
+| `entity/cap_bit` → label | Human-readable capability name |
 
-All paths store **epoch** as value.
+All paths store **epoch** as value (except capabilities which store cap_mask).
 
 ### Sub-Databases
 
 ```
 LMDB
-├── relationships/      (entity/rel_mask/entity)
-├── relationships_rev/  (reversed for "who has access to X" queries)
-├── policies/           (entity/policy/entity)
-├── policies_rev/       (reversed)
-├── capabilities/       (entity/rel_mask/cap_mask)
-├── inheritance/        (entity/entity/entity)
-├── inheritance_rev/    (reversed)
-└── labels/             (entity/rel_mask/label, entity/cap_mask/label)
+├── relationships/           (subject/rel_type/object → epoch)
+├── relationships_rev/       (object/rel_type/subject → epoch)
+├── capabilities/            (entity/rel_type → cap_mask)
+├── inheritance/             (subject/object/source → epoch)
+├── inheritance_by_source/   (source/object/subject → epoch)
+├── inheritance_by_object/   (object/source/subject → epoch)
+└── cap_labels/              (entity/cap_bit → label)
 ```
+
+**Inheritance indexes enable three query patterns:**
+1. `subject/object/*` → "Who does subject inherit from for object?"
+2. `source/object/*` → "Who inherits from source for object?"
+3. `object/*/*` → "What inheritance rules affect object?" (audit/admin)
 
 ### Key Concepts
 
-**Relationship**: `john/0x02/slack → epoch`
-Entity "john" has relationship bits `0x02` with entity "slack". The system doesn't know john is a user or slack is an app—that's business knowledge.
+**Relationship**: `john/editor/slack → epoch`
+Entity "john" has relationship type "editor" with entity "slack". The system doesn't know john is a user or slack is an app—that's business knowledge.
 
-**Per-Entity Capability Semantics**: The same relationship bit means different things to different entities:
+**Per-Entity Capability Semantics**: The same relationship type grants different capabilities on different entities:
 ```
-slack/0x02/cap_mask → 0x0F    (editor in slack: read, write, delete, admin)
-github/0x02/cap_mask → 0x03   (editor in github: read, write only)
+slack/editor → 0x0F    (editor in slack: read, write, delete, admin)
+github/editor → 0x03   (editor in github: read, write only)
 ```
 
 **Inheritance**: `john/sales/mary → epoch`
 John inherits whatever relationship mary has with sales.
 
-**Policies**: Conditional relationships where code evaluates context and outputs a rel_mask:
-```
-john/policy/slack → epoch
-// Policy code returns 0x02 during work hours, 0x01 otherwise
-```
-
 ### Access Evaluation
 
-Three to four lookups, left to right:
+Three lookups, left to right:
 
 ```
-Can entity1 perform action on entity2?
+Can subject perform action on object?
 
-Step 1: entity1/*/entity2
-→ get all existing rel_masks (direct relationships)
-→ includes static (rel_mask) and dynamic (policy)
+Step 1: subject/*/object
+→ get all existing rel_types (direct relationships)
+→ e.g., ["editor", "viewer"]
 
-Step 1b: If policy exists (entity1/policy/entity2)
-→ execute policy code with context
-→ policy returns rel_mask (or 0x00)
+Step 2: subject/object/*
+→ if inheritance exists, get source entities
+→ do step 1 for each source (inherited relationships)
 
-Step 2: entity1/entity2/*
-→ if inheritance exists, get entity3
-→ do step 1 for entity3 (inherited relationships)
-
-Step 3: entity2/rel_mask/cap_mask
-→ for each rel_mask from steps 1, 1b, and 2
-→ if rel_mask matches, get capability bits
-→ evaluate requested action against capability bits
+Step 3: object/rel_type → cap_mask
+→ for each rel_type from steps 1 and 2
+→ look up capability mask for that relationship type
+→ OR all capability masks together
+→ evaluate requested action against effective capability bits
 ```
 
 ### Complexity
@@ -118,8 +112,8 @@ Step 3: entity2/rel_mask/cap_mask
 Every write is transactional on forward and reverse paths:
 ```
 Transaction:
-  john/0x02/sales → epoch
-  sales/0x02/john → epoch
+  john/editor/sales → epoch
+  sales/editor/john → epoch
 ```
 
 Enables O(log N) queries from either direction:
@@ -134,23 +128,20 @@ const capbit = require('./capbit.node');
 // Initialize
 capbit.init('./data/capbit.mdb');
 
-// Define capability semantics for a resource
+// Define capability bits (bitmasks for O(1) evaluation)
 const READ = 0x01;
 const WRITE = 0x02;
 const DELETE = 0x04;
 const ADMIN = 0x08;
 
-const EDITOR = 0x02;   // relationship mask
-const VIEWER = 0x01;   // relationship mask
-
 // "editor" relationship on "project42" grants read+write
-capbit.setCapability('project42', EDITOR, READ | WRITE);
+capbit.setCapability('project42', 'editor', READ | WRITE);
 
 // "viewer" relationship on "project42" grants read only
-capbit.setCapability('project42', VIEWER, READ);
+capbit.setCapability('project42', 'viewer', READ);
 
 // John is an editor on project42
-capbit.setRelationship('john', EDITOR, 'project42');
+capbit.setRelationship('john', 'editor', 'project42');
 
 // Bob inherits mary's relationship to project42
 capbit.setInheritance('bob', 'project42', 'mary');
@@ -168,11 +159,15 @@ const hasWrite = capbit.hasCapability('john', 'project42', WRITE);  // true
 ```
 capbit/
 ├── src/
-│   └── lib.rs          # Rust library with NAPI bindings
+│   ├── lib.rs          # NAPI bindings (thin wrappers)
+│   ├── core.rs         # Core database operations
+│   └── server.rs       # HTTP server (optional, --features server)
+├── tests/
+│   └── capbit.test.js  # Vitest tests
 ├── Cargo.toml          # Rust package config
 ├── build.rs            # NAPI build script
 ├── package.json        # Node.js package config
-├── index.js            # Node.js entry point (generated)
+├── index.d.ts          # TypeScript definitions
 ├── capbit.node         # Native module (generated)
 └── data/               # LMDB data directory
 ```
@@ -180,12 +175,11 @@ capbit/
 ## Design Principles
 
 1. **Type Agnostic**: No types in paths; business layer defines meaning
-2. **Linear Scaling**: Bitmasks, not named roles
-3. **O(log N) Access**: LMDB B-tree lookups
-4. **O(1) Evaluation**: Bitmask AND operation
+2. **String Relationships**: Human-readable types ("editor", "viewer", "member")
+3. **Bitmask Capabilities**: O(1) permission evaluation via AND operations
+4. **O(log N) Access**: LMDB B-tree lookups
 5. **Per-Entity Semantics**: Each entity defines its own capability mappings
-6. **Conditional Access**: Policies output rel_masks based on context
-7. **Inheritance**: Path reference, not graph traversal
-8. **Deterministic**: Epochs order all operations
-9. **ACID**: Transactional forward/reverse writes
-10. **Bidirectional**: Query from either entity's perspective
+6. **Inheritance**: Path reference, not graph traversal
+7. **Deterministic**: Epochs order all operations
+8. **ACID**: Transactional forward/reverse writes
+9. **Bidirectional**: Query from either entity's perspective
