@@ -1,21 +1,88 @@
-MIT License
+Capbit Non-Commercial Open Source License (CNCOSL) v1.0
 
 Copyright (c) 2024 tzvibm
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+TERMS AND CONDITIONS
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. DEFINITIONS
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+   "Software" refers to Capbit and all associated source code, documentation,
+   and materials in this repository.
+
+   "Commercial Use" means any use of the Software intended for or directed
+   toward commercial advantage or monetary compensation. This includes but
+   is not limited to:
+   - Use by for-profit companies or corporations
+   - Use in products or services that are sold
+   - Use in internal business operations
+   - Use by contractors for commercial clients
+
+   "Non-Commercial Use" means use for:
+   - Personal projects
+   - Educational purposes
+   - Academic research
+   - Non-profit organizations (501(c)(3) or equivalent)
+   - Open source projects with OSI-approved licenses
+
+2. GRANT OF LICENSE
+
+   Permission is hereby granted, free of charge, to any person or organization
+   obtaining a copy of this Software, to use, copy, modify, merge, publish,
+   and distribute the Software, subject to the following conditions:
+
+   a) NON-COMMERCIAL USE ONLY
+      The Software may only be used for Non-Commercial Use as defined above.
+      Any Commercial Use requires a separate commercial license agreement.
+
+   b) ATTRIBUTION REQUIRED
+      All copies, modifications, or substantial portions of the Software must:
+      - Include this license file
+      - Credit "Capbit by tzvibm" in documentation or about sections
+      - Retain all copyright notices
+
+   c) OPEN SOURCE REQUIREMENT
+      Any derivative works or projects using this Software must make their
+      source code publicly available under the same or compatible terms.
+
+   d) NO SUBLICENSING FOR COMMERCIAL USE
+      You may not grant commercial use rights to third parties.
+
+3. COMMERCIAL LICENSING
+
+   For Commercial Use, please contact the author to obtain a commercial license.
+
+   Contact: https://github.com/tzvibm
+
+4. DISCLAIMER
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+5. TERMINATION
+
+   This license automatically terminates if you violate any of these terms.
+   Upon termination, you must destroy all copies of the Software in your
+   possession.
+
+---
+
+QUICK REFERENCE:
+
+✓ ALLOWED:
+  - Personal use
+  - Educational use
+  - Academic research
+  - Non-profit organizations
+  - Open source projects (with attribution)
+  - Modify and distribute (with same license)
+
+✗ NOT ALLOWED (without commercial license):
+  - Corporate/business use
+  - Commercial products or services
+  - Closed-source proprietary software
+  - Removing attribution

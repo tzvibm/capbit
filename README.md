@@ -1,7 +1,7 @@
 # Capbit
 
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Non-Commercial](https://img.shields.io/badge/License-Non--Commercial-red.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-47%20passing-brightgreen.svg)](#testing)
 
 **High-performance access control library for Rust** with typed entities, protected mutations, and bitmask capabilities.
@@ -455,7 +455,20 @@ LMDB provides:
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+**Non-Commercial Open Source License** - see [LICENSE](LICENSE) for details.
+
+**Allowed:**
+- Personal use
+- Educational use
+- Academic research
+- Non-profit organizations
+- Open source projects (with attribution)
+
+**Not Allowed (without commercial license):**
+- Corporate/business use
+- Commercial products or services
+
+For commercial licensing, contact: https://github.com/tzvibm
 
 ---
 
