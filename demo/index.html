@@ -327,7 +327,10 @@
         <div class="card">
             <div class="card-title">
                 Activity Log
-                <button class="btn sm outline" onclick="clearLog()">Clear</button>
+                <div style="display: flex; gap: 0.25rem;">
+                    <button class="btn sm outline" onclick="copyLogs()">Copy</button>
+                    <button class="btn sm outline" onclick="clearLog()">Clear</button>
+                </div>
             </div>
             <div class="log" id="log"></div>
         </div>
@@ -513,11 +516,15 @@
                 <div class="form-row stack">
                     <div class="input-group">
                         <label>Subject (who's asking)</label>
-                        <input type="text" id="check-subject" placeholder="e.g. user:alice">
+                        <select id="check-subject">
+                            <option value="">-- Select entity --</option>
+                        </select>
                     </div>
                     <div class="input-group">
                         <label>Object (accessing what)</label>
-                        <input type="text" id="check-object" placeholder="e.g. team:engineering">
+                        <select id="check-object">
+                            <option value="">-- Select entity --</option>
+                        </select>
                     </div>
                     <div class="input-group">
                         <label>Required Capability</label>
@@ -594,6 +601,34 @@
             log('Log cleared', 'info');
         }
 
+        function copyLogs() {
+            const logDiv = document.getElementById('log');
+            const entries = [...logDiv.querySelectorAll('.log-entry')].reverse();
+            const text = entries.map(e => e.textContent).join('\n');
+
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => {
+                    log('Logs copied to clipboard!', 'success');
+                }).catch(() => {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            log('Logs copied to clipboard!', 'success');
+        }
+
         // ============================================================================
         // API Calls
         // ============================================================================
@@ -661,6 +696,7 @@
             if (result.ok) {
                 known.entities.push({ id: `user:${rootId}`, type: 'user' });
                 renderEntities();
+                renderTestSelects();
                 checkConnection();
             }
         }
@@ -695,6 +731,7 @@
                 known.entities.push({ id: `${entityType}:${id}`, type: entityType });
                 document.getElementById('entity-id').value = '';
                 renderEntities();
+                renderTestSelects();
             }
         }
 
@@ -932,6 +969,20 @@
             renderEntities();
             renderGrants();
             renderCapabilities();
+            renderTestSelects();
+        }
+
+        function renderTestSelects() {
+            const subjectSelect = document.getElementById('check-subject');
+            const objectSelect = document.getElementById('check-object');
+
+            const options = known.entities.map(e =>
+                `<option value="${e.id}">${e.id}</option>`
+            ).join('');
+
+            const placeholder = '<option value="">-- Select entity --</option>';
+            subjectSelect.innerHTML = placeholder + options;
+            objectSelect.innerHTML = placeholder + options;
         }
 
         function renderEntities() {
