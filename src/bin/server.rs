@@ -16,7 +16,8 @@
 
 use axum::{
     extract::State,
-    http::StatusCode,
+    http::{header, StatusCode},
+    response::{Html, IntoResponse},
     routing::{get, post},
     Json, Router,
 };
@@ -229,6 +230,13 @@ async fn post_reset() -> (StatusCode, Json<ApiResponse<String>>) {
     }
 }
 
+async fn serve_demo() -> impl IntoResponse {
+    Html(include_str!("../../demo/index.html").replace(
+        r#"value="http://localhost:3000""#,
+        r#"value="""#
+    ))
+}
+
 // ============================================================================
 // Main
 // ============================================================================
@@ -251,6 +259,7 @@ async fn main() {
 
     // Router
     let app = Router::new()
+        .route("/", get(serve_demo))
         .route("/status", get(get_status))
         .route("/bootstrap", post(post_bootstrap))
         .route("/entity", post(post_entity))
@@ -267,8 +276,8 @@ async fn main() {
     // Bind
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".into());
     let addr = format!("0.0.0.0:{}", port);
-    println!("Capbit server running at http://{}", addr);
-    println!("Demo: Open demo/index.html and set API URL to http://localhost:{}", port);
+    println!("Capbit server running at http://localhost:{}", port);
+    println!("Open http://localhost:{} in your browser", port);
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

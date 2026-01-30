@@ -629,8 +629,9 @@
         // ============================================================================
 
         async function checkConnection() {
-            apiUrl = document.getElementById('api-url').value.replace(/\/$/, '');
-            log(`Connecting to ${apiUrl}...`, 'info');
+            const inputUrl = document.getElementById('api-url').value.trim();
+            apiUrl = inputUrl ? inputUrl.replace(/\/$/, '') : '';  // Empty = same origin
+            log(`Connecting to ${apiUrl || window.location.origin}...`, 'info');
 
             const result = await api('GET', '/status');
 
