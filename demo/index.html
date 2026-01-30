@@ -44,41 +44,25 @@
 
         h1 { font-size: 1.5rem; font-weight: 700; }
         h1 span { color: var(--primary); }
-        .subtitle { color: var(--text-muted); font-size: 0.75rem; }
 
-        /* Tabs */
-        .tabs {
+        .status-bar {
             display: flex;
-            gap: 0.25rem;
-            background: var(--bg-card);
-            padding: 0.25rem;
-            border-radius: 10px;
-            margin-bottom: 1rem;
-            overflow-x: auto;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 0.625rem 0.5rem;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
             font-size: 0.75rem;
-            font-weight: 600;
-            border-radius: 8px;
-            cursor: pointer;
-            white-space: nowrap;
         }
 
-        .tab.active {
-            background: var(--primary);
-            color: white;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
         }
 
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        .status-dot.connected { background: var(--success); }
 
-        /* Cards */
         .card {
             background: var(--bg-card);
             border-radius: 12px;
@@ -97,16 +81,13 @@
             align-items: center;
         }
 
-        /* Forms */
         .form-row {
             display: flex;
             gap: 0.5rem;
             margin-bottom: 0.5rem;
         }
 
-        .form-row.stack {
-            flex-direction: column;
-        }
+        .form-row.stack { flex-direction: column; }
 
         .input-group {
             flex: 1;
@@ -149,9 +130,11 @@
 
         .btn:hover { background: var(--primary-dark); }
         .btn:active { transform: scale(0.98); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn.sm { padding: 0.5rem 0.75rem; font-size: 0.75rem; }
         .btn.danger { background: var(--danger); }
         .btn.success { background: var(--success); }
+        .btn.warning { background: var(--warning); }
         .btn.outline {
             background: transparent;
             border: 1px solid var(--border);
@@ -159,23 +142,90 @@
         }
         .btn.full { width: 100%; }
 
-        /* Status Badge */
-        .status {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.375rem;
-            padding: 0.375rem 0.625rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
-        .status.success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
-        .status.danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
-        .status.warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
-        .status.info { background: rgba(99, 102, 241, 0.15); color: var(--primary); }
+        .btn-group .btn { flex: 1; }
 
-        /* Entity chips */
+        /* Log */
+        .log {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 0.7rem;
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 0.75rem;
+            max-height: 300px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid var(--border);
+            word-break: break-all;
+        }
+
+        .log-entry:last-child { border-bottom: none; }
+        .log-entry.success { color: var(--success); }
+        .log-entry.error { color: var(--danger); }
+        .log-entry.info { color: var(--primary); }
+        .log-entry.request { color: var(--warning); }
+        .log-entry .time { color: var(--text-muted); margin-right: 0.5rem; }
+        .log-entry .method {
+            background: var(--bg-input);
+            padding: 0.125rem 0.375rem;
+            border-radius: 3px;
+            margin-right: 0.25rem;
+        }
+
+        /* Result box */
+        .result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .result.allowed { background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); }
+        .result.denied { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); }
+
+        .result-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .result-text { font-weight: 600; font-size: 1rem; }
+        .result-detail { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            background: var(--bg-card);
+            padding: 0.25rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.625rem 0.5rem;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .tab.active { background: var(--primary); color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Chips */
         .chip {
             display: inline-flex;
             align-items: center;
@@ -225,69 +275,6 @@
             font-size: 0.7rem;
         }
 
-        .list-item .actions {
-            margin-left: auto;
-        }
-
-        .delete-btn {
-            background: transparent;
-            border: none;
-            color: var(--danger);
-            cursor: pointer;
-            padding: 0.25rem;
-            font-size: 1rem;
-            opacity: 0.7;
-        }
-
-        .delete-btn:hover { opacity: 1; }
-
-        /* Result box */
-        .result {
-            margin-top: 1rem;
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .result.allowed { background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); }
-        .result.denied { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); }
-
-        .result-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-        .result-text { font-weight: 600; font-size: 1rem; }
-        .result-detail { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; }
-
-        /* Structure Tree */
-        .tree { padding-left: 0; }
-
-        .tree-node {
-            margin: 0.5rem 0;
-            padding-left: 1rem;
-            border-left: 2px solid var(--border);
-        }
-
-        .tree-node.root { border-left: none; padding-left: 0; }
-
-        .tree-header {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            background: var(--bg-input);
-            border-radius: 6px;
-            cursor: pointer;
-        }
-
-        .tree-header:hover { background: var(--border); }
-
-        .tree-children { margin-top: 0.25rem; }
-
-        .tree-relation {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            margin-left: 0.5rem;
-        }
-
-        /* Empty state */
         .empty {
             text-align: center;
             padding: 2rem;
@@ -296,604 +283,442 @@
 
         .empty-icon { font-size: 2rem; margin-bottom: 0.5rem; }
 
-        /* Log */
-        .log {
-            font-family: monospace;
-            font-size: 0.7rem;
-            background: var(--bg);
+        /* Config panel */
+        .config-panel {
+            background: var(--bg-input);
             border-radius: 8px;
             padding: 0.75rem;
-            max-height: 200px;
-            overflow-y: auto;
+            margin-bottom: 1rem;
         }
 
-        .log-entry { padding: 0.25rem 0; border-bottom: 1px solid var(--border); }
-        .log-entry:last-child { border-bottom: none; }
-        .log-entry.success { color: var(--success); }
-        .log-entry.error { color: var(--danger); }
-        .log-entry .time { color: var(--text-muted); }
-
-        /* Templates */
-        .template-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+        .config-row {
+            display: flex;
+            align-items: center;
             gap: 0.5rem;
         }
 
-        .template-btn {
-            padding: 1rem;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
+        .config-row input {
+            flex: 1;
         }
 
-        .template-btn:hover {
-            border-color: var(--primary);
-            background: var(--bg-card);
-        }
-
-        .template-btn .icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
-        .template-btn .name { font-weight: 600; font-size: 0.875rem; }
-        .template-btn .desc { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem; }
-
-        /* Hidden */
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <header>
         <h1>Cap<span>bit</span></h1>
-        <p class="subtitle">Interactive Access Control Demo</p>
+        <div class="status-bar">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">Disconnected</span>
+        </div>
     </header>
 
     <div class="container">
-        <!-- Bootstrap Screen -->
-        <div id="bootstrap-screen">
+        <!-- Server Config -->
+        <div class="card">
+            <div class="card-title">Server Connection</div>
+            <div class="config-row">
+                <input type="text" id="api-url" value="http://localhost:3000" placeholder="API URL">
+                <button class="btn sm" onclick="checkConnection()">Connect</button>
+            </div>
+        </div>
+
+        <!-- Activity Log - Always visible -->
+        <div class="card">
+            <div class="card-title">
+                Activity Log
+                <button class="btn sm outline" onclick="clearLog()">Clear</button>
+            </div>
+            <div class="log" id="log"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('setup')">Setup</button>
+            <button class="tab" onclick="showTab('entities')">Entities</button>
+            <button class="tab" onclick="showTab('grants')">Grants</button>
+            <button class="tab" onclick="showTab('caps')">Caps</button>
+            <button class="tab" onclick="showTab('test')">Test</button>
+        </div>
+
+        <!-- Setup Tab -->
+        <div id="tab-setup" class="tab-content active">
             <div class="card">
-                <div class="card-title">System Status</div>
-                <div class="empty">
-                    <div class="empty-icon">🔒</div>
-                    <p>System not bootstrapped</p>
-                    <p style="font-size: 0.75rem; margin-top: 0.5rem;">Choose a template or start fresh</p>
+                <div class="card-title">Bootstrap System</div>
+                <div class="form-row">
+                    <div class="input-group">
+                        <label>Root User ID</label>
+                        <input type="text" id="bootstrap-root" value="root" placeholder="e.g. root, admin">
+                    </div>
+                </div>
+                <button class="btn full" onclick="doBootstrap()">Bootstrap</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Quick Setup Templates</div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                    Run a template to populate the system. Watch the log to see each API call.
+                </p>
+                <div class="btn-group">
+                    <button class="btn warning" onclick="runTemplate('startup')">Startup</button>
+                    <button class="btn warning" onclick="runTemplate('saas')">SaaS</button>
                 </div>
             </div>
 
             <div class="card">
-                <div class="card-title">Quick Start Templates</div>
-                <div class="template-grid">
-                    <div class="template-btn" onclick="loadTemplate('startup')">
-                        <div class="icon">🚀</div>
-                        <div class="name">Startup</div>
-                        <div class="desc">3 teams, 5 users</div>
+                <div class="card-title">Danger Zone</div>
+                <button class="btn danger full" onclick="doReset()">Reset Database</button>
+            </div>
+        </div>
+
+        <!-- Entities Tab -->
+        <div id="tab-entities" class="tab-content">
+            <div class="card">
+                <div class="card-title">Create Entity</div>
+                <div class="form-row">
+                    <div class="input-group">
+                        <label>Type</label>
+                        <select id="entity-type">
+                            <option value="user">user</option>
+                            <option value="team">team</option>
+                            <option value="app">app</option>
+                            <option value="resource">resource</option>
+                        </select>
                     </div>
-                    <div class="template-btn" onclick="loadTemplate('saas')">
-                        <div class="icon">☁️</div>
-                        <div class="name">SaaS App</div>
-                        <div class="desc">Tenants & resources</div>
+                    <div class="input-group">
+                        <label>ID</label>
+                        <input type="text" id="entity-id" placeholder="e.g. alice, engineering">
                     </div>
-                    <div class="template-btn" onclick="loadTemplate('minimal')">
-                        <div class="icon">📦</div>
-                        <div class="name">Minimal</div>
-                        <div class="desc">Just root user</div>
-                    </div>
-                    <div class="template-btn" onclick="loadTemplate('custom')">
-                        <div class="icon">⚙️</div>
-                        <div class="name">Custom</div>
-                        <div class="desc">Build from scratch</div>
+                </div>
+                <div class="input-group">
+                    <label>Actor (who's creating)</label>
+                    <input type="text" id="entity-actor" value="user:root" placeholder="e.g. user:root">
+                </div>
+                <button class="btn full" onclick="doCreateEntity()">Create Entity</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Known Entities</div>
+                <div class="list" id="entity-list">
+                    <div class="empty">
+                        <div class="empty-icon">📋</div>
+                        <p>Entities tracked client-side</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main App -->
-        <div id="main-app" class="hidden">
-            <div class="tabs">
-                <button class="tab active" onclick="showTab('structure')">Structure</button>
-                <button class="tab" onclick="showTab('entities')">Entities</button>
-                <button class="tab" onclick="showTab('grants')">Grants</button>
-                <button class="tab" onclick="showTab('caps')">Caps</button>
-                <button class="tab" onclick="showTab('test')">Test</button>
-            </div>
-
-            <!-- Structure Tab -->
-            <div id="tab-structure" class="tab-content active">
-                <div class="card">
-                    <div class="card-title">
-                        Organization Structure
-                        <button class="btn sm outline" onclick="resetSystem()">Reset</button>
+        <!-- Grants Tab -->
+        <div id="tab-grants" class="tab-content">
+            <div class="card">
+                <div class="card-title">Create Grant</div>
+                <div class="form-row stack">
+                    <div class="input-group">
+                        <label>Actor (who's granting - must have GRANT_WRITE)</label>
+                        <input type="text" id="grant-actor" value="user:root" placeholder="e.g. user:root">
                     </div>
-                    <div id="structure-tree"></div>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">Activity Log</div>
-                    <div class="log" id="activity-log"></div>
-                </div>
-            </div>
-
-            <!-- Entities Tab -->
-            <div id="tab-entities" class="tab-content">
-                <div class="card">
-                    <div class="card-title">Create Entity</div>
+                    <div class="input-group">
+                        <label>Seeker (who receives the grant)</label>
+                        <input type="text" id="grant-seeker" placeholder="e.g. user:alice">
+                    </div>
                     <div class="form-row">
                         <div class="input-group">
-                            <label>Type</label>
-                            <select id="new-entity-type">
-                                <option value="user">user</option>
-                                <option value="team">team</option>
-                                <option value="app">app</option>
-                                <option value="resource">resource</option>
-                            </select>
+                            <label>Relation</label>
+                            <input type="text" id="grant-relation" placeholder="e.g. lead, member, editor">
                         </div>
                         <div class="input-group">
-                            <label>ID</label>
-                            <input type="text" id="new-entity-id" placeholder="e.g. alice">
+                            <label>Scope (on what)</label>
+                            <input type="text" id="grant-scope" placeholder="e.g. team:engineering">
                         </div>
                     </div>
-                    <button class="btn full" onclick="createEntity()">Create Entity</button>
                 </div>
-
-                <div class="card">
-                    <div class="card-title">All Entities</div>
-                    <div class="list" id="entity-list"></div>
-                </div>
+                <button class="btn full" onclick="doCreateGrant()">Create Grant</button>
             </div>
 
-            <!-- Grants Tab -->
-            <div id="tab-grants" class="tab-content">
-                <div class="card">
-                    <div class="card-title">Create Grant</div>
-                    <div class="form-row stack">
-                        <div class="input-group">
-                            <label>Actor (who's granting)</label>
-                            <select id="grant-actor"></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Seeker (who receives)</label>
-                            <select id="grant-seeker"></select>
-                        </div>
-                        <div class="form-row">
-                            <div class="input-group">
-                                <label>Relation</label>
-                                <input type="text" id="grant-relation" placeholder="e.g. lead, member, editor">
-                            </div>
-                            <div class="input-group">
-                                <label>Scope (on what)</label>
-                                <select id="grant-scope"></select>
-                            </div>
-                        </div>
+            <div class="card">
+                <div class="card-title">Known Grants</div>
+                <div class="list" id="grant-list">
+                    <div class="empty">
+                        <div class="empty-icon">🔗</div>
+                        <p>Grants tracked client-side</p>
                     </div>
-                    <button class="btn full" onclick="createGrant()">Create Grant</button>
-                </div>
-
-                <div class="card">
-                    <div class="card-title">All Grants</div>
-                    <div class="list" id="grant-list"></div>
                 </div>
             </div>
+        </div>
 
-            <!-- Capabilities Tab -->
-            <div id="tab-caps" class="tab-content">
-                <div class="card">
-                    <div class="card-title">Define Capability</div>
-                    <div class="form-row stack">
+        <!-- Capabilities Tab -->
+        <div id="tab-caps" class="tab-content">
+            <div class="card">
+                <div class="card-title">Define Capability</div>
+                <div class="form-row stack">
+                    <div class="input-group">
+                        <label>Actor (who's defining - must have CAP_WRITE)</label>
+                        <input type="text" id="cap-actor" value="user:root" placeholder="e.g. user:root">
+                    </div>
+                    <div class="form-row">
                         <div class="input-group">
-                            <label>Actor (who's defining)</label>
-                            <select id="cap-actor"></select>
-                        </div>
-                        <div class="form-row">
-                            <div class="input-group">
-                                <label>Scope (on what entity)</label>
-                                <select id="cap-scope"></select>
-                            </div>
-                            <div class="input-group">
-                                <label>Relation</label>
-                                <input type="text" id="cap-relation" placeholder="e.g. admin, editor">
-                            </div>
+                            <label>Scope (on what entity)</label>
+                            <input type="text" id="cap-scope" placeholder="e.g. team:engineering">
                         </div>
                         <div class="input-group">
-                            <label>Capability Bits</label>
-                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem;">
-                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
-                                    <input type="checkbox" class="cap-bit" value="0x0010"> READ
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
-                                    <input type="checkbox" class="cap-bit" value="0x0020"> WRITE
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
-                                    <input type="checkbox" class="cap-bit" value="0x0040"> DELETE
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
-                                    <input type="checkbox" class="cap-bit" value="0x0004"> CREATE
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
-                                    <input type="checkbox" class="cap-bit" value="0x0100"> CAP_WRITE
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
-                                    <input type="checkbox" class="cap-bit" value="0x0800"> DELEGATE
-                                </label>
-                            </div>
-                            <div style="margin-top: 0.5rem; font-family: monospace; font-size: 0.75rem; color: var(--text-muted);">
-                                Selected: <span id="cap-value">0x0000</span>
-                            </div>
+                            <label>Relation</label>
+                            <input type="text" id="cap-relation" placeholder="e.g. lead, member">
                         </div>
                     </div>
-                    <button class="btn full" onclick="createCapability()">Define Capability</button>
+                    <div class="input-group">
+                        <label>Capability Bits</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem;">
+                            <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                <input type="checkbox" class="cap-bit" value="16"> READ (0x10)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                <input type="checkbox" class="cap-bit" value="32"> WRITE (0x20)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                <input type="checkbox" class="cap-bit" value="64"> DELETE (0x40)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                <input type="checkbox" class="cap-bit" value="4"> CREATE (0x04)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                <input type="checkbox" class="cap-bit" value="256"> CAP_WRITE (0x100)
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                <input type="checkbox" class="cap-bit" value="2048"> DELEGATE (0x800)
+                            </label>
+                        </div>
+                        <div style="margin-top: 0.5rem; font-family: monospace; font-size: 0.75rem; color: var(--text-muted);">
+                            Selected: <span id="cap-value">0x0000</span> (<span id="cap-decimal">0</span>)
+                        </div>
+                    </div>
                 </div>
-
-                <div class="card">
-                    <div class="card-title">All Capability Definitions</div>
-                    <div class="list" id="cap-list"></div>
-                </div>
+                <button class="btn full" onclick="doCreateCapability()">Define Capability</button>
             </div>
 
-            <!-- Test Tab -->
-            <div id="tab-test" class="tab-content">
-                <div class="card">
-                    <div class="card-title">Permission Checker</div>
-                    <div class="form-row stack">
-                        <div class="input-group">
-                            <label>Subject (who's asking)</label>
-                            <select id="test-subject"></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Object (accessing what)</label>
-                            <select id="test-object"></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Required Capability</label>
-                            <select id="test-cap">
-                                <option value="0x0010">GRANT_READ (0x0010)</option>
-                                <option value="0x0020">GRANT_WRITE (0x0020)</option>
-                                <option value="0x0040">GRANT_DELETE (0x0040)</option>
-                                <option value="0x0004">ENTITY_CREATE (0x0004)</option>
-                                <option value="0x0100">CAP_WRITE (0x0100)</option>
-                                <option value="0x0800">DELEGATE_WRITE (0x0800)</option>
-                                <option value="0x0030">READ+WRITE (0x0030)</option>
-                                <option value="0x0070">FULL GRANT (0x0070)</option>
-                            </select>
-                        </div>
+            <div class="card">
+                <div class="card-title">Known Capabilities</div>
+                <div class="list" id="cap-list">
+                    <div class="empty">
+                        <div class="empty-icon">⚡</div>
+                        <p>Capabilities tracked client-side</p>
                     </div>
-                    <button class="btn full success" onclick="testAccess()">Check Access</button>
-                    <div id="test-result"></div>
                 </div>
+            </div>
+        </div>
 
-                <div class="card">
-                    <div class="card-title">How Check Works</div>
-                    <div id="check-explanation" style="font-size: 0.75rem; color: var(--text-muted);">
-                        Select subject and object to see the evaluation path.
+        <!-- Test Tab -->
+        <div id="tab-test" class="tab-content">
+            <div class="card">
+                <div class="card-title">Check Permission</div>
+                <div class="form-row stack">
+                    <div class="input-group">
+                        <label>Subject (who's asking)</label>
+                        <input type="text" id="check-subject" placeholder="e.g. user:alice">
+                    </div>
+                    <div class="input-group">
+                        <label>Object (accessing what)</label>
+                        <input type="text" id="check-object" placeholder="e.g. team:engineering">
+                    </div>
+                    <div class="input-group">
+                        <label>Required Capability</label>
+                        <select id="check-cap">
+                            <option value="16">GRANT_READ (0x0010)</option>
+                            <option value="32">GRANT_WRITE (0x0020)</option>
+                            <option value="64">GRANT_DELETE (0x0040)</option>
+                            <option value="4">ENTITY_CREATE (0x0004)</option>
+                            <option value="256">CAP_WRITE (0x0100)</option>
+                            <option value="2048">DELEGATE_WRITE (0x0800)</option>
+                            <option value="48">READ+WRITE (0x0030)</option>
+                            <option value="112">FULL GRANT (0x0070)</option>
+                            <option value="0">ANY (0x0000)</option>
+                        </select>
                     </div>
                 </div>
+                <button class="btn success full" onclick="doCheckAccess()">Check Access</button>
+                <div id="check-result"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // ============================================================
-        // Capbit Simulation Engine
-        // ============================================================
+        // ============================================================================
+        // State
+        // ============================================================================
 
-        const state = {
-            bootstrapped: false,
-            rootEntity: null,
-            entities: new Map(),      // entity_id -> { type, id, created }
-            grants: new Map(),        // "seeker/relation/scope" -> epoch
-            capabilities: new Map(),  // "scope/relation" -> cap_mask
-            log: []
+        let apiUrl = 'http://localhost:3000';
+        let connected = false;
+
+        // Client-side tracking (mirrors what we've created via API)
+        const known = {
+            entities: [],
+            grants: [],
+            capabilities: []
         };
 
-        // System caps
-        const SystemCap = {
-            TYPE_CREATE: 0x0001,
-            TYPE_DELETE: 0x0002,
-            ENTITY_CREATE: 0x0004,
-            ENTITY_DELETE: 0x0008,
-            GRANT_READ: 0x0010,
-            GRANT_WRITE: 0x0020,
-            GRANT_DELETE: 0x0040,
-            CAP_READ: 0x0080,
-            CAP_WRITE: 0x0100,
-            CAP_DELETE: 0x0200,
-            DELEGATE_READ: 0x0400,
-            DELEGATE_WRITE: 0x0800,
-            DELEGATE_DELETE: 0x1000,
-            ENTITY_ADMIN: 0x1ffc,
-            TYPE_ADMIN: 0x1fff,
-            ALL: 0x1fff
-        };
-
-        function capToString(cap) {
-            const names = [];
-            if (cap & 0x0010) names.push('READ');
-            if (cap & 0x0020) names.push('WRITE');
-            if (cap & 0x0040) names.push('DELETE');
-            if (cap & 0x0004) names.push('CREATE');
-            if (cap & 0x0100) names.push('CAP_WRITE');
-            if (cap & 0x0800) names.push('DELEGATE');
-            return names.join('+') || 'NONE';
-        }
+        // ============================================================================
+        // Logging
+        // ============================================================================
 
         function log(msg, type = '') {
+            const logDiv = document.getElementById('log');
             const time = new Date().toLocaleTimeString();
-            state.log.unshift({ time, msg, type });
-            if (state.log.length > 50) state.log.pop();
-            renderLog();
-        }
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="time">${time}</span>${msg}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
 
-        // Bootstrap
-        function bootstrap(rootId) {
-            if (state.bootstrapped) {
-                log('Already bootstrapped', 'error');
-                return false;
+            // Keep log size reasonable
+            while (logDiv.children.length > 100) {
+                logDiv.removeChild(logDiv.lastChild);
             }
-
-            // Create type entities
-            ['_type', 'user', 'team', 'app', 'resource'].forEach(t => {
-                state.entities.set(`_type:${t}`, { type: '_type', id: t });
-            });
-
-            // Define admin caps on types
-            state.capabilities.set('_type:_type/admin', SystemCap.TYPE_ADMIN);
-            ['user', 'team', 'app', 'resource'].forEach(t => {
-                state.capabilities.set(`_type:${t}/admin`, SystemCap.ENTITY_ADMIN);
-            });
-
-            // Create root user
-            const rootEntity = `user:${rootId}`;
-            state.entities.set(rootEntity, { type: 'user', id: rootId });
-            state.rootEntity = rootEntity;
-
-            // Grant root admin on all types
-            ['_type', 'user', 'team', 'app', 'resource'].forEach(t => {
-                state.grants.set(`${rootEntity}/admin/_type:${t}`, Date.now());
-            });
-
-            state.bootstrapped = true;
-            log(`Bootstrap complete: ${rootEntity} is root`, 'success');
-            return true;
         }
 
-        // Check access (simulates Capbit's check_access)
-        function checkAccess(subject, object, maxDepth = 10) {
-            let effective = 0;
-            const visited = new Set();
-            const stack = [{ entity: subject, depth: 0 }];
-            const path = [];
+        function logRequest(method, endpoint, body = null) {
+            let msg = `<span class="method">${method}</span> ${endpoint}`;
+            if (body) {
+                msg += ` <span style="color: var(--text-muted)">${JSON.stringify(body)}</span>`;
+            }
+            log(msg, 'request');
+        }
 
-            while (stack.length > 0) {
-                const { entity, depth } = stack.pop();
-                const visitKey = `${entity}:${object}`;
+        function logResponse(success, data) {
+            if (success) {
+                log(`✓ ${JSON.stringify(data)}`, 'success');
+            } else {
+                log(`✗ ${data}`, 'error');
+            }
+        }
 
-                if (visited.has(visitKey)) continue;
-                visited.add(visitKey);
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('Log cleared', 'info');
+        }
 
-                // Find all grants for this entity on the object
-                for (const [key, epoch] of state.grants) {
-                    const [seeker, relation, scope] = key.split('/');
-                    if (seeker === entity && scope === object) {
-                        // Look up capability
-                        const capKey = `${object}/${relation}`;
-                        const cap = state.capabilities.get(capKey) || 0;
-                        if (cap > 0) {
-                            effective |= cap;
-                            path.push({ entity, relation, scope: object, cap });
-                        }
-                    }
+        // ============================================================================
+        // API Calls
+        // ============================================================================
+
+        async function api(method, endpoint, body = null) {
+            logRequest(method, endpoint, body);
+
+            try {
+                const opts = {
+                    method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (body) opts.body = JSON.stringify(body);
+
+                const res = await fetch(`${apiUrl}${endpoint}`, opts);
+                const json = await res.json();
+
+                if (json.success) {
+                    logResponse(true, json.data);
+                    return { ok: true, data: json.data };
+                } else {
+                    logResponse(false, json.error);
+                    return { ok: false, error: json.error };
                 }
-
-                // TODO: Add inheritance traversal here
-            }
-
-            // Also check type-level permissions
-            if (!object.startsWith('_type:')) {
-                const [objType] = object.split(':');
-                const typeScope = `_type:${objType}`;
-                const typeResult = checkAccess(subject, typeScope, maxDepth);
-                effective |= typeResult.effective;
-                path.push(...typeResult.path);
-            }
-
-            return { effective, path };
-        }
-
-        // Protected create entity
-        function protectedCreateEntity(actor, entityType, id) {
-            const typeScope = `_type:${entityType}`;
-            const { effective } = checkAccess(actor, typeScope);
-
-            if ((effective & SystemCap.ENTITY_CREATE) !== SystemCap.ENTITY_CREATE) {
-                log(`${actor} lacks ENTITY_CREATE on ${typeScope}`, 'error');
-                return false;
-            }
-
-            const entityId = `${entityType}:${id}`;
-            if (state.entities.has(entityId)) {
-                log(`Entity ${entityId} already exists`, 'error');
-                return false;
-            }
-
-            state.entities.set(entityId, { type: entityType, id });
-            log(`Created ${entityId}`, 'success');
-            return true;
-        }
-
-        // Protected set grant
-        function protectedSetGrant(actor, seeker, relation, scope) {
-            const { effective } = checkAccess(actor, scope);
-
-            if ((effective & SystemCap.GRANT_WRITE) !== SystemCap.GRANT_WRITE) {
-                log(`${actor} lacks GRANT_WRITE on ${scope}`, 'error');
-                return false;
-            }
-
-            const key = `${seeker}/${relation}/${scope}`;
-            state.grants.set(key, Date.now());
-            log(`Grant: ${seeker} → ${relation} → ${scope}`, 'success');
-            return true;
-        }
-
-        // Protected set capability
-        function protectedSetCapability(actor, scope, relation, capMask) {
-            const { effective } = checkAccess(actor, scope);
-
-            if ((effective & SystemCap.CAP_WRITE) !== SystemCap.CAP_WRITE) {
-                log(`${actor} lacks CAP_WRITE on ${scope}`, 'error');
-                return false;
-            }
-
-            const key = `${scope}/${relation}`;
-            state.capabilities.set(key, capMask);
-            log(`Capability: ${scope}/${relation} = 0x${capMask.toString(16)}`, 'success');
-            return true;
-        }
-
-        // ============================================================
-        // Templates
-        // ============================================================
-
-        const templates = {
-            minimal: () => {
-                bootstrap('root');
-            },
-
-            startup: () => {
-                bootstrap('root');
-                const root = 'user:root';
-
-                // Create teams
-                ['engineering', 'sales', 'hr'].forEach(t => {
-                    protectedCreateEntity(root, 'team', t);
-                });
-
-                // Create users
-                ['alice', 'bob', 'charlie', 'dave', 'eve'].forEach(u => {
-                    protectedCreateEntity(root, 'user', u);
-                });
-
-                // Create app
-                protectedCreateEntity(root, 'app', 'backend');
-                protectedCreateEntity(root, 'resource', 'docs');
-
-                // Define team capabilities
-                ['engineering', 'sales', 'hr'].forEach(t => {
-                    protectedSetCapability(root, `team:${t}`, 'owner', SystemCap.GRANT_WRITE | SystemCap.CAP_WRITE | SystemCap.DELEGATE_WRITE);
-                    protectedSetCapability(root, `team:${t}`, 'lead', SystemCap.GRANT_WRITE | SystemCap.GRANT_READ);
-                    protectedSetCapability(root, `team:${t}`, 'member', SystemCap.GRANT_READ);
-                });
-
-                // Assign leads
-                protectedSetGrant(root, 'user:alice', 'lead', 'team:engineering');
-                protectedSetGrant(root, 'user:bob', 'lead', 'team:sales');
-                protectedSetGrant(root, 'user:charlie', 'lead', 'team:hr');
-
-                // Alice adds members
-                protectedSetGrant('user:alice', 'user:dave', 'member', 'team:engineering');
-                protectedSetGrant('user:alice', 'user:eve', 'member', 'team:engineering');
-            },
-
-            saas: () => {
-                bootstrap('admin');
-                const root = 'user:admin';
-
-                // Create tenants as teams
-                ['acme-corp', 'globex'].forEach(t => {
-                    protectedCreateEntity(root, 'team', t);
-                    protectedSetCapability(root, `team:${t}`, 'owner', SystemCap.ALL);
-                    protectedSetCapability(root, `team:${t}`, 'admin', SystemCap.GRANT_WRITE | SystemCap.CAP_WRITE);
-                    protectedSetCapability(root, `team:${t}`, 'member', SystemCap.GRANT_READ);
-                });
-
-                // Create users
-                ['alice', 'bob'].forEach(u => protectedCreateEntity(root, 'user', u));
-
-                // Create resources
-                ['project-alpha', 'project-beta'].forEach(r => {
-                    protectedCreateEntity(root, 'resource', r);
-                    protectedSetCapability(root, `resource:${r}`, 'editor', SystemCap.GRANT_WRITE | SystemCap.GRANT_READ);
-                    protectedSetCapability(root, `resource:${r}`, 'viewer', SystemCap.GRANT_READ);
-                });
-
-                // Assignments
-                protectedSetGrant(root, 'user:alice', 'owner', 'team:acme-corp');
-                protectedSetGrant(root, 'user:bob', 'admin', 'team:globex');
-                protectedSetGrant(root, 'user:alice', 'editor', 'resource:project-alpha');
-            },
-
-            custom: () => {
-                bootstrap('root');
-            }
-        };
-
-        function loadTemplate(name) {
-            // Reset
-            state.entities.clear();
-            state.grants.clear();
-            state.capabilities.clear();
-            state.bootstrapped = false;
-            state.log = [];
-
-            templates[name]();
-
-            document.getElementById('bootstrap-screen').classList.add('hidden');
-            document.getElementById('main-app').classList.remove('hidden');
-            renderAll();
-        }
-
-        function resetSystem() {
-            if (confirm('Reset entire system?')) {
-                state.entities.clear();
-                state.grants.clear();
-                state.capabilities.clear();
-                state.bootstrapped = false;
-                state.log = [];
-                document.getElementById('main-app').classList.add('hidden');
-                document.getElementById('bootstrap-screen').classList.remove('hidden');
+            } catch (e) {
+                logResponse(false, e.message);
+                return { ok: false, error: e.message };
             }
         }
 
-        // ============================================================
-        // UI Functions
-        // ============================================================
+        // ============================================================================
+        // Connection
+        // ============================================================================
 
-        function showTab(name) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
-            document.querySelector(`.tab[onclick="showTab('${name}')"]`).classList.add('active');
-            renderAll();
+        async function checkConnection() {
+            apiUrl = document.getElementById('api-url').value.replace(/\/$/, '');
+            log(`Connecting to ${apiUrl}...`, 'info');
+
+            const result = await api('GET', '/status');
+
+            if (result.ok) {
+                connected = true;
+                document.getElementById('status-dot').classList.add('connected');
+                document.getElementById('status-text').textContent =
+                    result.data.bootstrapped
+                        ? `Connected (root: ${result.data.root_entity})`
+                        : 'Connected (not bootstrapped)';
+            } else {
+                connected = false;
+                document.getElementById('status-dot').classList.remove('connected');
+                document.getElementById('status-text').textContent = 'Connection failed';
+            }
         }
 
-        function createEntity() {
-            const type = document.getElementById('new-entity-type').value;
-            const id = document.getElementById('new-entity-id').value.trim();
-            if (!id) return alert('Enter an ID');
+        // ============================================================================
+        // Actions
+        // ============================================================================
 
-            const actor = state.rootEntity || 'user:root';
-            if (protectedCreateEntity(actor, type, id)) {
-                document.getElementById('new-entity-id').value = '';
+        async function doBootstrap() {
+            const rootId = document.getElementById('bootstrap-root').value.trim();
+            if (!rootId) return alert('Enter a root ID');
+
+            const result = await api('POST', '/bootstrap', { root_id: rootId });
+            if (result.ok) {
+                known.entities.push({ id: `user:${rootId}`, type: 'user' });
+                renderEntities();
+                checkConnection();
+            }
+        }
+
+        async function doReset() {
+            if (!confirm('Reset entire database? This cannot be undone.')) return;
+
+            const result = await api('POST', '/reset');
+            if (result.ok) {
+                known.entities = [];
+                known.grants = [];
+                known.capabilities = [];
                 renderAll();
+                checkConnection();
             }
         }
 
-        function createGrant() {
-            const actor = document.getElementById('grant-actor').value;
-            const seeker = document.getElementById('grant-seeker').value;
+        async function doCreateEntity() {
+            const actor = document.getElementById('entity-actor').value.trim();
+            const entityType = document.getElementById('entity-type').value;
+            const id = document.getElementById('entity-id').value.trim();
+
+            if (!actor || !id) return alert('Fill all fields');
+
+            const result = await api('POST', '/entity', {
+                actor,
+                entity_type: entityType,
+                id
+            });
+
+            if (result.ok) {
+                known.entities.push({ id: `${entityType}:${id}`, type: entityType });
+                document.getElementById('entity-id').value = '';
+                renderEntities();
+            }
+        }
+
+        async function doCreateGrant() {
+            const actor = document.getElementById('grant-actor').value.trim();
+            const seeker = document.getElementById('grant-seeker').value.trim();
             const relation = document.getElementById('grant-relation').value.trim();
-            const scope = document.getElementById('grant-scope').value;
+            const scope = document.getElementById('grant-scope').value.trim();
 
-            if (!relation) return alert('Enter a relation');
-            if (protectedSetGrant(actor, seeker, relation, scope)) {
+            if (!actor || !seeker || !relation || !scope) return alert('Fill all fields');
+
+            const result = await api('POST', '/grant', { actor, seeker, relation, scope });
+
+            if (result.ok) {
+                known.grants.push({ seeker, relation, scope });
+                document.getElementById('grant-seeker').value = '';
                 document.getElementById('grant-relation').value = '';
-                renderAll();
+                document.getElementById('grant-scope').value = '';
+                renderGrants();
             }
         }
 
-        function createCapability() {
-            const actor = document.getElementById('cap-actor').value;
-            const scope = document.getElementById('cap-scope').value;
+        async function doCreateCapability() {
+            const actor = document.getElementById('cap-actor').value.trim();
+            const scope = document.getElementById('cap-scope').value.trim();
             const relation = document.getElementById('cap-relation').value.trim();
 
             let capMask = 0;
@@ -901,65 +726,196 @@
                 capMask |= parseInt(cb.value);
             });
 
-            if (!relation) return alert('Enter a relation');
-            if (protectedSetCapability(actor, scope, relation, capMask)) {
+            if (!actor || !scope || !relation) return alert('Fill all fields');
+
+            const result = await api('POST', '/capability', {
+                actor,
+                scope,
+                relation,
+                cap_mask: capMask
+            });
+
+            if (result.ok) {
+                known.capabilities.push({ scope, relation, cap_mask: capMask });
+                document.getElementById('cap-scope').value = '';
                 document.getElementById('cap-relation').value = '';
                 document.querySelectorAll('.cap-bit').forEach(cb => cb.checked = false);
                 updateCapValue();
-                renderAll();
+                renderCapabilities();
             }
         }
 
-        function testAccess() {
-            const subject = document.getElementById('test-subject').value;
-            const object = document.getElementById('test-object').value;
-            const required = parseInt(document.getElementById('test-cap').value);
+        async function doCheckAccess() {
+            const subject = document.getElementById('check-subject').value.trim();
+            const object = document.getElementById('check-object').value.trim();
+            const required = parseInt(document.getElementById('check-cap').value);
 
-            const { effective, path } = checkAccess(subject, object);
-            const allowed = (effective & required) === required;
+            if (!subject || !object) return alert('Fill subject and object');
 
-            const resultDiv = document.getElementById('test-result');
-            resultDiv.className = `result ${allowed ? 'allowed' : 'denied'}`;
-            resultDiv.innerHTML = `
-                <div class="result-icon">${allowed ? '✓' : '✗'}</div>
-                <div class="result-text">${allowed ? 'ACCESS ALLOWED' : 'ACCESS DENIED'}</div>
-                <div class="result-detail">
-                    Required: 0x${required.toString(16).padStart(4, '0')} (${capToString(required)})<br>
-                    Effective: 0x${effective.toString(16).padStart(4, '0')} (${capToString(effective)})
-                </div>
-            `;
+            const result = await api('POST', '/check', { subject, object, required });
 
-            // Explanation
-            const expDiv = document.getElementById('check-explanation');
-            if (path.length === 0) {
-                expDiv.innerHTML = `<p>No grants found for ${subject} on ${object}</p>`;
+            const resultDiv = document.getElementById('check-result');
+            if (result.ok) {
+                const { allowed, effective, effective_string, required_string } = result.data;
+                resultDiv.className = `result ${allowed ? 'allowed' : 'denied'}`;
+                resultDiv.innerHTML = `
+                    <div class="result-icon">${allowed ? '✓' : '✗'}</div>
+                    <div class="result-text">${allowed ? 'ACCESS ALLOWED' : 'ACCESS DENIED'}</div>
+                    <div class="result-detail">
+                        Required: 0x${required.toString(16).padStart(4, '0')} (${required_string})<br>
+                        Effective: 0x${effective.toString(16).padStart(4, '0')} (${effective_string})
+                    </div>
+                `;
             } else {
-                expDiv.innerHTML = `
-                    <p><strong>Evaluation path:</strong></p>
-                    ${path.map(p => `
-                        <p style="margin: 0.25rem 0;">
-                            ${p.entity} → <span style="color: var(--primary)">${p.relation}</span> → ${p.scope}
-                            = 0x${p.cap.toString(16)}
-                        </p>
-                    `).join('')}
-                    <p style="margin-top: 0.5rem;">
-                        Combined (OR): 0x${effective.toString(16).padStart(4, '0')}<br>
-                        Check: (0x${effective.toString(16)} & 0x${required.toString(16)}) == 0x${required.toString(16)} → ${allowed}
-                    </p>
+                resultDiv.className = 'result denied';
+                resultDiv.innerHTML = `
+                    <div class="result-icon">⚠</div>
+                    <div class="result-text">ERROR</div>
+                    <div class="result-detail">${result.error}</div>
                 `;
             }
         }
 
-        function deleteGrant(key) {
-            state.grants.delete(key);
-            log(`Deleted grant: ${key}`, 'success');
+        // ============================================================================
+        // Templates
+        // ============================================================================
+
+        async function runTemplate(name) {
+            if (!confirm(`Run "${name}" template? This will create entities, grants, and capabilities.`)) return;
+
+            log(`--- Running template: ${name} ---`, 'info');
+
+            if (name === 'startup') {
+                // Bootstrap
+                await api('POST', '/bootstrap', { root_id: 'root' });
+                known.entities.push({ id: 'user:root', type: 'user' });
+
+                // Create teams
+                for (const t of ['engineering', 'sales', 'hr']) {
+                    const r = await api('POST', '/entity', { actor: 'user:root', entity_type: 'team', id: t });
+                    if (r.ok) known.entities.push({ id: `team:${t}`, type: 'team' });
+                    await sleep(100);
+                }
+
+                // Create users
+                for (const u of ['alice', 'bob', 'charlie', 'dave', 'eve']) {
+                    const r = await api('POST', '/entity', { actor: 'user:root', entity_type: 'user', id: u });
+                    if (r.ok) known.entities.push({ id: `user:${u}`, type: 'user' });
+                    await sleep(100);
+                }
+
+                // Define team capabilities
+                for (const t of ['engineering', 'sales', 'hr']) {
+                    await api('POST', '/capability', {
+                        actor: 'user:root',
+                        scope: `team:${t}`,
+                        relation: 'lead',
+                        cap_mask: 0x0030  // READ + WRITE
+                    });
+                    known.capabilities.push({ scope: `team:${t}`, relation: 'lead', cap_mask: 0x0030 });
+
+                    await api('POST', '/capability', {
+                        actor: 'user:root',
+                        scope: `team:${t}`,
+                        relation: 'member',
+                        cap_mask: 0x0010  // READ only
+                    });
+                    known.capabilities.push({ scope: `team:${t}`, relation: 'member', cap_mask: 0x0010 });
+                    await sleep(100);
+                }
+
+                // Assign leads
+                const leads = [
+                    { seeker: 'user:alice', scope: 'team:engineering' },
+                    { seeker: 'user:bob', scope: 'team:sales' },
+                    { seeker: 'user:charlie', scope: 'team:hr' }
+                ];
+                for (const l of leads) {
+                    await api('POST', '/grant', { actor: 'user:root', seeker: l.seeker, relation: 'lead', scope: l.scope });
+                    known.grants.push({ ...l, relation: 'lead' });
+                    await sleep(100);
+                }
+
+                // Alice (eng lead) adds members
+                for (const u of ['dave', 'eve']) {
+                    await api('POST', '/grant', {
+                        actor: 'user:alice',
+                        seeker: `user:${u}`,
+                        relation: 'member',
+                        scope: 'team:engineering'
+                    });
+                    known.grants.push({ seeker: `user:${u}`, relation: 'member', scope: 'team:engineering' });
+                    await sleep(100);
+                }
+
+            } else if (name === 'saas') {
+                // Bootstrap
+                await api('POST', '/bootstrap', { root_id: 'admin' });
+                known.entities.push({ id: 'user:admin', type: 'user' });
+
+                // Create tenants
+                for (const t of ['acme-corp', 'globex']) {
+                    const r = await api('POST', '/entity', { actor: 'user:admin', entity_type: 'team', id: t });
+                    if (r.ok) known.entities.push({ id: `team:${t}`, type: 'team' });
+                    await sleep(100);
+                }
+
+                // Create users
+                for (const u of ['alice', 'bob']) {
+                    const r = await api('POST', '/entity', { actor: 'user:admin', entity_type: 'user', id: u });
+                    if (r.ok) known.entities.push({ id: `user:${u}`, type: 'user' });
+                    await sleep(100);
+                }
+
+                // Create resources
+                for (const r of ['project-alpha', 'project-beta']) {
+                    const res = await api('POST', '/entity', { actor: 'user:admin', entity_type: 'resource', id: r });
+                    if (res.ok) known.entities.push({ id: `resource:${r}`, type: 'resource' });
+
+                    await api('POST', '/capability', {
+                        actor: 'user:admin',
+                        scope: `resource:${r}`,
+                        relation: 'editor',
+                        cap_mask: 0x0030
+                    });
+                    known.capabilities.push({ scope: `resource:${r}`, relation: 'editor', cap_mask: 0x0030 });
+
+                    await api('POST', '/capability', {
+                        actor: 'user:admin',
+                        scope: `resource:${r}`,
+                        relation: 'viewer',
+                        cap_mask: 0x0010
+                    });
+                    known.capabilities.push({ scope: `resource:${r}`, relation: 'viewer', cap_mask: 0x0010 });
+                    await sleep(100);
+                }
+
+                // Grants
+                await api('POST', '/grant', { actor: 'user:admin', seeker: 'user:alice', relation: 'editor', scope: 'resource:project-alpha' });
+                known.grants.push({ seeker: 'user:alice', relation: 'editor', scope: 'resource:project-alpha' });
+
+                await api('POST', '/grant', { actor: 'user:admin', seeker: 'user:bob', relation: 'viewer', scope: 'resource:project-beta' });
+                known.grants.push({ seeker: 'user:bob', relation: 'viewer', scope: 'resource:project-beta' });
+            }
+
+            log(`--- Template "${name}" complete ---`, 'info');
             renderAll();
+            checkConnection();
         }
 
-        function deleteCap(key) {
-            state.capabilities.delete(key);
-            log(`Deleted capability: ${key}`, 'success');
-            renderAll();
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // ============================================================================
+        // UI
+        // ============================================================================
+
+        function showTab(name) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab-${name}`).classList.add('active');
+            document.querySelector(`.tab[onclick="showTab('${name}')"]`).classList.add('active');
         }
 
         function updateCapValue() {
@@ -968,180 +924,74 @@
                 cap |= parseInt(cb.value);
             });
             document.getElementById('cap-value').textContent = '0x' + cap.toString(16).padStart(4, '0');
+            document.getElementById('cap-decimal').textContent = cap;
         }
-
-        // ============================================================
-        // Rendering
-        // ============================================================
 
         function renderAll() {
-            renderEntityList();
-            renderGrantList();
-            renderCapList();
-            renderSelects();
-            renderStructure();
-            renderLog();
+            renderEntities();
+            renderGrants();
+            renderCapabilities();
         }
 
-        function renderLog() {
-            const container = document.getElementById('activity-log');
-            if (!container) return;
-            container.innerHTML = state.log.map(l => `
-                <div class="log-entry ${l.type}">
-                    <span class="time">${l.time}</span> ${l.msg}
-                </div>
-            `).join('') || '<div class="empty">No activity yet</div>';
-        }
-
-        function renderEntityList() {
-            const container = document.getElementById('entity-list');
-            if (!container) return;
-
-            const entities = [...state.entities.entries()]
-                .filter(([id]) => !id.startsWith('_type:'))
-                .sort((a, b) => a[0].localeCompare(b[0]));
-
-            container.innerHTML = entities.length ? entities.map(([id, e]) => `
+        function renderEntities() {
+            const list = document.getElementById('entity-list');
+            if (known.entities.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>No entities yet</p></div>';
+                return;
+            }
+            list.innerHTML = known.entities.map(e => `
                 <div class="list-item">
-                    <span class="chip ${e.type}"><span class="type">${e.type}:</span>${e.id}</span>
-                    ${id === state.rootEntity ? '<span class="status info">root</span>' : ''}
+                    <span class="chip ${e.type}"><span class="type">${e.type}:</span>${e.id.split(':')[1]}</span>
                 </div>
-            `).join('') : '<div class="empty">No entities</div>';
+            `).join('');
         }
 
-        function renderGrantList() {
-            const container = document.getElementById('grant-list');
-            if (!container) return;
-
-            const grants = [...state.grants.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-
-            container.innerHTML = grants.length ? grants.map(([key]) => {
-                const [seeker, relation, scope] = key.split('/');
-                const [seekerType] = seeker.split(':');
-                const [scopeType] = scope.split(':');
+        function renderGrants() {
+            const list = document.getElementById('grant-list');
+            if (known.grants.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">🔗</div><p>No grants yet</p></div>';
+                return;
+            }
+            list.innerHTML = known.grants.map(g => {
+                const seekerType = g.seeker.split(':')[0];
+                const scopeType = g.scope.split(':')[0];
                 return `
                     <div class="list-item">
-                        <span class="chip ${seekerType}"><span class="type">${seekerType}:</span>${seeker.split(':')[1]}</span>
+                        <span class="chip ${seekerType}"><span class="type">${seekerType}:</span>${g.seeker.split(':')[1]}</span>
                         <span class="arrow">→</span>
-                        <span class="relation-badge">${relation}</span>
+                        <span class="relation-badge">${g.relation}</span>
                         <span class="arrow">→</span>
-                        <span class="chip ${scopeType}"><span class="type">${scopeType}:</span>${scope.split(':')[1]}</span>
-                        <span class="actions">
-                            <button class="delete-btn" onclick="deleteGrant('${key}')">×</button>
-                        </span>
+                        <span class="chip ${scopeType}"><span class="type">${scopeType}:</span>${g.scope.split(':')[1]}</span>
                     </div>
                 `;
-            }).join('') : '<div class="empty">No grants</div>';
+            }).join('');
         }
 
-        function renderCapList() {
-            const container = document.getElementById('cap-list');
-            if (!container) return;
-
-            const caps = [...state.capabilities.entries()]
-                .filter(([key]) => !key.startsWith('_type:'))
-                .sort((a, b) => a[0].localeCompare(b[0]));
-
-            container.innerHTML = caps.length ? caps.map(([key, cap]) => {
-                const [scope, relation] = key.split('/');
-                const [scopeType] = scope.split(':');
+        function renderCapabilities() {
+            const list = document.getElementById('cap-list');
+            if (known.capabilities.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div><p>No capabilities yet</p></div>';
+                return;
+            }
+            list.innerHTML = known.capabilities.map(c => {
+                const scopeType = c.scope.split(':')[0];
                 return `
                     <div class="list-item">
-                        <span class="chip ${scopeType}"><span class="type">${scopeType}:</span>${scope.split(':')[1]}</span>
-                        <span class="relation-badge">${relation}</span>
-                        <span class="cap-badge">0x${cap.toString(16).padStart(4, '0')}</span>
-                        <span style="font-size: 0.7rem; color: var(--text-muted);">${capToString(cap)}</span>
-                        <span class="actions">
-                            <button class="delete-btn" onclick="deleteCap('${key}')">×</button>
-                        </span>
+                        <span class="chip ${scopeType}"><span class="type">${scopeType}:</span>${c.scope.split(':')[1]}</span>
+                        <span class="relation-badge">${c.relation}</span>
+                        <span class="cap-badge">0x${c.cap_mask.toString(16).padStart(4, '0')}</span>
                     </div>
                 `;
-            }).join('') : '<div class="empty">No capabilities defined</div>';
+            }).join('');
         }
 
-        function renderSelects() {
-            const entities = [...state.entities.keys()].filter(id => !id.startsWith('_type:'));
-            const allEntities = [...state.entities.keys()];
-
-            const options = entities.map(e => `<option value="${e}">${e}</option>`).join('');
-            const allOptions = allEntities.map(e => `<option value="${e}">${e}</option>`).join('');
-
-            ['grant-actor', 'grant-seeker', 'cap-actor', 'test-subject'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = options;
-            });
-
-            ['grant-scope', 'cap-scope', 'test-object'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.innerHTML = allOptions;
-            });
-        }
-
-        function renderStructure() {
-            const container = document.getElementById('structure-tree');
-            if (!container) return;
-
-            // Build tree structure
-            const userEntities = [...state.entities.entries()]
-                .filter(([id]) => id.startsWith('user:') && !id.startsWith('_type:'));
-
-            const teamEntities = [...state.entities.entries()]
-                .filter(([id]) => id.startsWith('team:'));
-
-            const otherEntities = [...state.entities.entries()]
-                .filter(([id]) => !id.startsWith('user:') && !id.startsWith('team:') && !id.startsWith('_type:'));
-
-            let html = '';
-
-            // Teams with their members
-            teamEntities.forEach(([teamId]) => {
-                const members = [];
-                state.grants.forEach((_, key) => {
-                    const [seeker, relation, scope] = key.split('/');
-                    if (scope === teamId) {
-                        members.push({ seeker, relation });
-                    }
-                });
-
-                html += `
-                    <div class="tree-node root">
-                        <div class="tree-header">
-                            <span class="chip team"><span class="type">team:</span>${teamId.split(':')[1]}</span>
-                        </div>
-                        <div class="tree-children">
-                            ${members.map(m => `
-                                <div class="tree-node">
-                                    <div class="tree-header">
-                                        <span class="chip ${m.seeker.split(':')[0]}">
-                                            <span class="type">${m.seeker.split(':')[0]}:</span>${m.seeker.split(':')[1]}
-                                        </span>
-                                        <span class="tree-relation">${m.relation}</span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            });
-
-            // Other entities
-            otherEntities.forEach(([id, e]) => {
-                html += `
-                    <div class="tree-node root">
-                        <div class="tree-header">
-                            <span class="chip ${e.type}"><span class="type">${e.type}:</span>${e.id}</span>
-                        </div>
-                    </div>
-                `;
-            });
-
-            container.innerHTML = html || '<div class="empty">No structure yet</div>';
-        }
-
-        // Init cap checkboxes
+        // Init
         document.querySelectorAll('.cap-bit').forEach(cb => {
             cb.addEventListener('change', updateCapValue);
         });
+
+        // Auto-connect on load
+        checkConnection();
     </script>
 </body>
 </html>
