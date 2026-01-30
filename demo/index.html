@@ -854,7 +854,21 @@
         // ============================================================================
 
         async function runTemplate(name) {
-            if (!confirm(`Run "${name}" template? This will create entities, grants, and capabilities.`)) return;
+            // Check if already bootstrapped
+            const status = await api('GET', '/status');
+            if (status.ok && status.data.bootstrapped) {
+                if (!confirm(`System is already bootstrapped (root: ${status.data.root_entity}).\n\nReset database and run "${name}" template?`)) {
+                    return;
+                }
+                // Reset first
+                log('Resetting database...', 'info');
+                await api('POST', '/reset');
+                known.entities = [];
+                known.grants = [];
+                known.capabilities = [];
+            } else {
+                if (!confirm(`Run "${name}" template? This will create entities, grants, and capabilities.`)) return;
+            }
 
             log(`--- Running template: ${name} ---`, 'info');
 
