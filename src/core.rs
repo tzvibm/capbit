@@ -16,14 +16,21 @@ use serde::{Deserialize, Serialize};
 
 static ENV: OnceLock<Env> = OnceLock::new();
 
-struct Databases {
-    relationships: Database<Str, U64<byteorder::BigEndian>>,
-    relationships_rev: Database<Str, U64<byteorder::BigEndian>>,
-    capabilities: Database<Str, U64<byteorder::BigEndian>>,
-    inheritance: Database<Str, U64<byteorder::BigEndian>>,
-    inheritance_by_source: Database<Str, U64<byteorder::BigEndian>>,
-    inheritance_by_object: Database<Str, U64<byteorder::BigEndian>>,
-    cap_labels: Database<Str, Str>,
+use std::sync::Mutex;
+static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+pub(crate) struct Databases {
+    pub relationships: Database<Str, U64<byteorder::BigEndian>>,
+    pub relationships_rev: Database<Str, U64<byteorder::BigEndian>>,
+    pub capabilities: Database<Str, U64<byteorder::BigEndian>>,
+    pub inheritance: Database<Str, U64<byteorder::BigEndian>>,
+    pub inheritance_by_source: Database<Str, U64<byteorder::BigEndian>>,
+    pub inheritance_by_object: Database<Str, U64<byteorder::BigEndian>>,
+    pub cap_labels: Database<Str, Str>,
+    // v2: types and entities registry
+    pub types: Database<Str, U64<byteorder::BigEndian>>,
+    pub entities: Database<Str, U64<byteorder::BigEndian>>,
+    pub meta: Database<Str, Str>,
 }
 
 static DBS: OnceLock<Databases> = OnceLock::new();
@@ -123,7 +130,7 @@ pub fn init(db_path: &str) -> Result<()> {
     let env = unsafe {
         EnvOpenOptions::new()
             .map_size(10 * 1024 * 1024 * 1024)
-            .max_dbs(10)
+            .max_dbs(15)
             .open(path)
             .map_err(err)?
     };
@@ -138,6 +145,9 @@ pub fn init(db_path: &str) -> Result<()> {
         inheritance_by_source: env.create_database(&mut wtxn, Some("inheritance_by_source")).map_err(err)?,
         inheritance_by_object: env.create_database(&mut wtxn, Some("inheritance_by_object")).map_err(err)?,
         cap_labels: env.create_database(&mut wtxn, Some("cap_labels")).map_err(err)?,
+        types: env.create_database(&mut wtxn, Some("types")).map_err(err)?,
+        entities: env.create_database(&mut wtxn, Some("entities")).map_err(err)?,
+        meta: env.create_database(&mut wtxn, Some("meta")).map_err(err)?,
     };
 
     wtxn.commit().map_err(err)?;
@@ -148,11 +158,36 @@ pub fn init(db_path: &str) -> Result<()> {
 
 pub fn close() {}
 
+/// Clear all data from all databases. Used for testing.
+pub fn clear_all() -> Result<()> {
+    with_write_txn(|txn, dbs| {
+        dbs.relationships.clear(txn).map_err(err)?;
+        dbs.relationships_rev.clear(txn).map_err(err)?;
+        dbs.capabilities.clear(txn).map_err(err)?;
+        dbs.inheritance.clear(txn).map_err(err)?;
+        dbs.inheritance_by_source.clear(txn).map_err(err)?;
+        dbs.inheritance_by_object.clear(txn).map_err(err)?;
+        dbs.cap_labels.clear(txn).map_err(err)?;
+        dbs.types.clear(txn).map_err(err)?;
+        dbs.entities.clear(txn).map_err(err)?;
+        dbs.meta.clear(txn).map_err(err)?;
+        Ok(())
+    })
+}
+
+/// Get the test lock for serializing tests
+pub fn test_lock() -> std::sync::MutexGuard<'static, ()> {
+    match TEST_LOCK.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(), // Recover from poisoned state
+    }
+}
+
 // ============================================================================
 // Internal Operations (take transaction)
 // ============================================================================
 
-fn set_relationship_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, rel_type: &str, object: &str) -> Result<u64> {
+pub(crate) fn set_relationship_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, rel_type: &str, object: &str) -> Result<u64> {
     let epoch = current_epoch();
     let (s, r, o) = (escape(subject), escape(rel_type), escape(object));
 
@@ -161,7 +196,7 @@ fn set_relationship_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, rel_type
     Ok(epoch)
 }
 
-fn delete_relationship_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, rel_type: &str, object: &str) -> Result<bool> {
+pub(crate) fn delete_relationship_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, rel_type: &str, object: &str) -> Result<bool> {
     let (s, r, o) = (escape(subject), escape(rel_type), escape(object));
 
     let deleted = dbs.relationships.delete(txn, &format!("{}/{}/{}", s, r, o)).map_err(err)?;
@@ -169,14 +204,14 @@ fn delete_relationship_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, rel_t
     Ok(deleted)
 }
 
-fn set_capability_in(txn: &mut RwTxn, dbs: &Databases, entity: &str, rel_type: &str, cap_mask: u64) -> Result<u64> {
+pub(crate) fn set_capability_in(txn: &mut RwTxn, dbs: &Databases, entity: &str, rel_type: &str, cap_mask: u64) -> Result<u64> {
     let epoch = current_epoch();
     let key = format!("{}/{}", escape(entity), escape(rel_type));
     dbs.capabilities.put(txn, &key, &cap_mask).map_err(err)?;
     Ok(epoch)
 }
 
-fn set_inheritance_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, object: &str, source: &str) -> Result<u64> {
+pub(crate) fn set_inheritance_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, object: &str, source: &str) -> Result<u64> {
     let epoch = current_epoch();
     let (subj, obj, src) = (escape(subject), escape(object), escape(source));
 
@@ -186,7 +221,7 @@ fn set_inheritance_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, object: &
     Ok(epoch)
 }
 
-fn delete_inheritance_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, object: &str, source: &str) -> Result<bool> {
+pub(crate) fn delete_inheritance_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, object: &str, source: &str) -> Result<bool> {
     let (subj, obj, src) = (escape(subject), escape(object), escape(source));
 
     let deleted = dbs.inheritance.delete(txn, &format!("{}/{}/{}", subj, obj, src)).map_err(err)?;
@@ -195,10 +230,115 @@ fn delete_inheritance_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, object
     Ok(deleted)
 }
 
-fn set_cap_label_in(txn: &mut RwTxn, dbs: &Databases, entity: &str, cap_bit: u64, label: &str) -> Result<()> {
+pub(crate) fn set_cap_label_in(txn: &mut RwTxn, dbs: &Databases, entity: &str, cap_bit: u64, label: &str) -> Result<()> {
     let key = format!("{}/{:016x}", escape(entity), cap_bit);
     dbs.cap_labels.put(txn, &key, label).map_err(err)?;
     Ok(())
+}
+
+// ============================================================================
+// Internal Operations - Types & Entities (v2)
+// ============================================================================
+
+/// Parse entity ID into (type, id). E.g., "user:john" -> ("user", "john")
+pub fn parse_entity_id(entity_id: &str) -> Result<(&str, &str)> {
+    entity_id.split_once(':').ok_or_else(|| CapbitError {
+        message: format!("Invalid entity ID '{}': must be 'type:id' format", entity_id),
+    })
+}
+
+pub(crate) fn create_type_in(txn: &mut RwTxn, dbs: &Databases, type_name: &str) -> Result<u64> {
+    let epoch = current_epoch();
+    if dbs.types.get(txn, type_name).map_err(err)?.is_some() {
+        return Err(CapbitError { message: format!("Type '{}' already exists", type_name) });
+    }
+    dbs.types.put(txn, type_name, &epoch).map_err(err)?;
+    Ok(epoch)
+}
+
+pub(crate) fn type_exists_in_rw(txn: &RwTxn, dbs: &Databases, type_name: &str) -> Result<bool> {
+    Ok(dbs.types.get(txn, type_name).map_err(err)?.is_some())
+}
+
+pub(crate) fn create_entity_in(txn: &mut RwTxn, dbs: &Databases, entity_id: &str) -> Result<u64> {
+    let (type_name, _) = parse_entity_id(entity_id)?;
+
+    // Check type exists (except for _type: entities during bootstrap)
+    if !type_name.starts_with('_') {
+        if !type_exists_in_rw(txn, dbs, type_name)? {
+            return Err(CapbitError { message: format!("Type '{}' does not exist", type_name) });
+        }
+    }
+
+    let epoch = current_epoch();
+    if dbs.entities.get(txn, entity_id).map_err(err)?.is_some() {
+        return Err(CapbitError { message: format!("Entity '{}' already exists", entity_id) });
+    }
+    dbs.entities.put(txn, entity_id, &epoch).map_err(err)?;
+    Ok(epoch)
+}
+
+pub(crate) fn delete_entity_in(txn: &mut RwTxn, dbs: &Databases, entity_id: &str) -> Result<bool> {
+    Ok(dbs.entities.delete(txn, entity_id).map_err(err)?)
+}
+
+pub(crate) fn entity_exists_in(txn: &RoTxn, dbs: &Databases, entity_id: &str) -> Result<bool> {
+    Ok(dbs.entities.get(txn, entity_id).map_err(err)?.is_some())
+}
+
+pub(crate) fn entity_exists_in_rw(txn: &RwTxn, dbs: &Databases, entity_id: &str) -> Result<bool> {
+    Ok(dbs.entities.get(txn, entity_id).map_err(err)?.is_some())
+}
+
+pub(crate) fn set_meta_in(txn: &mut RwTxn, dbs: &Databases, key: &str, value: &str) -> Result<()> {
+    dbs.meta.put(txn, key, value).map_err(err)?;
+    Ok(())
+}
+
+pub(crate) fn get_meta_in(txn: &RoTxn, dbs: &Databases, key: &str) -> Result<Option<String>> {
+    Ok(dbs.meta.get(txn, key).map_err(err)?.map(|s| s.to_string()))
+}
+
+// Aliases for backward compat in other modules
+pub(crate) use set_relationship_in as _set_relationship_in;
+pub(crate) use set_capability_in as _set_capability_in;
+pub(crate) use delete_relationship_in as _delete_relationship_in;
+pub(crate) use set_inheritance_in as _set_inheritance_in;
+pub(crate) use delete_inheritance_in as _delete_inheritance_in;
+
+// Public helpers
+pub fn entity_exists(entity_id: &str) -> Result<bool> {
+    with_read_txn(|txn, dbs| entity_exists_in(txn, dbs, entity_id))
+}
+
+pub fn type_exists(type_name: &str) -> Result<bool> {
+    with_read_txn(|txn, dbs| {
+        Ok(dbs.types.get(txn, type_name).map_err(err)?.is_some())
+    })
+}
+
+pub fn get_meta(key: &str) -> Result<Option<String>> {
+    with_read_txn(|txn, dbs| get_meta_in(txn, dbs, key))
+}
+
+// Expose transaction helpers for other modules
+pub(crate) fn with_write_txn_pub<T, F>(f: F) -> Result<T>
+where
+    F: FnOnce(&mut RwTxn, &Databases) -> Result<T>,
+{
+    with_write_txn(f)
+}
+
+#[allow(dead_code)]  // Reserved for future protected read operations
+pub(crate) fn with_read_txn_pub<T, F>(f: F) -> Result<T>
+where
+    F: FnOnce(&RoTxn, &Databases) -> Result<T>,
+{
+    with_read_txn(f)
+}
+
+pub(crate) fn current_epoch_pub() -> u64 {
+    current_epoch()
 }
 
 // ============================================================================

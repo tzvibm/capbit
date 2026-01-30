@@ -11,55 +11,54 @@
 //! - **Per-Entity Semantics**: Each entity defines what relationships mean to it
 //! - **Inheritance**: Inherit relationships without graph traversal
 //! - **Bidirectional**: Query "what can X access" or "who can access X"
+//! - **Protected Mutations** (v2): All writes require authorization
 //!
-//! ## Quick Start
+//! ## Quick Start (v2 Protected API)
 //!
 //! ```rust,no_run
-//! use capbit::{init, set_capability, set_relationship, has_capability};
-//!
-//! // Capability bits
-//! const READ: u64 = 0x01;
-//! const WRITE: u64 = 0x02;
+//! use capbit::{init, bootstrap, protected, SystemCap};
 //!
 //! // Initialize database
 //! init("/tmp/capbit.mdb").unwrap();
 //!
-//! // "editor" on "project42" grants read+write
-//! set_capability("project42", "editor", READ | WRITE).unwrap();
+//! // Bootstrap creates root user with full access
+//! bootstrap("root").unwrap();
 //!
-//! // John is an editor
-//! set_relationship("john", "editor", "project42").unwrap();
+//! // Root creates a team
+//! protected::create_entity("user:root", "team", "sales").unwrap();
 //!
-//! // Check access
-//! assert!(has_capability("john", "project42", WRITE).unwrap());
+//! // Root defines what "member" means on team:sales
+//! protected::set_capability("user:root", "team:sales", "member", 0x01).unwrap();
+//!
+//! // Root grants alice membership
+//! protected::set_grant("user:root", "user:alice", "member", "team:sales").unwrap();
 //! ```
 //!
-//! ## Write Strategies
+//! ## v1 Compatibility
 //!
-//! Three strategies for different use cases:
+//! The original unprotected API is still available for simple use cases:
 //!
 //! ```rust,no_run
-//! use capbit::{set_relationship, WriteBatch, batch_set_relationships};
+//! use capbit::{init, set_capability, set_relationship, has_capability};
 //!
-//! // Strategy 1: Single-op (simple, one txn per call)
-//! set_relationship("a", "editor", "b").unwrap();
-//!
-//! // Strategy 2: WriteBatch (explicit transaction, atomic)
-//! let mut batch = WriteBatch::new();
-//! batch.set_relationship("a", "editor", "b");
-//! batch.set_relationship("c", "viewer", "d");
-//! batch.execute().unwrap(); // One transaction for both
-//!
-//! // Strategy 3: Batch functions (bulk, high throughput)
-//! batch_set_relationships(&[
-//!     ("x".into(), "member".into(), "y".into()),
-//!     ("z".into(), "admin".into(), "w".into()),
-//! ]).unwrap();
+//! init("/tmp/capbit.mdb").unwrap();
+//! set_capability("project42", "editor", 0x03).unwrap();
+//! set_relationship("john", "editor", "project42").unwrap();
+//! assert!(has_capability("john", "project42", 0x01).unwrap());
 //! ```
 
 mod core;
+pub mod caps;
+pub mod bootstrap;
+pub mod protected;
 
-// Re-export everything from core
+// Re-export SystemCap for convenience
+pub use caps::SystemCap;
+
+// Re-export bootstrap functions
+pub use bootstrap::{bootstrap, is_bootstrapped, get_root_entity};
+
+// Re-export core types and functions
 pub use core::{
     // Types
     CapbitError,
@@ -71,16 +70,22 @@ pub use core::{
     init,
     close,
 
-    // Relationships
+    // v2: Entity helpers
+    parse_entity_id,
+    entity_exists,
+    type_exists,
+    get_meta,
+
+    // v1 Compatibility: Unprotected Relationships (use protected:: for v2)
     set_relationship,
     get_relationships,
     delete_relationship,
 
-    // Capabilities
+    // v1 Compatibility: Unprotected Capabilities (use protected:: for v2)
     set_capability,
     get_capability,
 
-    // Inheritance
+    // v1 Compatibility: Unprotected Inheritance (use protected:: for v2)
     set_inheritance,
     get_inheritance,
     delete_inheritance,
@@ -91,19 +96,25 @@ pub use core::{
     set_cap_label,
     get_cap_label,
 
-    // Access checks
+    // Access checks (read-only, no protection needed)
     check_access,
     has_capability,
 
-    // Batch operations
+    // Batch operations (v1 compat)
     batch_set_relationships,
     batch_set_capabilities,
     batch_set_inheritance,
 
-    // Query operations
+    // Query operations (read-only)
     list_accessible,
     list_subjects,
 
     // WriteBatch
     write_batch,
 };
+
+// v2 naming aliases (seeker/scope/relation terminology)
+pub use core::check_access as get_effective_capabilities;
+
+// Test utilities (also available for integration tests)
+pub use core::{clear_all, test_lock};
