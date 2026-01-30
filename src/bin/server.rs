@@ -152,25 +152,14 @@ fn syscap_to_string(cap: u64) -> String {
     if parts.is_empty() { "NONE".into() } else { parts.join(" | ") }
 }
 
-/// For org-defined capabilities, show binary representation to illustrate bit meaning
-fn orgcap_to_string(cap: u64) -> String {
-    if cap == 0 { return "0".into(); }
-    // Show which bits are set
-    let mut bits = Vec::new();
-    for i in 0..16 {
-        if cap & (1 << i) != 0 {
-            bits.push(format!("bit{}", i));
-        }
-    }
-    bits.join(" | ")
-}
-
-/// Convert cap to string - use SystemCap names for _type:* scopes, otherwise show bits
+/// Convert cap to string - use SystemCap names for _type:* scopes, otherwise just hex
+/// Org-defined capabilities have meanings defined by the org, not by Capbit
 fn cap_to_string(cap: u64, scope: &str) -> String {
     if scope.starts_with("_type:") {
         syscap_to_string(cap)
     } else {
-        orgcap_to_string(cap)
+        // Org capabilities - just show hex, org defines the meaning
+        format!("0x{:04x}", cap)
     }
 }
 
