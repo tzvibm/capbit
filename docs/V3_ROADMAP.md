@@ -350,6 +350,87 @@ let batch = ProtectedBatch::new(actor)
 batch.execute()?;  // All or nothing
 ```
 
+### 6.5 Word Masks (Unlimited Primitives)
+
+**Problem:** Current 64-bit capability masks limit organizations to 64 primitives per entity. Complex systems may need hundreds of fine-grained permissions.
+
+**Solution:**
+
+```rust
+// v3: Variable-width capability masks using multiple words
+pub struct CapabilityMask {
+    words: Vec<u64>,  // Dynamically sized
+    labels: Option<HashMap<u32, String>>,  // Optional bit labels
+}
+
+impl CapabilityMask {
+    // Create from single word (backwards compatible)
+    pub fn from_u64(val: u64) -> Self { /* ... */ }
+
+    // Create multi-word mask
+    pub fn new(num_words: usize) -> Self { /* ... */ }
+
+    // Set/get individual bits
+    pub fn set_bit(&mut self, bit: u32) { /* ... */ }
+    pub fn get_bit(&self, bit: u32) -> bool { /* ... */ }
+
+    // Label bits for human readability
+    pub fn set_label(&mut self, bit: u32, label: &str) { /* ... */ }
+}
+```
+
+**Example Usage:**
+
+```rust
+// Organization with 200+ primitives
+let mut mask = CapabilityMask::new(4);  // 256 bits = 4 words
+
+// Define primitives across the full range
+mask.set_bit(0);   mask.set_label(0, "can_enter");
+mask.set_bit(1);   mask.set_label(1, "can_print");
+mask.set_bit(64);  mask.set_label(64, "can_access_floor_2");
+mask.set_bit(128); mask.set_label(128, "can_access_building_b");
+mask.set_bit(192); mask.set_label(192, "can_access_classified");
+
+// Store capability with word mask
+protected::set_capability_wide(
+    "user:root",
+    "resource:mega-corp-hq",
+    "full-access",
+    mask,
+)?;
+
+// Backwards compatible: u64 automatically converts to CapabilityMask
+protected::set_capability("user:root", "resource:doc", "editor", 0x03)?;  // Still works!
+```
+
+**Implementation:**
+- Storage: Serialize `Vec<u64>` to bytes in capabilities database
+- Zero-copy: Only deserialize needed words during checks
+- Migration: Existing u64 capabilities auto-upgrade to 1-word CapabilityMask
+- Default: 1 word (64 bits) for performance; organizations opt-in to more
+
+**API:**
+```rust
+// Check with word mask
+check_access_wide(subject, object, None) -> Result<CapabilityMask>
+
+// Check specific bit
+has_capability_bit(subject, object, bit: u32) -> Result<bool>
+
+// Get capability with labels (for UI display)
+get_capability_with_labels(entity, relation) -> Result<(CapabilityMask, HashMap<u32, String>)>
+
+// Define primitive labels for an entity (stored separately)
+set_primitive_labels(actor, scope, labels: HashMap<u32, String>) -> Result<()>
+```
+
+**Use Cases:**
+- Large enterprises with hundreds of fine-grained permissions
+- Multi-tenant SaaS with tenant-specific capabilities
+- IoT systems with per-device permission bits
+- Healthcare/finance compliance requiring granular audit
+
 ---
 
 ## Migration Path
@@ -377,6 +458,7 @@ init_v3("./data", V3Config {
 | Audit Logging | HIGH | Medium | None |
 | Revocation Propagation | HIGH | Medium | None |
 | Rate Limiting | MEDIUM | Low | None |
+| Word Masks (Unlimited Primitives) | MEDIUM | Medium | None |
 | Policy Engine | MEDIUM | High | Audit (optional) |
 | User Authentication | LOW | High | None |
 | Capability Expiration | LOW | Low | Audit |

@@ -2,20 +2,22 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 [![License: Non-Commercial](https://img.shields.io/badge/License-Non--Commercial-red.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-190%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-192%20passing-brightgreen.svg)](#testing)
 
 **High-performance access control library for Rust** with typed entities, protected mutations, and bitmask capabilities.
 
 ```
-Can user:alice edit team:engineering?
+Can user:alice access resource:office?
 
   ┌─────────────┐     check_access     ┌─────────────────┐
-  │ user:alice  │ ──────────────────►  │ team:engineering│
-  │  role: lead │                      │  lead = 0x0030  │
+  │ user:alice  │ ──────────────────►  │ resource:office │
+  │role: employee│                     │ employee = 0x07 │
   └─────────────┘                      └─────────────────┘
                          │
                          ▼
-                   ✓ ALLOWED (0x0030)
+                   ✓ ALLOWED (0x07)
+
+  (bit0=enter, bit1=printer, bit2=fax)
 ```
 
 ---
@@ -29,9 +31,10 @@ Can user:alice edit team:engineering?
 | **O(k × log N) Total** | Full check: k relations × log N lookup each |
 | **Typed Entities** | `user:alice`, `team:sales`, `app:backend` |
 | **Protected Mutations** | All writes require authorization |
-| **Per-Entity Semantics** | Each entity defines what roles mean to it |
+| **Per-Entity Semantics** | Each entity defines what relation names mean (via capabilities) |
 | **Delegation** | Pass permissions to others (bounded by your own) |
-| **190 Tests** | Comprehensive security, permission, and integration tests |
+| **Two-Layer Capability Model** | System capabilities for type-level, org-defined for entity-level |
+| **192 Tests** | Comprehensive security, permission, and integration tests |
 | **REST API Demo** | Interactive web demo with full CRUD operations |
 
 ---
@@ -80,36 +83,49 @@ protected::create_entity("user:admin", "user", "alice")?;
 protected::create_entity("user:admin", "user", "bob")?;
 ```
 
-### 3. Define Roles
+### 3. Define Capabilities
+
+Capbit has a **two-layer capability model**:
+
+1. **System Capabilities (SystemCap)** - Used on `_type:*` scopes only. Control who can create entities, define grants, etc.
+2. **Org-Defined Capabilities** - Arbitrary bitmasks where YOUR organization defines the meaning per entity.
+
+**Key concepts:**
+- **Entities** = Things (`user:alice`, `resource:office`, `team:sales`)
+- **Capabilities** = Define what relation names MEAN on an entity (maps relation name → bitmask)
+- **Grants** = Business rules that assign relations to seekers (these ARE the role assignments!)
 
 ```rust
-use capbit::{protected, SystemCap};
+use capbit::protected;
 
-// Define what "lead" means on this team
-protected::set_capability(
-    "user:admin",           // who's setting this
-    "team:engineering",     // on which entity
-    "lead",                 // role name
-    SystemCap::GRANT_WRITE | SystemCap::GRANT_READ
-)?;
+// ═══════════════════════════════════════════════════════════
+// CAPABILITIES: Define what relation names mean on this entity
+// The BITS are primitives: bit0=enter, bit1=print, bit2=fax, etc.
+// ═══════════════════════════════════════════════════════════
 
-// Define "member" (read-only)
-protected::set_capability(
-    "user:admin",
-    "team:engineering",
-    "member",
-    SystemCap::GRANT_READ
-)?;
+// On resource:office, define what each relation name means:
+protected::set_capability("user:admin", "resource:office", "visitor",  0x01)?;  // bit0 only
+protected::set_capability("user:admin", "resource:office", "employee", 0x07)?;  // bits 0-2
+protected::set_capability("user:admin", "resource:office", "manager",  0x0F)?;  // bits 0-3
+protected::set_capability("user:admin", "resource:office", "full-access", 0x3F)?;  // all bits
 ```
 
-### 4. Assign Roles
+**Key insight**: The BITS within bitmasks are the primitives (atomic actions). Capabilities map relation NAMES to combinations of those bits. The same bitmask value (e.g., 0x01) means different things on different entities.
+
+### 4. Create Grants (Business Rules)
+
+Grants ARE the role assignments. They assign relations (with their capability bitmasks) to seekers.
 
 ```rust
-// Make Bob the team lead
-protected::set_grant("user:admin", "user:bob", "lead", "team:engineering")?;
+// Grant Bob the "employee" relation on the office
+// This is the business rule: "Bob has employee access to the office"
+protected::set_grant("user:admin", "user:bob", "employee", "resource:office")?;
 
-// Bob can now add members (he has GRANT_WRITE)
-protected::set_grant("user:bob", "user:alice", "member", "team:engineering")?;
+// Bob now has capabilities 0x07 (bits 0-2) on resource:office
+// because "employee" was defined as 0x07 in step 3
+
+// Alice can grant others (if she has a relation with GRANT_WRITE bit)
+protected::set_grant("user:alice", "user:charlie", "visitor", "resource:office")?;
 ```
 
 ### 5. Check Permissions
@@ -131,6 +147,35 @@ if has_capability("user:bob", "team:engineering", SystemCap::GRANT_WRITE)? {
 
 ## Architecture
 
+### Core Concepts
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CAPBIT MODEL                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ENTITIES = Things                                                  │
+│   ─────────────────                                                  │
+│   user:alice, team:sales, resource:office, app:api                  │
+│                                                                      │
+│   CAPABILITIES = What relation names MEAN on an entity              │
+│   ──────────────────────────────────────────────────                │
+│   On resource:office: "visitor"=0x01, "employee"=0x07               │
+│   The BITS are primitives (bit0=enter, bit1=print, etc.)            │
+│                                                                      │
+│   GRANTS = Business rules assigning relations to seekers            │
+│   ──────────────────────────────────────────────────                │
+│   "user:alice has 'employee' on resource:office"                    │
+│   Grants ARE the role assignments!                                   │
+│                                                                      │
+│   DELEGATIONS = Inherited grants                                     │
+│   ─────────────────────────────                                      │
+│   "user:bob inherits from user:alice on resource:office"            │
+│   Bob gets Alice's capabilities (bounded by what Alice has)         │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
 ### Entity Types
 
 Everything is a typed entity in `type:id` format:
@@ -143,7 +188,7 @@ resource:doc123   - Something to protect
 _type:user        - Meta-entity for type-level permissions
 ```
 
-### Permission Model
+### Permission Check Flow
 
 ```
                     ┌──────────────────────────────────────┐
@@ -160,6 +205,12 @@ _type:user        - Meta-entity for type-level permissions
                     └─────────────────┬─────────────────┘
                                       ▼
                             ┌──────────────────┐
+                            │ Look up capability│
+                            │ for each relation │
+                            └──────────────────┘
+                                      │
+                                      ▼
+                            ┌──────────────────┐
                             │   OR together    │
                             │  all cap masks   │
                             └──────────────────┘
@@ -171,7 +222,31 @@ _type:user        - Meta-entity for type-level permissions
                             └──────────────────┘
 ```
 
-### Capability Bits
+### Two-Layer Capability Model
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    CAPBIT CAPABILITY MODEL                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   LAYER 1: System Capabilities (SystemCap)                          │
+│   ─────────────────────────────────────────                         │
+│   Scope: _type:* only (e.g., _type:user, _type:team)                │
+│   Purpose: Control who can create entities, define grants, etc.     │
+│   Protected: Only root and delegatees can modify                    │
+│                                                                     │
+│   LAYER 2: Org-Defined Capabilities                                 │
+│   ─────────────────────────────────────                             │
+│   Scope: Any non-_type entity (resource:office, team:sales, etc.)   │
+│   Purpose: Whatever YOUR organization decides                       │
+│   Flexible: 64 bits, you define the meaning per entity              │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### System Capabilities (Layer 1)
+
+**Only meaningful on `_type:*` scopes.** Used by the protected API to authorize system operations.
 
 | Capability | Hex | Description |
 |------------|-----|-------------|
@@ -189,16 +264,43 @@ _type:user        - Meta-entity for type-level permissions
 | `DELEGATE_WRITE` | 0x0800 | Create delegations |
 | `DELEGATE_DELETE` | 0x1000 | Remove delegations |
 
-### Composite Capabilities
+**Composites:**
+```rust
+SystemCap::ENTITY_ADMIN   // 0x1ffc - Full entity management
+SystemCap::GRANT_ADMIN    // 0x0070 - Full grant control
+SystemCap::TYPE_ADMIN     // 0x1fff - Everything
+```
+
+### Org-Defined Capabilities (Layer 2)
+
+**You define what each bit means for YOUR entities:**
 
 ```rust
-use capbit::SystemCap;
+// For resource:office - you decide:
+// bit0 = enter building
+// bit1 = use printer
+// bit2 = use fax
 
-SystemCap::ENTITY_ADMIN   // Full entity management (0x1ffc)
-SystemCap::GRANT_ADMIN    // Full grant control (0x0070)
-SystemCap::CAP_ADMIN      // Full capability control (0x0380)
-SystemCap::DELEGATE_ADMIN // Full delegation control (0x1c00)
-SystemCap::ALL            // Everything (0x1fff)
+// For resource:database - completely different meanings:
+// bit0 = read
+// bit1 = write
+// bit2 = delete
+// bit3 = admin
+
+// The bitmask 0x01 means "enter" on office, but "read" on database!
+```
+
+### Scope Isolation (Security)
+
+**Having SystemCap values on your own entity does NOT grant system powers:**
+
+```rust
+// Alice has 0x1fff (all bits) on resource:alice-doc
+// This does NOT let her create users!
+// Why? The protected API checks capabilities on _type:user, not on resource:alice-doc
+
+protected::create_entity("user:alice", "user", "hacked")  // DENIED!
+// Alice has 0x0000 on _type:user, so she can't create users
 ```
 
 ---
@@ -330,10 +432,19 @@ cargo build --release --bin capbit-server
 
 - **Bootstrap** - Initialize the system with a root user
 - **Entity Management** - Create users, teams, apps, resources
-- **Capability Definitions** - Define what roles mean
-- **Grant Management** - Assign roles to users
-- **Access Checks** - Test permission queries
-- **Templates** - Pre-built scenarios (startup, organization hierarchy)
+- **Capability Definitions** - Define what relation names mean with 16-bit selector
+- **Grant Management** - Create grants (business rules assigning relations)
+- **Access Checks** - Test permission queries with dynamic dropdown
+- **Templates** - Pre-built scenarios showing entities, capabilities, and grants:
+  - **Startup Template**: Office access control (enter, printer, fax, safe, server room)
+  - **Org Hierarchy Template**: Team-based permissions
+
+**Demo UI Features:**
+- **Bit Selector**: Click individual bits (0-15) to define capabilities visually
+- **Dynamic Dropdowns**: Entity/grant/capability dropdowns populated from database
+- **Filtered View**: `_type:*` system entities hidden from normal UI (system-level)
+- **Copy Logs**: One-click copy of operation logs
+- **Auto-Reset**: Templates detect bootstrapped state and offer reset
 
 ### REST API Endpoints
 
@@ -354,7 +465,7 @@ cargo build --release --bin capbit-server
 
 ## Testing
 
-Run all 190 tests:
+Run all 192 tests:
 
 ```bash
 cargo test
@@ -376,7 +487,7 @@ cargo test demo_simulation -- --nocapture
 
 | Category | Tests | Description |
 |----------|-------|-------------|
-| Security Attacks | 24 | Attack vectors, privilege escalation, confused deputy |
+| Security Attacks | 26 | Attack vectors, privilege escalation, scope isolation |
 | Permission Boundaries | 16 | Capability edge cases, exact matching |
 | Revocation | 11 | Permission removal, cascade effects |
 | Authorized Operations | 17 | Client abilities (happy path verification) |
@@ -390,7 +501,7 @@ cargo test demo_simulation -- --nocapture
 | Simulation | 2 | Full organization scenarios |
 | Benchmarks | 7 | Performance verification |
 | Doc-tests | 3 | Example code verification |
-| **Total** | **190** | |
+| **Total** | **192** | |
 
 ---
 
@@ -400,12 +511,34 @@ Capbit is designed to prevent common access control vulnerabilities:
 
 | Attack | Protection |
 |--------|------------|
-| Privilege Escalation | All mutations require capability check |
+| Privilege Escalation | All mutations require capability check on correct scope |
 | Bootstrap Replay | `bootstrap()` only runs once |
 | Entity Spoofing | Entities must be created through protected API |
 | Delegation Amplification | Inherited caps bounded by delegator's caps |
 | Circular Delegation | Depth-limited traversal with cycle detection |
-| Scope Confusion | Type-level and entity-level permissions separated |
+| Scope Confusion | Type-level (`_type:*`) and entity-level permissions are isolated |
+| Fake SystemCap | Having SystemCap values on org entities grants NO system powers |
+
+### Scope Isolation Security Model
+
+The protected API checks capabilities on the **correct scope**, not just any scope:
+
+```rust
+// ATTACK: Alice gives herself all SystemCap bits on her own resource
+protected::set_capability("user:root", "resource:alice-doc", "owner", 0x1FFF)?;
+protected::set_grant("user:root", "user:alice", "owner", "resource:alice-doc")?;
+
+// Alice now has 0x1FFF (all bits) on resource:alice-doc
+// Can she create users? NO!
+
+protected::create_entity("user:alice", "user", "hacked")  // DENIED!
+// Why? create_entity checks capabilities on _type:user, not resource:alice-doc
+// Alice has 0x0000 on _type:user
+
+// This is proven by tests:
+// - attack_fake_systemcap_bitmask
+// - verify_root_grants_protected
+```
 
 ---
 
@@ -414,18 +547,18 @@ Capbit is designed to prevent common access control vulnerabilities:
 ### Organization Hierarchy
 
 ```rust
-// Create structure
+// Create entities (things)
 protected::create_entity("user:root", "team", "engineering")?;
 protected::create_entity("user:root", "user", "alice")?;
 protected::create_entity("user:root", "user", "bob")?;
 
-// Define roles
+// Define capabilities (what relation names mean on this entity)
 protected::set_capability("user:root", "team:engineering", "lead",
     SystemCap::GRANT_WRITE | SystemCap::GRANT_READ)?;
 protected::set_capability("user:root", "team:engineering", "member",
     SystemCap::GRANT_READ)?;
 
-// Assign
+// Create grants (business rules - these ARE the role assignments!)
 protected::set_grant("user:root", "user:alice", "lead", "team:engineering")?;
 protected::set_grant("user:alice", "user:bob", "member", "team:engineering")?;
 ```
@@ -492,9 +625,11 @@ LMDB provides:
 
 ## Documentation
 
-- [**GUIDE.md**](GUIDE.md) - User-friendly guide with diagrams
-- [**CLAUDE.md**](CLAUDE.md) - Technical architecture details
-- [**SIMULATION.md**](SIMULATION.md) - Full organization simulation
+- [**docs/GUIDE.md**](docs/GUIDE.md) - User-friendly guide with diagrams
+- [**CLAUDE.md**](CLAUDE.md) - Technical architecture details (for Claude Code)
+- [**docs/SIMULATION.md**](docs/SIMULATION.md) - Full organization simulation
+- [**docs/V3_ROADMAP.md**](docs/V3_ROADMAP.md) - Future features roadmap
+- [**docs/TEST_PLAN.md**](docs/TEST_PLAN.md) - Comprehensive test plan
 
 ---
 
@@ -503,7 +638,7 @@ LMDB provides:
 1. Fork the repository
 2. Create a feature branch
 3. Add tests for new functionality
-4. Ensure all 190 tests pass: `cargo test`
+4. Ensure all 192 tests pass: `cargo test`
 5. Submit a pull request
 
 ---
@@ -528,6 +663,24 @@ For commercial licensing, contact: https://github.com/tzvibm
 ---
 
 ## Changelog
+
+### v2.2.0
+- **Clarified conceptual model**
+  - Entities = things (user:alice, resource:office)
+  - Capabilities = what relation names mean on an entity (bitmasks)
+  - Grants = business rules assigning relations to seekers (role assignments!)
+- **Two-layer capability model**
+  - System capabilities (SystemCap) for `_type:*` scopes only
+  - Org-defined capabilities with flexible 64-bit bitmasks
+- **Scope isolation security model** with tests proving SystemCap values on org entities don't grant system powers
+- **Enhanced demo UI**
+  - 16-bit clickable selector for defining capabilities
+  - Dynamic dropdowns populated from database
+  - Filtered view hiding `_type:*` system entities
+  - Delegation support with inherited grants display
+  - Templates demonstrating entities, capabilities, grants, and delegations
+- **New security tests**: `attack_fake_systemcap_bitmask`, `verify_root_grants_protected`
+- **192 tests** total (up from 190)
 
 ### v2.1.0
 - REST API server with interactive web demo

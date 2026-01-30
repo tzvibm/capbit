@@ -70,6 +70,14 @@ struct CreateCapabilityReq {
 }
 
 #[derive(Deserialize)]
+struct CreateDelegationReq {
+    actor: String,
+    seeker: String,
+    scope: String,
+    delegate: String,
+}
+
+#[derive(Deserialize)]
 struct CheckAccessReq {
     subject: String,
     object: String,
@@ -281,6 +289,15 @@ async fn post_check(
     }
 }
 
+async fn post_delegation(
+    Json(req): Json<CreateDelegationReq>,
+) -> (StatusCode, Json<ApiResponse<String>>) {
+    match protected::set_delegation(&req.actor, &req.seeker, &req.scope, &req.delegate) {
+        Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("created".into()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
 async fn post_reset() -> (StatusCode, Json<ApiResponse<String>>) {
     match clear_all() {
         Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("reset".into()))),
@@ -326,6 +343,7 @@ async fn main() {
         .route("/grants", get(get_grants))
         .route("/capability", post(post_capability))
         .route("/capabilities", get(get_capabilities))
+        .route("/delegation", post(post_delegation))
         .route("/check", post(post_check))
         .route("/reset", post(post_reset))
         .layer(cors)

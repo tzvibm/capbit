@@ -5,17 +5,19 @@ Technical guidance for Claude Code when working with this repository.
 ## Project Overview
 
 Capbit is a Rust library for high-performance access control with:
-- **Typed entities**: Format `type:id` (e.g., `user:john`, `team:sales`)
+- **Entities**: Things in format `type:id` (e.g., `user:john`, `team:sales`, `resource:office`)
+- **Capabilities**: Define what relation names MEAN on an entity (maps relation → bitmask)
+- **Grants**: Business rules assigning relations to seekers (these ARE the role assignments!)
+- **Delegations**: Inherited grants (bounded by delegator's capabilities)
 - **Protected mutations**: All writes require authorization
-- **Bitmask capabilities**: O(1) permission evaluation
-- **Delegation**: Bounded inheritance chains
+- **Bitmask primitives**: O(1) permission evaluation (bits are atomic actions)
 
 ## Commands
 
 ```bash
 cargo build                                # Build library
 cargo build --release                      # Build optimized
-cargo test                                 # Run all 190 tests
+cargo test                                 # Run all 192 tests
 cargo test -- --nocapture                  # Run with output
 cargo test demo_simulation -- --nocapture  # Interactive demo
 cargo run --bin capbit-server              # Run REST API server (demo at localhost:3000)
@@ -37,27 +39,31 @@ capbit/
 │       └── server.rs       # REST API server
 ├── demo/
 │   └── index.html          # Interactive web demo
+├── docs/
+│   ├── GUIDE.md            # Visual guide with diagrams
+│   ├── SIMULATION.md       # Full simulation spec
+│   ├── TEST_PLAN.md        # Comprehensive test plan
+│   ├── V3_ROADMAP.md       # Future features roadmap
+│   └── COMPARISON.md       # Comparison with other systems
 ├── tests/
 │   ├── integration.rs          # v1 compatibility tests
-│   ├── attack_vectors.rs       # Security tests (9)
-│   ├── attack_vectors_extended.rs  # Advanced security (15)
-│   ├── permission_boundaries.rs    # Capability edge cases (16)
-│   ├── revocation.rs           # Permission removal (11)
-│   ├── authorized_operations.rs    # Client abilities (17)
-│   ├── input_validation.rs     # Edge cases (18)
-│   ├── inheritance_advanced.rs # Complex inheritance (12)
-│   ├── batch_operations.rs     # Batch API (13)
-│   ├── query_operations.rs     # Query completeness (15)
-│   ├── type_system.rs          # Type lifecycle (19)
-│   ├── protected_api.rs        # v2 API tests (23)
-│   ├── simulation.rs           # Organization scenarios (2)
-│   ├── benchmarks.rs           # Performance tests (7)
-│   └── demo_verbose.rs         # Interactive demo (1)
+│   ├── attack_vectors.rs       # Security tests
+│   ├── attack_vectors_extended.rs  # Advanced security
+│   ├── permission_boundaries.rs    # Capability edge cases
+│   ├── revocation.rs           # Permission removal
+│   ├── authorized_operations.rs    # Client abilities
+│   ├── input_validation.rs     # Edge cases
+│   ├── inheritance_advanced.rs # Complex inheritance
+│   ├── batch_operations.rs     # Batch API
+│   ├── query_operations.rs     # Query completeness
+│   ├── type_system.rs          # Type lifecycle
+│   ├── protected_api.rs        # v2 API tests
+│   ├── simulation.rs           # Organization scenarios
+│   ├── benchmarks.rs           # Performance tests
+│   └── demo_verbose.rs         # Interactive demo
 ├── Cargo.toml
 ├── README.md               # User documentation
-├── GUIDE.md                # Visual guide with diagrams
-├── SIMULATION.md           # Full simulation spec
-└── TEST_PLAN.md            # Comprehensive test plan
+└── CLAUDE.md               # Technical guidance for Claude Code
 ```
 
 ### Core Modules
@@ -95,23 +101,35 @@ LMDB
 └── meta/                    (key → value)
 ```
 
-### Permission Model
+### Core Model
 
 ```
-Permission Check Flow (check_access):
+ENTITIES = Things (user:alice, resource:office, team:sales)
+CAPABILITIES = What relation names MEAN on an entity (relation → bitmask)
+GRANTS = Business rules assigning relations to seekers (role assignments!)
+DELEGATIONS = Inherited grants (bounded by delegator)
+```
 
-1. Direct grants: subject/*/object → get rel_types
-2. Type-level grants: subject/*/_type:{type} → get rel_types (for typed entities)
-3. Inheritance: subject/object/* → get sources, recurse
-4. Capability lookup: object/rel_type → cap_mask
-5. Combine: OR all masks together
+### Permission Check Flow (check_access)
+
+```
+1. Find grants: subject/*/object → get relation names
+2. Type-level grants: subject/*/_type:{type} → get relation names
+3. Inheritance: subject/object/* → get sources, recurse for inherited grants
+4. Capability lookup: For each relation, get cap_mask from object's capabilities
+5. Combine: OR all cap_masks together
 6. Evaluate: (effective & required) == required
 
-Note: check_access includes type-level permissions when querying instances.
+Note: check_access includes type-level grants when querying instances.
 E.g., querying user:root on team:engineering includes root's grants on _type:team.
 ```
 
-### SystemCap Bits
+### Two-Layer Capability Model
+
+**Layer 1: System Capabilities (SystemCap)** - Only meaningful on `_type:*` scopes
+**Layer 2: Org-Defined Capabilities** - Arbitrary bitmasks, org defines meaning per entity
+
+### SystemCap Bits (Layer 1 - for `_type:*` scopes only)
 
 | Capability | Hex | Purpose |
 |------------|-----|---------|
@@ -133,6 +151,23 @@ Composites:
 - `ENTITY_ADMIN` = 0x1ffc (full entity management)
 - `GRANT_ADMIN` = 0x0070 (full grant control)
 - `TYPE_ADMIN` = 0x1fff (everything)
+
+### Org-Defined Capabilities (Layer 2)
+
+On non-`_type:*` entities, bits have org-defined meanings:
+```
+resource:office      → bit0=enter, bit1=printer, bit2=fax
+app:api-gateway      → bit0=read, bit1=write, bit2=delete
+team:sales           → bit0=view, bit1=invite, bit2=billing
+```
+
+### Scope Isolation Security
+
+Having SystemCap values on your entity does NOT grant system powers:
+```rust
+// Alice has 0x1fff on resource:doc - can she create users? NO!
+// create_entity checks capabilities on _type:user, not resource:doc
+```
 
 ### Protected API Pattern
 
@@ -178,7 +213,7 @@ bootstrap("root"):
 
 | Category | Count | Purpose |
 |----------|-------|---------|
-| Security Attacks | 24 | Attack vectors, privilege escalation |
+| Security Attacks | 26 | Attack vectors, privilege escalation, scope isolation |
 | Permission Boundaries | 16 | Capability edge cases |
 | Revocation | 11 | Permission removal, cascade |
 | Authorized Operations | 17 | Client abilities (happy path) |
@@ -192,13 +227,15 @@ bootstrap("root"):
 | Simulation | 2 | Organization scenarios |
 | Benchmarks | 7 | Performance |
 | Doc-tests | 3 | Example verification |
-| **Total** | **190** | |
+| **Total** | **192** | |
 
 ## Design Principles
 
-1. **Typed Entities**: All entities are `type:id` format
-2. **Protected by Default**: v2 API requires authorization
-3. **Type-Level Permissions**: Control entity creation at type level
-4. **Bounded Delegation**: Inherited caps never exceed delegator's
-5. **Single Bootstrap**: Genesis runs exactly once
-6. **Fail Secure**: Missing permission = denied
+1. **Entities are Things**: `type:id` format (user:alice, resource:office)
+2. **Capabilities Define Meanings**: Map relation names to bitmasks per entity
+3. **Grants are Business Rules**: Assign relations to seekers (role assignments!)
+4. **Protected by Default**: v2 API requires authorization
+5. **Type-Level Permissions**: Control entity creation at `_type:*` level
+6. **Bounded Delegation**: Inherited grants never exceed delegator's
+7. **Single Bootstrap**: Genesis runs exactly once
+8. **Fail Secure**: Missing permission = denied

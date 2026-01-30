@@ -9,12 +9,54 @@ A simple guide to understanding how Capbit manages permissions and access contro
 Capbit is a **permission system** that controls who can do what. Think of it like a bouncer at a club - it checks if you're allowed in before letting you through.
 
 ```
-    You want to edit a document?
+    You want to enter the office?
 
-    Capbit checks: "Does this person have edit permission?"
+    Capbit checks: "Does this person have the 'enter' capability?"
 
     YES → Go ahead!
     NO  → Access denied.
+```
+
+---
+
+## The Two-Layer Capability Model
+
+Capbit has two distinct layers of capabilities:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CAPBIT LAYERS                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   LAYER 1: System Capabilities                                       │
+│   ────────────────────────────                                       │
+│   Where: _type:user, _type:team, _type:resource, etc.               │
+│   What: Controls who can create entities, define grants, etc.        │
+│   Who sets: Only root (from bootstrap) and delegatees               │
+│   Fixed meanings: TYPE_CREATE, ENTITY_CREATE, GRANT_WRITE, etc.     │
+│                                                                      │
+│   LAYER 2: Org-Defined Capabilities                                  │
+│   ─────────────────────────────────                                  │
+│   Where: resource:office, team:sales, app:backend, etc.             │
+│   What: Whatever YOUR organization decides                          │
+│   Who sets: Anyone with CAP_WRITE on that entity                    │
+│   Flexible meanings: You define what each bit means per entity      │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Example: Office Access Control
+
+```
+On resource:office, your org defines:
+  bit0 (0x01) = enter building
+  bit1 (0x02) = use printer
+  bit2 (0x04) = use fax
+  bit3 (0x08) = open safe
+  bit4 (0x10) = access server room
+  bit5 (0x20) = can grant others access
+
+These meanings are YOUR organization's choice, not Capbit's!
 ```
 
 ---
@@ -40,34 +82,55 @@ Common types:
 - `app:` - Applications (backend, frontend)
 - `resource:` - Things to protect (documents, files)
 
-### 2. Relationships (Roles)
+### 2. Capabilities (What Relations Mean)
 
-Relationships connect entities with a role:
+Capabilities define what **relation names** MEAN on an entity. The BITS are primitives.
 
 ```
-    user:alice ──── "lead" ────► team:hr
+    On resource:office, you define what each bit means:
+    ┌─────────────────────────────────────────────────┐
+    │  bit0 = enter building                          │
+    │  bit1 = use printer                             │
+    │  bit2 = use fax                                 │
+    │  bit3 = open safe                               │
+    │  bit4 = access server room                      │
+    │  bit5 = can grant others                        │
+    └─────────────────────────────────────────────────┘
 
-    "Alice is the lead of the HR team"
+    Then you define what relation NAMES mean (bitmask combinations):
+    ┌─────────────────────────────────────────────────┐
+    │  "visitor"     = 0x01  (bit0 only)              │
+    │  "employee"    = 0x07  (bits 0-2)               │
+    │  "manager"     = 0x0F  (bits 0-3)               │
+    │  "full-access" = 0x3F  (all bits)               │
+    └─────────────────────────────────────────────────┘
 ```
 
-Common roles:
-- `owner` - Full control
-- `admin` - Can manage
-- `lead` - Can add members
-- `member` - Basic access
-- `viewer` - Read only
+### 3. Grants (Business Rules)
 
-### 3. Capabilities (What You Can Do)
+**Grants ARE the role assignments!** They assign relations to seekers.
 
-Each role grants specific powers:
+```
+    user:alice ──── "employee" ────► resource:office
+
+    "Alice has the 'employee' relation on the office"
+    "employee" = 0x07, so Alice has bits 0-2 (enter, print, fax)
+```
+
+A grant is a business rule that says WHO has WHAT relation on WHICH entity.
+
+### 4. For System Operations (Layer 1)
+
+On `_type:*` entities, Capbit uses SystemCap with fixed meanings:
 
 ```
     ┌─────────────────────────────────────────────────┐
-    │  Role: "lead" on team:engineering               │
+    │  Relation: "admin" on _type:user                │
     ├─────────────────────────────────────────────────┤
-    │  ✓ GRANT_READ   - See who's on the team        │
-    │  ✓ GRANT_WRITE  - Add new members              │
-    │  ✗ CAP_WRITE    - Cannot change role powers    │
+    │  ✓ ENTITY_CREATE - Create new users             │
+    │  ✓ ENTITY_DELETE - Delete users                 │
+    │  ✓ GRANT_WRITE   - Create grants                │
+    │  ✓ CAP_WRITE     - Define capabilities          │
     └─────────────────────────────────────────────────┘
 ```
 
@@ -274,9 +337,9 @@ cargo test demo_simulation -- --nocapture
 
 ## All Test Scenarios
 
-Capbit includes **47 tests** covering:
+Capbit includes **192 tests** covering:
 
-### Security Tests (9 tests)
+### Security Tests (26 tests)
 | Test | What it checks |
 |------|---------------|
 | Entity Spoofing | Can't create fake entities |
@@ -288,30 +351,28 @@ Capbit includes **47 tests** covering:
 | Type Mutation | Can't create types without permission |
 | Unauthorized Deletion | Can't delete what you don't control |
 | Non-existent Scope | Can't grant on things that don't exist |
+| **Fake SystemCap Bitmask** | Having SystemCap values on your entity doesn't grant system powers |
+| **Scope Isolation** | Capabilities are checked on the correct scope, not just any scope |
 
-### Functionality Tests (23 tests)
+### Functionality Tests (150+ tests)
 | Area | Tests |
 |------|-------|
-| Bootstrap | 6 tests - System initialization |
-| Entities | 4 tests - Create, delete, validation |
-| Grants | 3 tests - Adding/removing relationships |
-| Capabilities | 2 tests - Defining role powers |
-| Delegations | 3 tests - Inheritance system |
-| Access Checks | 5 tests - Permission evaluation |
+| Permission Boundaries | 16 tests - Capability edge cases |
+| Revocation | 11 tests - Permission removal, cascade |
+| Authorized Operations | 17 tests - Client abilities (happy path) |
+| Input Validation | 18 tests - Edge cases, special chars |
+| Inheritance | 12 tests - Diamond, wide, deep patterns |
+| Batch Operations | 13 tests - WriteBatch, atomic ops |
+| Query Operations | 15 tests - Query completeness |
+| Type System | 19 tests - Type lifecycle, permissions |
+| Protected API | 23 tests - v2 API authorization |
 
-### Integration Tests (9 tests)
+### Integration & Simulation (11 tests)
 | Test | What it checks |
 |------|---------------|
 | Relationships | Basic connections work |
 | Capabilities | Powers are assigned correctly |
 | Inheritance | Delegation chains work |
-| Batch Operations | Bulk updates work |
-| Query Operations | Searching works |
-| Cycle Detection | Handles circular references |
-
-### Simulation Tests (2 tests)
-| Test | What it checks |
-|------|---------------|
 | Acme Corp | Full organization scenario |
 | App Access | Application permissions |
 
@@ -345,45 +406,57 @@ protected::create_entity("user:admin", "user", "alice").unwrap();
 protected::create_entity("user:admin", "user", "bob").unwrap();
 ```
 
-### Define Roles
+### Define Capabilities
 
 ```rust
-use capbit::{protected, SystemCap};
+use capbit::protected;
 
-// Define what "lead" means on this team
+// Define what relation names MEAN on this entity
+// The bits are primitives that you define per entity
 protected::set_capability(
     "user:admin",           // who's doing this
-    "team:engineering",     // where
-    "lead",                 // role name
-    SystemCap::GRANT_WRITE | SystemCap::GRANT_READ  // powers
+    "resource:office",      // the entity
+    "visitor",              // relation name
+    0x01                    // bit0 only (e.g., enter)
 ).unwrap();
 
-// Define "member" role
 protected::set_capability(
     "user:admin",
-    "team:engineering",
-    "member",
-    SystemCap::GRANT_READ   // read-only
+    "resource:office",
+    "employee",
+    0x07                    // bits 0-2 (e.g., enter + print + fax)
+).unwrap();
+
+protected::set_capability(
+    "user:admin",
+    "resource:office",
+    "full-access",
+    0x3F                    // all bits
 ).unwrap();
 ```
 
-### Assign Roles
+### Create Grants (Business Rules)
+
+Grants ARE the role assignments!
 
 ```rust
-// Make bob the lead
+// Grant bob the "employee" relation on the office
+// This is the business rule: "Bob has employee access"
 protected::set_grant(
     "user:admin",        // who's granting
-    "user:bob",          // who receives
-    "lead",              // role
-    "team:engineering"   // where
+    "user:bob",          // who receives (seeker)
+    "employee",          // relation name
+    "resource:office"    // entity (scope)
 ).unwrap();
 
-// Add alice as member
+// Bob now has 0x07 (bits 0-2) on resource:office
+
+// Alice (with full-access + GRANT_WRITE) can grant others
 protected::set_grant(
-    "user:bob",          // bob can do this (he's lead)
     "user:alice",
-    "member",
-    "team:engineering"
+    "user:charlie",
+    "visitor",
+    "resource:office"
 ).unwrap();
 ```
 
@@ -406,8 +479,12 @@ if has_capability("user:bob", "team:engineering", SystemCap::GRANT_WRITE).unwrap
 
 ## Permission Bits Reference
 
-| Capability | Hex | What it allows |
-|------------|-----|----------------|
+### Layer 1: System Capabilities (for `_type:*` scopes only)
+
+These have fixed meanings and are used by the protected API:
+
+| SystemCap | Hex | What it allows |
+|-----------|-----|----------------|
 | TYPE_CREATE | 0x0001 | Create new types |
 | TYPE_DELETE | 0x0002 | Delete types |
 | ENTITY_CREATE | 0x0004 | Create entities |
@@ -422,7 +499,24 @@ if has_capability("user:bob", "team:engineering", SystemCap::GRANT_WRITE).unwrap
 | DELEGATE_WRITE | 0x0800 | Create delegations |
 | DELEGATE_DELETE | 0x1000 | Remove delegations |
 
-### Common Combinations
+### Layer 2: Org-Defined Capabilities (for YOUR entities)
+
+**You define what each bit means per entity!**
+
+```
+Example: resource:office
+  bit0 = enter building
+  bit1 = use printer
+  bit2 = use fax
+
+Example: app:api-gateway
+  bit0 = read API
+  bit1 = write API
+  bit2 = delete API
+  bit3 = bulk operations
+```
+
+### Common System Role Combinations
 
 | Role | Bits | Description |
 |------|------|-------------|
@@ -439,20 +533,29 @@ if has_capability("user:bob", "team:engineering", SystemCap::GRANT_WRITE).unwrap
 │                    CAPBIT v2                           │
 ├────────────────────────────────────────────────────────┤
 │                                                        │
+│  ✓ Three Core Concepts                                 │
+│    Entities = things (user:alice, resource:office)     │
+│    Capabilities = what relation names mean (bitmasks)  │
+│    Grants = business rules (role assignments!)         │
+│                                                        │
+│  ✓ Two-Layer Capability Model                          │
+│    Layer 1: System caps on _type:* (protected)         │
+│    Layer 2: Org-defined caps (you choose meanings)     │
+│                                                        │
 │  ✓ Protected Mutations                                 │
-│    Every change requires permission                    │
+│    Every change requires permission on correct scope   │
 │                                                        │
 │  ✓ Typed Entities                                      │
 │    user:alice, team:sales, app:backend                 │
 │                                                        │
-│  ✓ Flexible Roles                                      │
-│    Define what each role can do per-entity             │
+│  ✓ Scope Isolation Security                            │
+│    Caps on your entity ≠ system powers                 │
 │                                                        │
 │  ✓ Delegation                                          │
-│    Pass your permissions to others (bounded)           │
+│    Inherited grants (bounded by delegator)             │
 │                                                        │
 │  ✓ Attack Resistant                                    │
-│    47 tests including security scenarios               │
+│    192 tests including security scenarios              │
 │                                                        │
 │  ✓ Fast                                                │
 │    O(log N) lookups, O(1) bitmask evaluation           │
