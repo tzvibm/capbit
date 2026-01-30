@@ -133,15 +133,45 @@ struct CheckResult {
 // Helpers
 // ============================================================================
 
-fn cap_to_string(cap: u64) -> String {
+/// Convert SystemCap bitmask to human-readable string (for _type:* entities only)
+fn syscap_to_string(cap: u64) -> String {
     let mut parts = Vec::new();
-    if cap & SystemCap::GRANT_READ != 0 { parts.push("READ"); }
-    if cap & SystemCap::GRANT_WRITE != 0 { parts.push("WRITE"); }
-    if cap & SystemCap::GRANT_DELETE != 0 { parts.push("DELETE"); }
-    if cap & SystemCap::ENTITY_CREATE != 0 { parts.push("CREATE"); }
+    if cap & SystemCap::TYPE_CREATE != 0 { parts.push("TYPE_CREATE"); }
+    if cap & SystemCap::TYPE_DELETE != 0 { parts.push("TYPE_DELETE"); }
+    if cap & SystemCap::ENTITY_CREATE != 0 { parts.push("ENTITY_CREATE"); }
+    if cap & SystemCap::ENTITY_DELETE != 0 { parts.push("ENTITY_DELETE"); }
+    if cap & SystemCap::GRANT_READ != 0 { parts.push("GRANT_READ"); }
+    if cap & SystemCap::GRANT_WRITE != 0 { parts.push("GRANT_WRITE"); }
+    if cap & SystemCap::GRANT_DELETE != 0 { parts.push("GRANT_DELETE"); }
+    if cap & SystemCap::CAP_READ != 0 { parts.push("CAP_READ"); }
     if cap & SystemCap::CAP_WRITE != 0 { parts.push("CAP_WRITE"); }
-    if cap & SystemCap::DELEGATE_WRITE != 0 { parts.push("DELEGATE"); }
-    if parts.is_empty() { "NONE".into() } else { parts.join("+") }
+    if cap & SystemCap::CAP_DELETE != 0 { parts.push("CAP_DELETE"); }
+    if cap & SystemCap::DELEGATE_READ != 0 { parts.push("DELEGATE_READ"); }
+    if cap & SystemCap::DELEGATE_WRITE != 0 { parts.push("DELEGATE_WRITE"); }
+    if cap & SystemCap::DELEGATE_DELETE != 0 { parts.push("DELEGATE_DELETE"); }
+    if parts.is_empty() { "NONE".into() } else { parts.join(" | ") }
+}
+
+/// For org-defined capabilities, show binary representation to illustrate bit meaning
+fn orgcap_to_string(cap: u64) -> String {
+    if cap == 0 { return "0".into(); }
+    // Show which bits are set
+    let mut bits = Vec::new();
+    for i in 0..16 {
+        if cap & (1 << i) != 0 {
+            bits.push(format!("bit{}", i));
+        }
+    }
+    bits.join(" | ")
+}
+
+/// Convert cap to string - use SystemCap names for _type:* scopes, otherwise show bits
+fn cap_to_string(cap: u64, scope: &str) -> String {
+    if scope.starts_with("_type:") {
+        syscap_to_string(cap)
+    } else {
+        orgcap_to_string(cap)
+    }
 }
 
 // ============================================================================
@@ -227,11 +257,14 @@ async fn get_capabilities() -> Json<ApiResponse<Vec<CapabilityInfo>>> {
         Ok(caps) => {
             let infos: Vec<CapabilityInfo> = caps
                 .into_iter()
-                .map(|(scope, relation, cap_mask)| CapabilityInfo {
-                    scope,
-                    relation,
-                    cap_string: cap_to_string(cap_mask),
-                    cap_mask,
+                .map(|(scope, relation, cap_mask)| {
+                    let cap_string = cap_to_string(cap_mask, &scope);
+                    CapabilityInfo {
+                        scope,
+                        relation,
+                        cap_string,
+                        cap_mask,
+                    }
                 })
                 .collect();
             Json(ApiResponse::ok(infos))
@@ -250,9 +283,9 @@ async fn post_check(
             Json(ApiResponse::ok(CheckResult {
                 allowed,
                 effective,
-                effective_string: cap_to_string(effective),
+                effective_string: cap_to_string(effective, &req.object),
                 required,
-                required_string: cap_to_string(required),
+                required_string: cap_to_string(required, &req.object),
             }))
         }
         Err(e) => Json(ApiResponse::err(e.message)),
