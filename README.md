@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
 [![License: Non-Commercial](https://img.shields.io/badge/License-Non--Commercial-red.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-47%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-190%20passing-brightgreen.svg)](#testing)
 
 **High-performance access control library for Rust** with typed entities, protected mutations, and bitmask capabilities.
 
@@ -31,7 +31,8 @@ Can user:alice edit team:engineering?
 | **Protected Mutations** | All writes require authorization |
 | **Per-Entity Semantics** | Each entity defines what roles mean to it |
 | **Delegation** | Pass permissions to others (bounded by your own) |
-| **47 Security Tests** | Battle-tested against privilege escalation attacks |
+| **190 Tests** | Comprehensive security, permission, and integration tests |
+| **REST API Demo** | Interactive web demo with full CRUD operations |
 
 ---
 
@@ -310,9 +311,50 @@ LMDB databases with optimized indexes:
 
 ---
 
+## Demo
+
+Capbit includes a REST API server with an interactive web demo.
+
+### Running the Demo
+
+```bash
+# Start the server (serves demo at http://localhost:3000)
+cargo run --bin capbit-server
+
+# Or build release version
+cargo build --release --bin capbit-server
+./target/release/capbit-server
+```
+
+### Demo Features
+
+- **Bootstrap** - Initialize the system with a root user
+- **Entity Management** - Create users, teams, apps, resources
+- **Capability Definitions** - Define what roles mean
+- **Grant Management** - Assign roles to users
+- **Access Checks** - Test permission queries
+- **Templates** - Pre-built scenarios (startup, organization hierarchy)
+
+### REST API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/bootstrap` | Initialize system with root user |
+| GET | `/status` | Get system status |
+| POST | `/entity` | Create entity |
+| GET | `/entities` | List all entities |
+| POST | `/capability` | Define capability |
+| GET | `/capabilities` | List capabilities |
+| POST | `/grant` | Create grant |
+| GET | `/grants` | List grants |
+| POST | `/check` | Check access permissions |
+| POST | `/reset` | Reset database (dev only) |
+
+---
+
 ## Testing
 
-Run all 47 tests:
+Run all 190 tests:
 
 ```bash
 cargo test
@@ -334,16 +376,21 @@ cargo test demo_simulation -- --nocapture
 
 | Category | Tests | Description |
 |----------|-------|-------------|
-| Security | 9 | Attack vectors (escalation, spoofing, replay) |
-| Bootstrap | 6 | System initialization |
-| Entities | 4 | Create, delete, validation |
-| Grants | 3 | Relationship management |
-| Capabilities | 2 | Role definitions |
-| Delegations | 3 | Inheritance system |
-| Access | 5 | Permission evaluation |
+| Security Attacks | 24 | Attack vectors, privilege escalation, confused deputy |
+| Permission Boundaries | 16 | Capability edge cases, exact matching |
+| Revocation | 11 | Permission removal, cascade effects |
+| Authorized Operations | 17 | Client abilities (happy path verification) |
+| Input Validation | 18 | Edge cases, special characters, limits |
+| Inheritance | 12 | Diamond patterns, wide/deep inheritance |
+| Batch Operations | 13 | Atomic batch processing, WriteBatch API |
+| Query Operations | 15 | list_accessible, list_subjects completeness |
+| Type System | 19 | Type lifecycle, custom types, permissions |
+| Protected API | 23 | v2 API authorization |
 | Integration | 9 | End-to-end scenarios |
 | Simulation | 2 | Full organization scenarios |
+| Benchmarks | 7 | Performance verification |
 | Doc-tests | 3 | Example code verification |
+| **Total** | **190** | |
 
 ---
 
@@ -456,7 +503,7 @@ LMDB provides:
 1. Fork the repository
 2. Create a feature branch
 3. Add tests for new functionality
-4. Ensure all 47 tests pass: `cargo test`
+4. Ensure all 190 tests pass: `cargo test`
 5. Submit a pull request
 
 ---
@@ -481,6 +528,20 @@ For commercial licensing, contact: https://github.com/tzvibm
 ---
 
 ## Changelog
+
+### v2.1.0
+- REST API server with interactive web demo
+- Type-level permissions now included in `check_access` queries
+- Comprehensive test suite: 190 tests (up from 47)
+  - Security attack vectors
+  - Permission boundary testing
+  - Revocation and cascade effects
+  - Client ability verification
+  - Input validation edge cases
+  - Advanced inheritance patterns
+  - Batch operation tests
+  - Query completeness tests
+  - Type system tests
 
 ### v2.0.0
 - Protected mutations requiring authorization

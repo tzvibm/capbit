@@ -1,6 +1,6 @@
 # Comprehensive Test Suite Plan for Capbit
 
-## Current State: 188 tests across 15 files
+## Current State: 190 tests across 15 files
 
 | File | Tests | Coverage | Status |
 |------|-------|----------|--------|
@@ -13,12 +13,13 @@
 | inheritance_advanced.rs | 12 | Complex inheritance | Phase 2 ✅ |
 | batch_operations.rs | 13 | Batch & WriteBatch API | Phase 2 ✅ |
 | query_operations.rs | 15 | Query completeness | Phase 2 ✅ |
-| type_system.rs | 17 | Type lifecycle | Phase 2 ✅ |
+| type_system.rs | 19 | Type lifecycle & query access | Phase 2 ✅ |
 | protected_api.rs | 23 | v2 API | Original |
 | integration.rs | 9 | v1 API | Original |
 | simulation.rs | 2 | End-to-end scenarios | Original |
 | benchmarks.rs | 7 | Performance | Original |
 | demo_verbose.rs | 1 | Interactive demo | Original |
+| doc-tests | 3 | Example verification | Original |
 
 ---
 
@@ -202,10 +203,10 @@
 | tests/inheritance_advanced.rs | CREATE | 12 | DONE ✅ |
 | tests/batch_operations.rs | CREATE | 13 | DONE ✅ |
 | tests/query_operations.rs | CREATE | 15 | DONE ✅ |
-| tests/type_system.rs | CREATE | 17 | DONE ✅ |
+| tests/type_system.rs | CREATE | 19 | DONE ✅ |
 
-**Total New Tests: 134**
-**Final Total: 188 tests**
+**Total New Tests: 136**
+**Final Total: 190 tests**
 
 ---
 
@@ -216,13 +217,13 @@
 2. **tests/permission_boundaries.rs** - 16 tests (Core correctness) ✅
 3. **tests/revocation.rs** - 11 tests (Security critical) ✅
 
-### Phase 2: COMPLETED (92 tests added)
+### Phase 2: COMPLETED (94 tests added)
 4. **tests/authorized_operations.rs** - 17 tests (Client abilities) ✅
 5. **tests/input_validation.rs** - 18 tests (Edge cases) ✅
 6. **tests/inheritance_advanced.rs** - 12 tests (Complex inheritance) ✅
 7. **tests/batch_operations.rs** - 13 tests (Batch API) ✅
 8. **tests/query_operations.rs** - 15 tests (Query completeness) ✅
-9. **tests/type_system.rs** - 17 tests (Type lifecycle) ✅
+9. **tests/type_system.rs** - 19 tests (Type lifecycle + query access) ✅
 
 ---
 

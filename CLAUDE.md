@@ -13,11 +13,12 @@ Capbit is a Rust library for high-performance access control with:
 ## Commands
 
 ```bash
-cargo build            # Build library
-cargo build --release  # Build optimized
-cargo test             # Run all 47 tests
-cargo test -- --nocapture  # Run with output
+cargo build                                # Build library
+cargo build --release                      # Build optimized
+cargo test                                 # Run all 190 tests
+cargo test -- --nocapture                  # Run with output
 cargo test demo_simulation -- --nocapture  # Interactive demo
+cargo run --bin capbit-server              # Run REST API server (demo at localhost:3000)
 ```
 
 ## Architecture
@@ -27,21 +28,36 @@ cargo test demo_simulation -- --nocapture  # Interactive demo
 ```
 capbit/
 ├── src/
-│   ├── lib.rs          # Public API re-exports
-│   ├── core.rs         # Core database operations
-│   ├── caps.rs         # SystemCap constants
-│   ├── bootstrap.rs    # Genesis/root creation
-│   └── protected.rs    # Protected mutation API
+│   ├── lib.rs              # Public API re-exports
+│   ├── core.rs             # Core database operations
+│   ├── caps.rs             # SystemCap constants
+│   ├── bootstrap.rs        # Genesis/root creation
+│   ├── protected.rs        # Protected mutation API
+│   └── bin/
+│       └── server.rs       # REST API server
+├── demo/
+│   └── index.html          # Interactive web demo
 ├── tests/
-│   ├── integration.rs      # v1 compatibility tests
-│   ├── attack_vectors.rs   # Security tests
-│   ├── protected_api.rs    # v2 API tests
-│   ├── simulation.rs       # Organization scenarios
-│   └── demo_verbose.rs     # Interactive demo
+│   ├── integration.rs          # v1 compatibility tests
+│   ├── attack_vectors.rs       # Security tests (9)
+│   ├── attack_vectors_extended.rs  # Advanced security (15)
+│   ├── permission_boundaries.rs    # Capability edge cases (16)
+│   ├── revocation.rs           # Permission removal (11)
+│   ├── authorized_operations.rs    # Client abilities (17)
+│   ├── input_validation.rs     # Edge cases (18)
+│   ├── inheritance_advanced.rs # Complex inheritance (12)
+│   ├── batch_operations.rs     # Batch API (13)
+│   ├── query_operations.rs     # Query completeness (15)
+│   ├── type_system.rs          # Type lifecycle (19)
+│   ├── protected_api.rs        # v2 API tests (23)
+│   ├── simulation.rs           # Organization scenarios (2)
+│   ├── benchmarks.rs           # Performance tests (7)
+│   └── demo_verbose.rs         # Interactive demo (1)
 ├── Cargo.toml
-├── README.md           # User documentation
-├── GUIDE.md            # Visual guide with diagrams
-└── SIMULATION.md       # Full simulation spec
+├── README.md               # User documentation
+├── GUIDE.md                # Visual guide with diagrams
+├── SIMULATION.md           # Full simulation spec
+└── TEST_PLAN.md            # Comprehensive test plan
 ```
 
 ### Core Modules
@@ -82,13 +98,17 @@ LMDB
 ### Permission Model
 
 ```
-Permission Check Flow:
+Permission Check Flow (check_access):
 
 1. Direct grants: subject/*/object → get rel_types
-2. Inheritance: subject/object/* → get sources, recurse
-3. Capability lookup: object/rel_type → cap_mask
-4. Combine: OR all masks together
-5. Evaluate: (effective & required) == required
+2. Type-level grants: subject/*/_type:{type} → get rel_types (for typed entities)
+3. Inheritance: subject/object/* → get sources, recurse
+4. Capability lookup: object/rel_type → cap_mask
+5. Combine: OR all masks together
+6. Evaluate: (effective & required) == required
+
+Note: check_access includes type-level permissions when querying instances.
+E.g., querying user:root on team:engineering includes root's grants on _type:team.
 ```
 
 ### SystemCap Bits
@@ -158,17 +178,21 @@ bootstrap("root"):
 
 | Category | Count | Purpose |
 |----------|-------|---------|
-| Security | 9 | Attack vectors |
-| Bootstrap | 6 | Initialization |
-| Entities | 4 | CRUD operations |
-| Grants | 3 | Relationships |
-| Capabilities | 2 | Role definitions |
-| Delegations | 3 | Inheritance |
-| Access | 5 | Permission checks |
+| Security Attacks | 24 | Attack vectors, privilege escalation |
+| Permission Boundaries | 16 | Capability edge cases |
+| Revocation | 11 | Permission removal, cascade |
+| Authorized Operations | 17 | Client abilities (happy path) |
+| Input Validation | 18 | Edge cases, special chars |
+| Inheritance | 12 | Diamond, wide, deep patterns |
+| Batch Operations | 13 | WriteBatch, atomic ops |
+| Query Operations | 15 | Query completeness |
+| Type System | 19 | Type lifecycle, permissions |
+| Protected API | 23 | v2 API authorization |
 | Integration | 9 | End-to-end |
 | Simulation | 2 | Organization scenarios |
+| Benchmarks | 7 | Performance |
 | Doc-tests | 3 | Example verification |
-| **Total** | **47** | |
+| **Total** | **190** | |
 
 ## Design Principles
 
