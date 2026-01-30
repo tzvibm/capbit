@@ -138,6 +138,7 @@ Data is stored in LMDB with these indexes:
 | inheritance | subject/object/source | Forward inheritance |
 | inheritance_by_source | source/object/subject | "Who inherits from X?" |
 | inheritance_by_object | object/source/subject | "What rules affect X?" |
+| cap_labels | entity/cap_bit | Human-readable capability names |
 
 ## License
 
