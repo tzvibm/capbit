@@ -468,6 +468,15 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
         let mut stack = vec![(subject.to_string(), 0usize)];
         let obj_esc = escape(object);
 
+        // Check if object is a typed entity (e.g., "team:engineering") and get type scope
+        // Skip if object is already a type entity (starts with "_type:")
+        let type_scope = if !object.starts_with("_type:") {
+            object.split_once(':').map(|(t, _)| format!("_type:{}", t))
+        } else {
+            None
+        };
+        let type_scope_esc = type_scope.as_ref().map(|s| escape(s).into_owned());
+
         while let Some((current, depth)) = stack.pop() {
             let visit_key = format!("{}:{}", current, object);
             if !visited.insert(visit_key) {
@@ -478,7 +487,7 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
             let prefix = format!("{}/", subj_esc);
             let suffix = format!("/{}", obj_esc);
 
-            // Get direct relationships
+            // Get direct relationships to the object
             for item in dbs.relationships.prefix_iter(txn, &prefix).map_err(err)? {
                 let (key, _) = item.map_err(err)?;
                 if key.ends_with(&suffix) {
@@ -486,6 +495,22 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
                     let cap_key = format!("{}/{}", obj_esc, rel_esc);
                     if let Some(cap) = dbs.capabilities.get(txn, &cap_key).map_err(err)? {
                         effective_cap |= cap;
+                    }
+                }
+            }
+
+            // Also check type-level relationships (e.g., grants on _type:team apply to all teams)
+            if let Some(ref type_esc) = type_scope_esc {
+                let type_suffix = format!("/{}", type_esc);
+                for item in dbs.relationships.prefix_iter(txn, &prefix).map_err(err)? {
+                    let (key, _) = item.map_err(err)?;
+                    if key.ends_with(&type_suffix) {
+                        let rel_esc = &key[prefix.len()..key.len() - type_suffix.len()];
+                        // Look up capability on the type scope
+                        let cap_key = format!("{}/{}", type_esc, rel_esc);
+                        if let Some(cap) = dbs.capabilities.get(txn, &cap_key).map_err(err)? {
+                            effective_cap |= cap;
+                        }
                     }
                 }
             }

@@ -337,3 +337,47 @@ fn root_entity_immutable() {
     assert!(result.is_err());
     assert!(result.unwrap_err().message.contains("already exists"));
 }
+
+// ============================================================================
+// Type-Level Query Access
+// ============================================================================
+
+/// Verify check_access includes type-level permissions for instances
+#[test]
+fn check_access_includes_type_level_permissions() {
+    let _lock = setup_bootstrapped();
+
+    // Create a team instance
+    protected::create_entity("user:root", "team", "engineering").unwrap();
+
+    // Root has admin on _type:team (from bootstrap)
+    // check_access on _type:team should show the permissions
+    let type_caps = check_access("user:root", "_type:team", None).unwrap();
+    assert!((type_caps & SystemCap::ENTITY_ADMIN) == SystemCap::ENTITY_ADMIN);
+
+    // Now check_access on team:engineering should ALSO include type-level permissions
+    let instance_caps = check_access("user:root", "team:engineering", None).unwrap();
+    assert!((instance_caps & SystemCap::ENTITY_ADMIN) == SystemCap::ENTITY_ADMIN,
+            "Expected type-level permissions on instance, got: 0x{:x}", instance_caps);
+}
+
+/// Verify type-level permissions work for any user with type admin
+#[test]
+fn type_admin_query_shows_permissions_on_instances() {
+    let _lock = setup_bootstrapped();
+
+    // Create alice and give her admin on _type:resource
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::set_grant("user:root", "user:alice", "admin", "_type:resource").unwrap();
+
+    // Create some resources
+    protected::create_entity("user:alice", "resource", "doc1").unwrap();
+    protected::create_entity("user:alice", "resource", "doc2").unwrap();
+
+    // Alice should show type-level permissions when querying any resource instance
+    let caps1 = check_access("user:alice", "resource:doc1", None).unwrap();
+    let caps2 = check_access("user:alice", "resource:doc2", None).unwrap();
+
+    assert!((caps1 & SystemCap::ENTITY_ADMIN) == SystemCap::ENTITY_ADMIN);
+    assert!((caps2 & SystemCap::ENTITY_ADMIN) == SystemCap::ENTITY_ADMIN);
+}
