@@ -878,61 +878,97 @@
                 known.entities.push({ id: 'user:root', type: 'user' });
 
                 // Create teams
-                for (const t of ['engineering', 'sales', 'hr']) {
+                for (const t of ['engineering', 'sales']) {
                     const r = await api('POST', '/entity', { actor: 'user:root', entity_type: 'team', id: t });
                     if (r.ok) known.entities.push({ id: `team:${t}`, type: 'team' });
-                    await sleep(100);
+                    await sleep(50);
                 }
 
                 // Create users
-                for (const u of ['alice', 'bob', 'charlie', 'dave', 'eve']) {
+                for (const u of ['alice', 'bob', 'charlie', 'dave']) {
                     const r = await api('POST', '/entity', { actor: 'user:root', entity_type: 'user', id: u });
                     if (r.ok) known.entities.push({ id: `user:${u}`, type: 'user' });
-                    await sleep(100);
+                    await sleep(50);
                 }
 
-                // Define team capabilities
-                for (const t of ['engineering', 'sales', 'hr']) {
-                    await api('POST', '/capability', {
-                        actor: 'user:root',
-                        scope: `team:${t}`,
-                        relation: 'lead',
-                        cap_mask: 0x0030  // READ + WRITE
-                    });
-                    known.capabilities.push({ scope: `team:${t}`, relation: 'lead', cap_mask: 0x0030 });
-
-                    await api('POST', '/capability', {
-                        actor: 'user:root',
-                        scope: `team:${t}`,
-                        relation: 'member',
-                        cap_mask: 0x0010  // READ only
-                    });
-                    known.capabilities.push({ scope: `team:${t}`, relation: 'member', cap_mask: 0x0010 });
-                    await sleep(100);
+                // Create documents
+                for (const d of ['roadmap', 'budget', 'contracts']) {
+                    const r = await api('POST', '/entity', { actor: 'user:root', entity_type: 'resource', id: d });
+                    if (r.ok) known.entities.push({ id: `resource:${d}`, type: 'resource' });
+                    await sleep(50);
                 }
 
-                // Assign leads
-                const leads = [
-                    { seeker: 'user:alice', scope: 'team:engineering' },
-                    { seeker: 'user:bob', scope: 'team:sales' },
-                    { seeker: 'user:charlie', scope: 'team:hr' }
+                log('Defining custom capability meanings...', 'info');
+
+                // ═══════════════════════════════════════════════════════════
+                // CUSTOM ORG CAPABILITIES - Document Access Levels
+                // Using custom bits: 0x01=view, 0x02=comment, 0x04=edit, 0x08=delete
+                // ═══════════════════════════════════════════════════════════
+                const docCaps = [
+                    { relation: 'viewer',    cap: 0x01, desc: 'view only' },
+                    { relation: 'commenter', cap: 0x03, desc: 'view + comment' },
+                    { relation: 'editor',    cap: 0x07, desc: 'view + comment + edit' },
+                    { relation: 'owner',     cap: 0x0F, desc: 'full control' }
                 ];
-                for (const l of leads) {
-                    await api('POST', '/grant', { actor: 'user:root', seeker: l.seeker, relation: 'lead', scope: l.scope });
-                    known.grants.push({ ...l, relation: 'lead' });
-                    await sleep(100);
+
+                for (const doc of ['roadmap', 'budget', 'contracts']) {
+                    for (const c of docCaps) {
+                        await api('POST', '/capability', {
+                            actor: 'user:root',
+                            scope: `resource:${doc}`,
+                            relation: c.relation,
+                            cap_mask: c.cap
+                        });
+                        known.capabilities.push({ scope: `resource:${doc}`, relation: c.relation, cap_mask: c.cap });
+                    }
+                    await sleep(50);
                 }
 
-                // Alice (eng lead) adds members
-                for (const u of ['dave', 'eve']) {
-                    await api('POST', '/grant', {
-                        actor: 'user:alice',
-                        seeker: `user:${u}`,
-                        relation: 'member',
-                        scope: 'team:engineering'
-                    });
-                    known.grants.push({ seeker: `user:${u}`, relation: 'member', scope: 'team:engineering' });
-                    await sleep(100);
+                // ═══════════════════════════════════════════════════════════
+                // CUSTOM ORG CAPABILITIES - Team Roles
+                // Using bits: 0x10=read members, 0x20=add members, 0x40=remove members, 0x80=manage settings
+                // ═══════════════════════════════════════════════════════════
+                const teamCaps = [
+                    { relation: 'member',    cap: 0x10,  desc: 'see team members' },
+                    { relation: 'lead',      cap: 0x30,  desc: 'see + add members' },
+                    { relation: 'manager',   cap: 0x70,  desc: 'see + add + remove members' },
+                    { relation: 'admin',     cap: 0xF0,  desc: 'full team control' }
+                ];
+
+                for (const team of ['engineering', 'sales']) {
+                    for (const c of teamCaps) {
+                        await api('POST', '/capability', {
+                            actor: 'user:root',
+                            scope: `team:${team}`,
+                            relation: c.relation,
+                            cap_mask: c.cap
+                        });
+                        known.capabilities.push({ scope: `team:${team}`, relation: c.relation, cap_mask: c.cap });
+                    }
+                    await sleep(50);
+                }
+
+                log('Assigning roles...', 'info');
+
+                // Grants - varied access levels
+                const grants = [
+                    // Alice: eng admin, owns roadmap
+                    { actor: 'user:root', seeker: 'user:alice', relation: 'admin', scope: 'team:engineering' },
+                    { actor: 'user:root', seeker: 'user:alice', relation: 'owner', scope: 'resource:roadmap' },
+                    // Bob: sales lead, can edit budget
+                    { actor: 'user:root', seeker: 'user:bob', relation: 'lead', scope: 'team:sales' },
+                    { actor: 'user:root', seeker: 'user:bob', relation: 'editor', scope: 'resource:budget' },
+                    // Charlie: eng member, can comment on roadmap
+                    { actor: 'user:alice', seeker: 'user:charlie', relation: 'member', scope: 'team:engineering' },
+                    { actor: 'user:alice', seeker: 'user:charlie', relation: 'commenter', scope: 'resource:roadmap' },
+                    // Dave: can only view contracts
+                    { actor: 'user:root', seeker: 'user:dave', relation: 'viewer', scope: 'resource:contracts' },
+                ];
+
+                for (const g of grants) {
+                    await api('POST', '/grant', g);
+                    known.grants.push({ seeker: g.seeker, relation: g.relation, scope: g.scope });
+                    await sleep(50);
                 }
 
             } else if (name === 'saas') {
@@ -940,49 +976,147 @@
                 await api('POST', '/bootstrap', { root_id: 'admin' });
                 known.entities.push({ id: 'user:admin', type: 'user' });
 
-                // Create tenants
-                for (const t of ['acme-corp', 'globex']) {
+                // Create tenant orgs
+                for (const t of ['acme', 'globex']) {
                     const r = await api('POST', '/entity', { actor: 'user:admin', entity_type: 'team', id: t });
                     if (r.ok) known.entities.push({ id: `team:${t}`, type: 'team' });
-                    await sleep(100);
+                    await sleep(50);
                 }
 
                 // Create users
-                for (const u of ['alice', 'bob']) {
+                for (const u of ['alice', 'bob', 'charlie', 'dana']) {
                     const r = await api('POST', '/entity', { actor: 'user:admin', entity_type: 'user', id: u });
                     if (r.ok) known.entities.push({ id: `user:${u}`, type: 'user' });
-                    await sleep(100);
+                    await sleep(50);
                 }
 
-                // Create resources
-                for (const r of ['project-alpha', 'project-beta']) {
-                    const res = await api('POST', '/entity', { actor: 'user:admin', entity_type: 'resource', id: r });
-                    if (res.ok) known.entities.push({ id: `resource:${r}`, type: 'resource' });
-
-                    await api('POST', '/capability', {
-                        actor: 'user:admin',
-                        scope: `resource:${r}`,
-                        relation: 'editor',
-                        cap_mask: 0x0030
-                    });
-                    known.capabilities.push({ scope: `resource:${r}`, relation: 'editor', cap_mask: 0x0030 });
-
-                    await api('POST', '/capability', {
-                        actor: 'user:admin',
-                        scope: `resource:${r}`,
-                        relation: 'viewer',
-                        cap_mask: 0x0010
-                    });
-                    known.capabilities.push({ scope: `resource:${r}`, relation: 'viewer', cap_mask: 0x0010 });
-                    await sleep(100);
+                // Create apps/services
+                for (const a of ['api-gateway', 'dashboard', 'analytics']) {
+                    const r = await api('POST', '/entity', { actor: 'user:admin', entity_type: 'app', id: a });
+                    if (r.ok) known.entities.push({ id: `app:${a}`, type: 'app' });
+                    await sleep(50);
                 }
 
-                // Grants
-                await api('POST', '/grant', { actor: 'user:admin', seeker: 'user:alice', relation: 'editor', scope: 'resource:project-alpha' });
-                known.grants.push({ seeker: 'user:alice', relation: 'editor', scope: 'resource:project-alpha' });
+                log('Defining SaaS capability tiers...', 'info');
 
-                await api('POST', '/grant', { actor: 'user:admin', seeker: 'user:bob', relation: 'viewer', scope: 'resource:project-beta' });
-                known.grants.push({ seeker: 'user:bob', relation: 'viewer', scope: 'resource:project-beta' });
+                // ═══════════════════════════════════════════════════════════
+                // CUSTOM ORG CAPABILITIES - API Access Tiers
+                // Bits: 0x01=read, 0x02=write, 0x04=delete, 0x08=bulk ops,
+                //       0x10=webhooks, 0x20=export, 0x40=admin api, 0x80=unlimited
+                // ═══════════════════════════════════════════════════════════
+                const apiCaps = [
+                    { relation: 'free',       cap: 0x01,  desc: 'read only' },
+                    { relation: 'basic',      cap: 0x03,  desc: 'read + write' },
+                    { relation: 'pro',        cap: 0x1F,  desc: 'CRUD + bulk + webhooks' },
+                    { relation: 'enterprise', cap: 0xFF,  desc: 'unlimited access' }
+                ];
+
+                for (const c of apiCaps) {
+                    await api('POST', '/capability', {
+                        actor: 'user:admin',
+                        scope: 'app:api-gateway',
+                        relation: c.relation,
+                        cap_mask: c.cap
+                    });
+                    known.capabilities.push({ scope: 'app:api-gateway', relation: c.relation, cap_mask: c.cap });
+                }
+                await sleep(50);
+
+                // ═══════════════════════════════════════════════════════════
+                // CUSTOM ORG CAPABILITIES - Dashboard Features
+                // Bits: 0x01=view, 0x02=create reports, 0x04=share, 0x08=schedule
+                // ═══════════════════════════════════════════════════════════
+                const dashCaps = [
+                    { relation: 'viewer',     cap: 0x01, desc: 'view dashboards' },
+                    { relation: 'analyst',    cap: 0x07, desc: 'view + create + share' },
+                    { relation: 'power-user', cap: 0x0F, desc: 'full dashboard control' }
+                ];
+
+                for (const c of dashCaps) {
+                    await api('POST', '/capability', {
+                        actor: 'user:admin',
+                        scope: 'app:dashboard',
+                        relation: c.relation,
+                        cap_mask: c.cap
+                    });
+                    known.capabilities.push({ scope: 'app:dashboard', relation: c.relation, cap_mask: c.cap });
+                }
+                await sleep(50);
+
+                // ═══════════════════════════════════════════════════════════
+                // CUSTOM ORG CAPABILITIES - Analytics Access
+                // Bits: 0x01=basic metrics, 0x02=advanced, 0x04=raw data, 0x08=ML models
+                // ═══════════════════════════════════════════════════════════
+                const analyticsCaps = [
+                    { relation: 'basic',    cap: 0x01, desc: 'basic metrics' },
+                    { relation: 'advanced', cap: 0x03, desc: 'basic + advanced analytics' },
+                    { relation: 'data-eng', cap: 0x07, desc: 'all + raw data access' },
+                    { relation: 'ml-admin', cap: 0x0F, desc: 'full + ML model access' }
+                ];
+
+                for (const c of analyticsCaps) {
+                    await api('POST', '/capability', {
+                        actor: 'user:admin',
+                        scope: 'app:analytics',
+                        relation: c.relation,
+                        cap_mask: c.cap
+                    });
+                    known.capabilities.push({ scope: 'app:analytics', relation: c.relation, cap_mask: c.cap });
+                }
+                await sleep(50);
+
+                // ═══════════════════════════════════════════════════════════
+                // CUSTOM ORG CAPABILITIES - Tenant Roles
+                // Bits: 0x100=view org, 0x200=invite users, 0x400=billing, 0x800=settings
+                // ═══════════════════════════════════════════════════════════
+                const tenantCaps = [
+                    { relation: 'member',  cap: 0x100,  desc: 'org member' },
+                    { relation: 'manager', cap: 0x300,  desc: 'member + invite' },
+                    { relation: 'billing', cap: 0x500,  desc: 'member + billing' },
+                    { relation: 'owner',   cap: 0xF00,  desc: 'full org control' }
+                ];
+
+                for (const tenant of ['acme', 'globex']) {
+                    for (const c of tenantCaps) {
+                        await api('POST', '/capability', {
+                            actor: 'user:admin',
+                            scope: `team:${tenant}`,
+                            relation: c.relation,
+                            cap_mask: c.cap
+                        });
+                        known.capabilities.push({ scope: `team:${tenant}`, relation: c.relation, cap_mask: c.cap });
+                    }
+                }
+                await sleep(50);
+
+                log('Assigning SaaS access...', 'info');
+
+                // Grants - simulate real SaaS scenario
+                const grants = [
+                    // Alice: Acme owner, enterprise API, power-user dashboard
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'owner', scope: 'team:acme' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'enterprise', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'power-user', scope: 'app:dashboard' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'ml-admin', scope: 'app:analytics' },
+                    // Bob: Acme member, pro API, analyst dashboard
+                    { actor: 'user:alice', seeker: 'user:bob', relation: 'member', scope: 'team:acme' },
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'pro', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'analyst', scope: 'app:dashboard' },
+                    // Charlie: Globex owner, basic tier
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'owner', scope: 'team:globex' },
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'basic', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'viewer', scope: 'app:dashboard' },
+                    // Dana: Globex member, free tier
+                    { actor: 'user:charlie', seeker: 'user:dana', relation: 'member', scope: 'team:globex' },
+                    { actor: 'user:admin', seeker: 'user:dana', relation: 'free', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:dana', relation: 'basic', scope: 'app:analytics' },
+                ];
+
+                for (const g of grants) {
+                    await api('POST', '/grant', g);
+                    known.grants.push({ seeker: g.seeker, relation: g.relation, scope: g.scope });
+                    await sleep(50);
+                }
             }
 
             log(`--- Template "${name}" complete ---`, 'info');
