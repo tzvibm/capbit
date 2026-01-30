@@ -677,11 +677,46 @@
                     result.data.bootstrapped
                         ? `Connected (root: ${result.data.root_entity})`
                         : 'Connected (not bootstrapped)';
+                // Load existing data from server
+                await loadData();
             } else {
                 connected = false;
                 document.getElementById('status-dot').classList.remove('connected');
                 document.getElementById('status-text').textContent = 'Connection failed';
             }
+        }
+
+        async function loadData() {
+            // Load entities
+            const entitiesResult = await api('GET', '/entities');
+            if (entitiesResult.ok) {
+                known.entities = entitiesResult.data.map(e => ({
+                    id: e.id,
+                    type: e.entity_type
+                }));
+            }
+
+            // Load grants
+            const grantsResult = await api('GET', '/grants');
+            if (grantsResult.ok) {
+                known.grants = grantsResult.data.map(g => ({
+                    seeker: g.seeker,
+                    relation: g.relation,
+                    scope: g.scope
+                }));
+            }
+
+            // Load capabilities
+            const capsResult = await api('GET', '/capabilities');
+            if (capsResult.ok) {
+                known.capabilities = capsResult.data.map(c => ({
+                    scope: c.scope,
+                    relation: c.relation,
+                    cap_mask: c.cap_mask
+                }));
+            }
+
+            renderAll();
         }
 
         // ============================================================================
