@@ -2,38 +2,22 @@
 name = "capbit"
 version = "0.1.0"
 edition = "2021"
-description = "Entity-relationship bitmask access control system"
+description = "High-performance access control library with string-based relationships and bitmask capabilities"
 license = "MIT"
+repository = "https://github.com/tzvibm/capbit"
+keywords = ["access-control", "authorization", "permissions", "rbac", "lmdb"]
+categories = ["authentication", "database"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
-
-[[bin]]
-name = "capbit-server"
-path = "src/server.rs"
-required-features = ["server"]
-
-[features]
-default = []
-server = ["axum", "tokio", "tower-http"]
+crate-type = ["rlib"]
 
 [dependencies]
 heed = "0.20"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 byteorder = "1.5"
 
-# NAPI bindings (optional for server-only builds)
-napi = { version = "2", features = ["napi6"] }
-napi-derive = "2"
-
-# HTTP server (optional)
-axum = { version = "0.7", optional = true }
-tokio = { version = "1", features = ["full"], optional = true }
-tower-http = { version = "0.5", features = ["cors", "trace"], optional = true }
-
-[build-dependencies]
-napi-build = "2"
+[dev-dependencies]
+tempfile = "3"
 
 [profile.release]
 lto = true

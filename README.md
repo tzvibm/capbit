@@ -1,6 +1,6 @@
 # Capbit
 
-High-performance access control with string-based relationships and bitmask capabilities.
+High-performance access control library with string-based relationships and bitmask capabilities.
 
 ## Features
 
@@ -14,108 +14,130 @@ High-performance access control with string-based relationships and bitmask capa
 
 ## Installation
 
-```bash
-npm install
-npm run build
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+capbit = "0.1"
 ```
 
 ## Quick Start
 
-```javascript
-const capbit = require('./capbit.node');
+```rust
+use capbit::{init, set_capability, set_relationship, has_capability};
 
-// Initialize database
-capbit.init('./data/capbit.mdb');
+// Capability bits
+const READ: u64 = 0x01;
+const WRITE: u64 = 0x02;
+const DELETE: u64 = 0x04;
 
-// Define capability bits
-const READ = 0x01, WRITE = 0x02, DELETE = 0x04;
+fn main() -> capbit::Result<()> {
+    // Initialize database
+    init("./data/capbit.mdb")?;
 
-// Set up: "editor" on "project42" grants read+write
-capbit.setCapability('project42', 'editor', READ | WRITE);
+    // "editor" on "project42" grants read+write
+    set_capability("project42", "editor", READ | WRITE)?;
 
-// John is an editor
-capbit.setRelationship('john', 'editor', 'project42');
+    // John is an editor
+    set_relationship("john", "editor", "project42")?;
 
-// Check access
-capbit.hasCapability('john', 'project42', WRITE);  // true
-capbit.hasCapability('john', 'project42', DELETE); // false
+    // Check access
+    assert!(has_capability("john", "project42", WRITE)?);
+    assert!(!has_capability("john", "project42", DELETE)?);
+
+    Ok(())
+}
 ```
 
 ## API
 
 ### Initialization
 
-- `init(dbPath)` - Initialize LMDB environment
+- `init(db_path)` - Initialize LMDB environment
 - `close()` - Close database
 
 ### Relationships
 
-- `setRelationship(subject, relType, object)` - Create relationship (relType is a string like "editor")
-- `getRelationships(subject, object)` - Get all relationship types as strings
-- `deleteRelationship(subject, relType, object)` - Remove relationship
+- `set_relationship(subject, rel_type, object)` - Create relationship
+- `get_relationships(subject, object)` - Get all relationship types
+- `delete_relationship(subject, rel_type, object)` - Remove relationship
 
 ### Capabilities
 
-- `setCapability(entity, relType, capMask)` - Define what a relationship grants
-- `getCapability(entity, relType)` - Get capability mask for relationship type
+- `set_capability(entity, rel_type, cap_mask)` - Define what a relationship grants
+- `get_capability(entity, rel_type)` - Get capability mask for relationship type
 
 ### Inheritance
 
-- `setInheritance(subject, object, source)` - Subject inherits source's relationship to object
-- `getInheritance(subject, object)` - Get inheritance sources for subject
-- `deleteInheritance(subject, object, source)` - Remove inheritance rule
-- `getInheritorsFromSource(source, object)` - Get all subjects inheriting from source
-- `getInheritanceForObject(object)` - Get all inheritance rules for object (audit)
+- `set_inheritance(subject, object, source)` - Subject inherits source's relationship
+- `get_inheritance(subject, object)` - Get inheritance sources
+- `delete_inheritance(subject, object, source)` - Remove inheritance rule
+- `get_inheritors_from_source(source, object)` - Get subjects inheriting from source
+- `get_inheritance_for_object(object)` - Get all inheritance rules (audit)
 
 ### Labels
 
-- `setCapLabel(entity, capBit, label)` - Human-readable capability name
-- `getCapLabel(entity, capBit)` - Get capability label
+- `set_cap_label(entity, cap_bit, label)` - Human-readable capability name
+- `get_cap_label(entity, cap_bit)` - Get capability label
 
 ### Access Checks
 
-- `checkAccess(subject, object, maxDepth?)` - Get effective capability mask
-- `hasCapability(subject, object, requiredCap)` - Check specific capability
+- `check_access(subject, object, max_depth)` - Get effective capability mask
+- `has_capability(subject, object, required_cap)` - Check specific capability
 
 ### Query Operations
 
-- `listAccessible(subject)` - List all [object, relType] pairs for subject
-- `listSubjects(object)` - List all [subject, relType] pairs for object
+- `list_accessible(subject)` - List all (object, rel_type) pairs
+- `list_subjects(object)` - List all (subject, rel_type) pairs
 
 ### Batch Operations
 
-- `batchSetRelationships(entries)` - Batch set relationships
-- `batchSetCapabilities(entries)` - Batch set capabilities
-- `batchSetInheritance(entries)` - Batch set inheritance
+- `batch_set_relationships(entries)` - Bulk set relationships
+- `batch_set_capabilities(entries)` - Bulk set capabilities
+- `batch_set_inheritance(entries)` - Bulk set inheritance
 
 ### WriteBatch (Explicit Transactions)
 
-For maximum control over transaction boundaries:
+For atomicity and better performance:
 
-```javascript
-const batch = new capbit.WriteBatch();
+```rust
+use capbit::WriteBatch;
 
-// Chain multiple operations
+let mut batch = WriteBatch::new();
+
+// Chain operations
 batch
-  .setCapability('project', 'editor', READ | WRITE)
-  .setRelationship('john', 'editor', 'project')
-  .setInheritance('team', 'project', 'john');
+    .set_capability("project", "editor", 0x03)
+    .set_relationship("john", "editor", "project")
+    .set_inheritance("team", "project", "john");
 
 // Execute all in one atomic transaction
-const epoch = batch.execute();
+batch.execute()?;
 ```
 
 Methods:
-- `new WriteBatch()` - Create a new batch
-- `setRelationship(subject, relType, object)` - Add relationship
-- `deleteRelationship(subject, relType, object)` - Delete relationship
-- `setCapability(entity, relType, capMask)` - Set capability
-- `setInheritance(subject, object, source)` - Add inheritance
-- `deleteInheritance(subject, object, source)` - Delete inheritance
-- `setCapLabel(entity, capBit, label)` - Set capability label
+- `WriteBatch::new()` - Create a new batch
+- `set_relationship(subject, rel_type, object)` - Add relationship
+- `delete_relationship(subject, rel_type, object)` - Delete relationship
+- `set_capability(entity, rel_type, cap_mask)` - Set capability
+- `set_inheritance(subject, object, source)` - Add inheritance
+- `delete_inheritance(subject, object, source)` - Delete inheritance
 - `execute()` - Execute all operations atomically
 - `clear()` - Clear all operations
-- `length` - Number of pending operations
+- `len()` / `is_empty()` - Check batch size
+
+## Storage
+
+Data is stored in LMDB with these indexes:
+
+| Database | Key Pattern | Purpose |
+|----------|-------------|---------|
+| relationships | subject/rel_type/object | Forward lookup |
+| relationships_rev | object/rel_type/subject | Reverse lookup |
+| capabilities | entity/rel_type | Capability definitions |
+| inheritance | subject/object/source | Forward inheritance |
+| inheritance_by_source | source/object/subject | "Who inherits from X?" |
+| inheritance_by_object | object/source/subject | "What rules affect X?" |
 
 ## License
 

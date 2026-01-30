@@ -2,12 +2,10 @@
 /target/
 Cargo.lock
 
-# Node
-node_modules/
-*.node
-
 # LMDB data
 /data/
+*.mdb
+*.mdb-lock
 
 # IDE
 .idea/
@@ -22,3 +20,4 @@ Thumbs.db
 # Environment
 .env
 .env.local
+*.node

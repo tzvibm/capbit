@@ -4,36 +4,26 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project Overview
 
-Capbit is a minimal, high-performance access control system where everything is an entity, relationships are strings (e.g., "editor", "viewer"), and capability semantics are defined per-entity as bitmasks. The system achieves O(log N) lookup and O(1) evaluation with linear scaling, no global schema, and deterministic ordering via epochs.
+Capbit is a pure Rust library for high-performance access control. Everything is an entity, relationships are strings (e.g., "editor", "viewer"), and capability semantics are defined per-entity as bitmasks. The system achieves O(log N) lookup and O(1) evaluation.
 
 ## Commands
 
 ```bash
-npm run build          # Build Rust native module (release)
-npm run build:debug    # Build Rust native module (debug)
-npm test               # Run all tests (Vitest)
-npm test:watch         # Run tests in watch mode
+cargo build            # Build library
+cargo build --release  # Build optimized
+cargo test             # Run all tests
+cargo doc --open       # Generate and view documentation
 ```
 
 ## Architecture
 
-**Stack:** Rust (NAPI-RS) + LMDB + Node.js bindings
+**Stack:** Pure Rust + LMDB (via heed)
 
 ### Core Abstraction
 
 Everything is an **entity**. The system doesn't know what entities represent—that's business context. Entities could be users, teams, apps, rooms, dates, events, services, or anything else.
 
-The storage layer contains only:
-- IDs (entity identifiers)
-- Relationship types (strings like "editor", "viewer", "member")
-- Capability bitmasks (for O(1) permission evaluation)
-- Epochs (timestamps for ordering)
-
-No types. No schema. Just paths, strings, and bits.
-
-### Path Patterns
-
-Four patterns define the entire system:
+### Storage Patterns
 
 | Pattern | Purpose |
 |---------|---------|
@@ -41,8 +31,6 @@ Four patterns define the entire system:
 | `entity/rel_type` → cap_mask | Capability definition (per-entity) |
 | `subject/object/source` | Inheritance reference |
 | `entity/cap_bit` → label | Human-readable capability name |
-
-All paths store **epoch** as value (except capabilities which store cap_mask).
 
 ### Sub-Databases
 
@@ -62,20 +50,6 @@ LMDB
 2. `source/object/*` → "Who inherits from source for object?"
 3. `object/*/*` → "What inheritance rules affect object?" (audit/admin)
 
-### Key Concepts
-
-**Relationship**: `john/editor/slack → epoch`
-Entity "john" has relationship type "editor" with entity "slack". The system doesn't know john is a user or slack is an app—that's business knowledge.
-
-**Per-Entity Capability Semantics**: The same relationship type grants different capabilities on different entities:
-```
-slack/editor → 0x0F    (editor in slack: read, write, delete, admin)
-github/editor → 0x03   (editor in github: read, write only)
-```
-
-**Inheritance**: `john/sales/mary → epoch`
-John inherits whatever relationship mary has with sales.
-
 ### Access Evaluation
 
 Three lookups, left to right:
@@ -85,7 +59,6 @@ Can subject perform action on object?
 
 Step 1: subject/*/object
 → get all existing rel_types (direct relationships)
-→ e.g., ["editor", "viewer"]
 
 Step 2: subject/object/*
 → if inheritance exists, get source entities
@@ -93,9 +66,9 @@ Step 2: subject/object/*
 
 Step 3: object/rel_type → cap_mask
 → for each rel_type from steps 1 and 2
-→ look up capability mask for that relationship type
+→ look up capability mask
 → OR all capability masks together
-→ evaluate requested action against effective capability bits
+→ evaluate requested action against effective bits
 ```
 
 ### Complexity
@@ -107,51 +80,47 @@ Step 3: object/rel_type → cap_mask
 | Bitmask evaluation | O(1) |
 | Access check (3 lookups) | O(log N) |
 
-### Bidirectional Storage
+## Write Strategies
 
-Every write is transactional on forward and reverse paths:
-```
-Transaction:
-  john/editor/sales → epoch
-  sales/editor/john → epoch
-```
+Three strategies for different use cases:
 
-Enables O(log N) queries from either direction:
-- "What can john access?" → scan `john/*/*`
-- "Who can access sales?" → scan `sales/*/*`
+| Strategy | API | Use Case |
+|----------|-----|----------|
+| Single-op | `set_relationship()` | Simple apps, low write volume |
+| WriteBatch | `WriteBatch::new()` | Atomicity, controlled batching |
+| Batch functions | `batch_set_relationships()` | High-throughput bulk inserts |
 
 ## Usage Example
 
-```javascript
-const capbit = require('./capbit.node');
+```rust
+use capbit::{init, set_capability, set_relationship, has_capability, WriteBatch};
 
-// Initialize
-capbit.init('./data/capbit.mdb');
+// Capability bits
+const READ: u64 = 0x01;
+const WRITE: u64 = 0x02;
+const DELETE: u64 = 0x04;
 
-// Define capability bits (bitmasks for O(1) evaluation)
-const READ = 0x01;
-const WRITE = 0x02;
-const DELETE = 0x04;
-const ADMIN = 0x08;
+fn main() -> capbit::Result<()> {
+    init("./data/capbit.mdb")?;
 
-// "editor" relationship on "project42" grants read+write
-capbit.setCapability('project42', 'editor', READ | WRITE);
+    // Define capability semantics
+    set_capability("project42", "editor", READ | WRITE)?;
+    set_capability("project42", "viewer", READ)?;
 
-// "viewer" relationship on "project42" grants read only
-capbit.setCapability('project42', 'viewer', READ);
+    // Set relationships
+    set_relationship("john", "editor", "project42")?;
 
-// John is an editor on project42
-capbit.setRelationship('john', 'editor', 'project42');
+    // Check access
+    assert!(has_capability("john", "project42", WRITE)?);
 
-// Bob inherits mary's relationship to project42
-capbit.setInheritance('bob', 'project42', 'mary');
+    // WriteBatch for atomic operations
+    let mut batch = WriteBatch::new();
+    batch.set_relationship("alice", "viewer", "project42");
+    batch.set_relationship("bob", "editor", "project42");
+    batch.execute()?;
 
-// Check access
-const caps = capbit.checkAccess('john', 'project42');
-const canWrite = (caps & WRITE) !== 0;  // true
-
-// Or use the helper
-const hasWrite = capbit.hasCapability('john', 'project42', WRITE);  // true
+    Ok(())
+}
 ```
 
 ## File Structure
@@ -159,35 +128,12 @@ const hasWrite = capbit.hasCapability('john', 'project42', WRITE);  // true
 ```
 capbit/
 ├── src/
-│   ├── lib.rs          # NAPI bindings (thin wrappers)
-│   ├── core.rs         # Core database operations
-│   └── server.rs       # HTTP server (optional, --features server)
+│   ├── lib.rs          # Public API re-exports
+│   └── core.rs         # Core implementation
 ├── tests/
-│   └── capbit.test.js  # Vitest tests
+│   └── integration.rs  # Integration tests
 ├── Cargo.toml          # Rust package config
-├── build.rs            # NAPI build script
-├── package.json        # Node.js package config
-├── index.d.ts          # TypeScript definitions
-├── capbit.node         # Native module (generated)
-└── data/               # LMDB data directory
-```
-
-## Write Strategies
-
-Three strategies for different use cases:
-
-| Strategy | API | Use Case |
-|----------|-----|----------|
-| Single-op | `setRelationship()` | Simple apps, low write volume |
-| WriteBatch | `new WriteBatch()` | Atomicity, controlled batching |
-| Batch functions | `batchSetRelationships()` | High-throughput bulk inserts |
-
-**WriteBatch example:**
-```javascript
-const batch = new capbit.WriteBatch();
-batch.setRelationship('john', 'editor', 'doc1');
-batch.setCapability('doc1', 'editor', READ | WRITE);
-batch.execute(); // Single atomic transaction
+└── README.md           # User documentation
 ```
 
 ## Design Principles
