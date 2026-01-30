@@ -88,6 +88,35 @@ capbit.hasCapability('john', 'project42', DELETE); // false
 - `batchSetCapabilities(entries)` - Batch set capabilities
 - `batchSetInheritance(entries)` - Batch set inheritance
 
+### WriteBatch (Explicit Transactions)
+
+For maximum control over transaction boundaries:
+
+```javascript
+const batch = new capbit.WriteBatch();
+
+// Chain multiple operations
+batch
+  .setCapability('project', 'editor', READ | WRITE)
+  .setRelationship('john', 'editor', 'project')
+  .setInheritance('team', 'project', 'john');
+
+// Execute all in one atomic transaction
+const epoch = batch.execute();
+```
+
+Methods:
+- `new WriteBatch()` - Create a new batch
+- `setRelationship(subject, relType, object)` - Add relationship
+- `deleteRelationship(subject, relType, object)` - Delete relationship
+- `setCapability(entity, relType, capMask)` - Set capability
+- `setInheritance(subject, object, source)` - Add inheritance
+- `deleteInheritance(subject, object, source)` - Delete inheritance
+- `setCapLabel(entity, capBit, label)` - Set capability label
+- `execute()` - Execute all operations atomically
+- `clear()` - Clear all operations
+- `length` - Number of pending operations
+
 ## License
 
 MIT

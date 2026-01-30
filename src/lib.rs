@@ -248,3 +248,84 @@ pub fn close() -> Result<()> {
     core::close();
     Ok(())
 }
+
+// ============================================================================
+// WriteBatch - Explicit Transaction API
+// ============================================================================
+
+/// A batch of write operations executed in a single transaction.
+/// Provides atomicity and better performance for multiple writes.
+#[napi]
+pub struct WriteBatch {
+    inner: core::WriteBatch,
+}
+
+#[napi]
+impl WriteBatch {
+    /// Create a new empty batch
+    #[napi(constructor)]
+    pub fn new() -> Self {
+        Self { inner: core::WriteBatch::new() }
+    }
+
+    /// Add a relationship operation
+    #[napi]
+    pub fn set_relationship(&mut self, subject: String, rel_type: String, object: String) -> &Self {
+        self.inner.set_relationship(&subject, &rel_type, &object);
+        self
+    }
+
+    /// Add a delete relationship operation
+    #[napi]
+    pub fn delete_relationship(&mut self, subject: String, rel_type: String, object: String) -> &Self {
+        self.inner.delete_relationship(&subject, &rel_type, &object);
+        self
+    }
+
+    /// Add a capability operation
+    #[napi]
+    pub fn set_capability(&mut self, entity: String, rel_type: String, cap_mask: i64) -> &Self {
+        self.inner.set_capability(&entity, &rel_type, cap_mask as u64);
+        self
+    }
+
+    /// Add an inheritance operation
+    #[napi]
+    pub fn set_inheritance(&mut self, subject: String, object: String, source: String) -> &Self {
+        self.inner.set_inheritance(&subject, &object, &source);
+        self
+    }
+
+    /// Add a delete inheritance operation
+    #[napi]
+    pub fn delete_inheritance(&mut self, subject: String, object: String, source: String) -> &Self {
+        self.inner.delete_inheritance(&subject, &object, &source);
+        self
+    }
+
+    /// Add a capability label operation
+    #[napi]
+    pub fn set_cap_label(&mut self, entity: String, cap_bit: i64, label: String) -> &Self {
+        self.inner.set_cap_label(&entity, cap_bit as u64, &label);
+        self
+    }
+
+    /// Get the number of operations in the batch
+    #[napi(getter)]
+    pub fn length(&self) -> u32 {
+        self.inner.len() as u32
+    }
+
+    /// Clear all operations from the batch
+    #[napi]
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
+
+    /// Execute all operations in a single transaction
+    /// Returns the epoch timestamp of the transaction
+    #[napi]
+    pub fn execute(&self) -> Result<i64> {
+        self.inner.execute().map(|e| e as i64).map_err(to_napi_error)
+    }
+}

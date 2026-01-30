@@ -172,6 +172,24 @@ capbit/
 └── data/               # LMDB data directory
 ```
 
+## Write Strategies
+
+Three strategies for different use cases:
+
+| Strategy | API | Use Case |
+|----------|-----|----------|
+| Single-op | `setRelationship()` | Simple apps, low write volume |
+| WriteBatch | `new WriteBatch()` | Atomicity, controlled batching |
+| Batch functions | `batchSetRelationships()` | High-throughput bulk inserts |
+
+**WriteBatch example:**
+```javascript
+const batch = new capbit.WriteBatch();
+batch.setRelationship('john', 'editor', 'doc1');
+batch.setCapability('doc1', 'editor', READ | WRITE);
+batch.execute(); // Single atomic transaction
+```
+
 ## Design Principles
 
 1. **Type Agnostic**: No types in paths; business layer defines meaning
@@ -183,3 +201,4 @@ capbit/
 7. **Deterministic**: Epochs order all operations
 8. **ACID**: Transactional forward/reverse writes
 9. **Bidirectional**: Query from either entity's perspective
+10. **Configurable Write Strategy**: Single-op, batch, or explicit transactions

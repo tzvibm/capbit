@@ -145,4 +145,65 @@ describe('capbit', () => {
       expect(users).toContain('user3');
     });
   });
+
+  describe('WriteBatch (explicit transactions)', () => {
+    it('should execute multiple operations atomically', () => {
+      const batch = new capbit.WriteBatch();
+
+      // Add multiple operations
+      batch.setCapability('batch-resource', 'admin', READ | WRITE | DELETE | ADMIN);
+      batch.setRelationship('batch-user1', 'admin', 'batch-resource');
+      batch.setRelationship('batch-user2', 'editor', 'batch-resource');
+      batch.setCapability('batch-resource', 'editor', READ | WRITE);
+
+      expect(batch.length).toBe(4);
+
+      // Execute all in one transaction
+      const epoch = batch.execute();
+      expect(epoch).toBeGreaterThan(0);
+
+      // Verify all operations applied
+      expect(capbit.hasCapability('batch-user1', 'batch-resource', ADMIN)).toBe(true);
+      expect(capbit.hasCapability('batch-user2', 'batch-resource', WRITE)).toBe(true);
+      expect(capbit.hasCapability('batch-user2', 'batch-resource', ADMIN)).toBe(false);
+    });
+
+    it('should support method chaining', () => {
+      const batch = new capbit.WriteBatch();
+
+      batch
+        .setCapability('chain-res', 'owner', READ | WRITE | DELETE)
+        .setRelationship('chain-user', 'owner', 'chain-res')
+        .setInheritance('chain-inheritor', 'chain-res', 'chain-user');
+
+      expect(batch.length).toBe(3);
+      batch.execute();
+
+      // Verify inherited access
+      expect(capbit.hasCapability('chain-inheritor', 'chain-res', DELETE)).toBe(true);
+    });
+
+    it('should clear operations', () => {
+      const batch = new capbit.WriteBatch();
+      batch.setRelationship('a', 'b', 'c');
+      expect(batch.length).toBe(1);
+
+      batch.clear();
+      expect(batch.length).toBe(0);
+    });
+
+    it('should handle delete operations in batch', () => {
+      // Setup
+      capbit.setCapability('del-batch-res', 'member', READ);
+      capbit.setRelationship('del-batch-user', 'member', 'del-batch-res');
+      expect(capbit.hasCapability('del-batch-user', 'del-batch-res', READ)).toBe(true);
+
+      // Delete in batch
+      const batch = new capbit.WriteBatch();
+      batch.deleteRelationship('del-batch-user', 'member', 'del-batch-res');
+      batch.execute();
+
+      expect(capbit.hasCapability('del-batch-user', 'del-batch-res', READ)).toBe(false);
+    });
+  });
 });

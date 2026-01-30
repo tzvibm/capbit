@@ -78,3 +78,32 @@ export declare function listAccessible(subject: string): Array<Array<string>>
 export declare function listSubjects(object: string): Array<Array<string>>
 /** Close the database (for cleanup) */
 export declare function close(): void
+/**
+ * A batch of write operations executed in a single transaction.
+ * Provides atomicity and better performance for multiple writes.
+ */
+export declare class WriteBatch {
+  /** Create a new empty batch */
+  constructor()
+  /** Add a relationship operation */
+  setRelationship(subject: string, relType: string, object: string): this
+  /** Add a delete relationship operation */
+  deleteRelationship(subject: string, relType: string, object: string): this
+  /** Add a capability operation */
+  setCapability(entity: string, relType: string, capMask: number): this
+  /** Add an inheritance operation */
+  setInheritance(subject: string, object: string, source: string): this
+  /** Add a delete inheritance operation */
+  deleteInheritance(subject: string, object: string, source: string): this
+  /** Add a capability label operation */
+  setCapLabel(entity: string, capBit: number, label: string): this
+  /** Get the number of operations in the batch */
+  get length(): number
+  /** Clear all operations from the batch */
+  clear(): void
+  /**
+   * Execute all operations in a single transaction
+   * Returns the epoch timestamp of the transaction
+   */
+  execute(): number
+}

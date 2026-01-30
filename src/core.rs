@@ -4,11 +4,17 @@
 //! - Relationship types: strings (unlimited, readable)
 //! - Capability masks: bitmasks (O(1) evaluation)
 //!
+//! Write strategies:
+//! - Single-op (default): One transaction per operation, simple but high contention
+//! - Explicit transactions: User controls transaction boundaries for batching/atomicity
+//! - Buffered writes: Background coalescing for high-throughput fire-and-forget
+//!
 //! Storage patterns:
 //! - `subject/rel_type/object` → epoch (relationships)
 //! - `object/rel_type` → cap_mask (capability definitions)
 //! - `subject/object/source` → epoch (inheritance)
 
+use std::borrow::Cow;
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -139,12 +145,21 @@ fn current_epoch() -> u64 {
 }
 
 // Helper to escape forward slashes in entity IDs and rel_types
-fn escape_key_part(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('/', "\\/")
+// Optimized: only allocates if escaping is needed
+fn escape_key_part(s: &str) -> Cow<'_, str> {
+    if s.contains('/') || s.contains('\\') {
+        Cow::Owned(s.replace('\\', "\\\\").replace('/', "\\/"))
+    } else {
+        Cow::Borrowed(s)
+    }
 }
 
-fn unescape_key_part(s: &str) -> String {
-    s.replace("\\/", "/").replace("\\\\", "\\")
+fn unescape_key_part(s: &str) -> Cow<'_, str> {
+    if s.contains('\\') {
+        Cow::Owned(s.replace("\\/", "/").replace("\\\\", "\\"))
+    } else {
+        Cow::Borrowed(s)
+    }
 }
 
 // ============================================================================
@@ -201,7 +216,7 @@ pub fn get_relationships(subject: &str, object: &str) -> Result<Vec<String>> {
             // Extract rel_type from key: subject/rel_type/object
             let without_prefix = &key[prefix.len()..];
             let without_suffix = &without_prefix[..without_prefix.len() - suffix.len()];
-            results.push(unescape_key_part(without_suffix));
+            results.push(unescape_key_part(without_suffix).into_owned());
         }
     }
 
@@ -331,7 +346,7 @@ pub fn get_inheritance(subject: &str, object: &str) -> Result<Vec<String>> {
     for item in iter {
         let (key, _epoch) = item.map_err(|e| CapbitError::from(e.to_string()))?;
         let source = &key[prefix.len()..];
-        results.push(unescape_key_part(source));
+        results.push(unescape_key_part(source).into_owned());
     }
 
     Ok(results)
@@ -385,7 +400,7 @@ pub fn get_inheritors_from_source(source: &str, object: &str) -> Result<Vec<Stri
     for item in iter {
         let (key, _epoch) = item.map_err(|e| CapbitError::from(e.to_string()))?;
         let subject = &key[prefix.len()..];
-        results.push(unescape_key_part(subject));
+        results.push(unescape_key_part(subject).into_owned());
     }
 
     Ok(results)
@@ -412,8 +427,8 @@ pub fn get_inheritance_for_object(object: &str) -> Result<Vec<(String, String)>>
         let rest = &key[prefix.len()..];
         // key format: object/source/subject
         if let Some(slash_pos) = rest.find('/') {
-            let source = unescape_key_part(&rest[..slash_pos]);
-            let subject = unescape_key_part(&rest[slash_pos + 1..]);
+            let source = unescape_key_part(&rest[..slash_pos]).into_owned();
+            let subject = unescape_key_part(&rest[slash_pos + 1..]).into_owned();
             results.push((source, subject));
         }
     }
@@ -530,7 +545,7 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
             for item in inherit_iter {
                 let (key, _epoch) = item.map_err(|e| CapbitError::from(e.to_string()))?;
                 let source_esc = &key[inherit_prefix.len()..];
-                let source = unescape_key_part(source_esc);
+                let source = unescape_key_part(source_esc).into_owned();
                 stack.push((source, depth + 1));
             }
         }
@@ -667,8 +682,8 @@ pub fn list_accessible(subject: &str) -> Result<Vec<(String, String)>> {
         let rest = &key[prefix.len()..];
         // Find the last / to split rel_type and object
         if let Some(slash_pos) = rest.rfind('/') {
-            let rel_type = unescape_key_part(&rest[..slash_pos]);
-            let object = unescape_key_part(&rest[slash_pos + 1..]);
+            let rel_type = unescape_key_part(&rest[..slash_pos]).into_owned();
+            let object = unescape_key_part(&rest[slash_pos + 1..]).into_owned();
             results.push((object, rel_type));
         }
     }
@@ -695,8 +710,8 @@ pub fn list_subjects(object: &str) -> Result<Vec<(String, String)>> {
         let (key, _epoch) = item.map_err(|e| CapbitError::from(e.to_string()))?;
         let rest = &key[prefix.len()..];
         if let Some(slash_pos) = rest.rfind('/') {
-            let rel_type = unescape_key_part(&rest[..slash_pos]);
-            let subject = unescape_key_part(&rest[slash_pos + 1..]);
+            let rel_type = unescape_key_part(&rest[..slash_pos]).into_owned();
+            let subject = unescape_key_part(&rest[slash_pos + 1..]).into_owned();
             results.push((subject, rel_type));
         }
     }
@@ -706,4 +721,236 @@ pub fn list_subjects(object: &str) -> Result<Vec<(String, String)>> {
 
 pub fn close() {
     // LMDB handles cleanup on drop
+}
+
+// ============================================================================
+// WriteBatch - Explicit Transaction API
+// ============================================================================
+
+/// Operation types for WriteBatch
+#[derive(Debug, Clone)]
+pub enum WriteOp {
+    SetRelationship { subject: String, rel_type: String, object: String },
+    DeleteRelationship { subject: String, rel_type: String, object: String },
+    SetCapability { entity: String, rel_type: String, cap_mask: u64 },
+    SetInheritance { subject: String, object: String, source: String },
+    DeleteInheritance { subject: String, object: String, source: String },
+    SetCapLabel { entity: String, cap_bit: u64, label: String },
+}
+
+/// A batch of write operations to be executed in a single transaction.
+///
+/// This provides:
+/// - Atomicity: All operations succeed or all fail
+/// - Performance: Single transaction for multiple operations (reduces lock contention)
+///
+/// # Example
+/// ```ignore
+/// let mut batch = WriteBatch::new();
+/// batch.set_relationship("john", "editor", "doc1");
+/// batch.set_relationship("john", "viewer", "doc2");
+/// batch.set_capability("doc1", "editor", READ | WRITE);
+/// batch.execute()?; // All operations in one transaction
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct WriteBatch {
+    ops: Vec<WriteOp>,
+}
+
+impl WriteBatch {
+    /// Create a new empty batch
+    pub fn new() -> Self {
+        Self { ops: Vec::new() }
+    }
+
+    /// Create a batch with pre-allocated capacity
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self { ops: Vec::with_capacity(capacity) }
+    }
+
+    /// Add a relationship operation
+    pub fn set_relationship(&mut self, subject: &str, rel_type: &str, object: &str) -> &mut Self {
+        self.ops.push(WriteOp::SetRelationship {
+            subject: subject.to_string(),
+            rel_type: rel_type.to_string(),
+            object: object.to_string(),
+        });
+        self
+    }
+
+    /// Add a delete relationship operation
+    pub fn delete_relationship(&mut self, subject: &str, rel_type: &str, object: &str) -> &mut Self {
+        self.ops.push(WriteOp::DeleteRelationship {
+            subject: subject.to_string(),
+            rel_type: rel_type.to_string(),
+            object: object.to_string(),
+        });
+        self
+    }
+
+    /// Add a capability operation
+    pub fn set_capability(&mut self, entity: &str, rel_type: &str, cap_mask: u64) -> &mut Self {
+        self.ops.push(WriteOp::SetCapability {
+            entity: entity.to_string(),
+            rel_type: rel_type.to_string(),
+            cap_mask,
+        });
+        self
+    }
+
+    /// Add an inheritance operation
+    pub fn set_inheritance(&mut self, subject: &str, object: &str, source: &str) -> &mut Self {
+        self.ops.push(WriteOp::SetInheritance {
+            subject: subject.to_string(),
+            object: object.to_string(),
+            source: source.to_string(),
+        });
+        self
+    }
+
+    /// Add a delete inheritance operation
+    pub fn delete_inheritance(&mut self, subject: &str, object: &str, source: &str) -> &mut Self {
+        self.ops.push(WriteOp::DeleteInheritance {
+            subject: subject.to_string(),
+            object: object.to_string(),
+            source: source.to_string(),
+        });
+        self
+    }
+
+    /// Add a capability label operation
+    pub fn set_cap_label(&mut self, entity: &str, cap_bit: u64, label: &str) -> &mut Self {
+        self.ops.push(WriteOp::SetCapLabel {
+            entity: entity.to_string(),
+            cap_bit,
+            label: label.to_string(),
+        });
+        self
+    }
+
+    /// Get the number of operations in the batch
+    pub fn len(&self) -> usize {
+        self.ops.len()
+    }
+
+    /// Check if the batch is empty
+    pub fn is_empty(&self) -> bool {
+        self.ops.is_empty()
+    }
+
+    /// Clear all operations from the batch
+    pub fn clear(&mut self) {
+        self.ops.clear();
+    }
+
+    /// Execute all operations in a single transaction
+    /// Returns the epoch timestamp of the transaction
+    pub fn execute(&self) -> Result<u64> {
+        if self.ops.is_empty() {
+            return Ok(current_epoch());
+        }
+
+        let env = get_env()?;
+        let dbs = get_dbs()?;
+        let mut wtxn = env.write_txn().map_err(|e| CapbitError::from(e.to_string()))?;
+        let epoch = current_epoch();
+
+        for op in &self.ops {
+            match op {
+                WriteOp::SetRelationship { subject, rel_type, object } => {
+                    let subj_esc = escape_key_part(subject);
+                    let rel_esc = escape_key_part(rel_type);
+                    let obj_esc = escape_key_part(object);
+
+                    let forward_key = format!("{}/{}/{}", subj_esc, rel_esc, obj_esc);
+                    let reverse_key = format!("{}/{}/{}", obj_esc, rel_esc, subj_esc);
+
+                    dbs.relationships
+                        .put(&mut wtxn, &forward_key, &epoch)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                    dbs.relationships_rev
+                        .put(&mut wtxn, &reverse_key, &epoch)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                }
+                WriteOp::DeleteRelationship { subject, rel_type, object } => {
+                    let subj_esc = escape_key_part(subject);
+                    let rel_esc = escape_key_part(rel_type);
+                    let obj_esc = escape_key_part(object);
+
+                    let forward_key = format!("{}/{}/{}", subj_esc, rel_esc, obj_esc);
+                    let reverse_key = format!("{}/{}/{}", obj_esc, rel_esc, subj_esc);
+
+                    dbs.relationships
+                        .delete(&mut wtxn, &forward_key)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                    dbs.relationships_rev
+                        .delete(&mut wtxn, &reverse_key)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                }
+                WriteOp::SetCapability { entity, rel_type, cap_mask } => {
+                    let ent_esc = escape_key_part(entity);
+                    let rel_esc = escape_key_part(rel_type);
+                    let key = format!("{}/{}", ent_esc, rel_esc);
+
+                    dbs.capabilities
+                        .put(&mut wtxn, &key, cap_mask)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                }
+                WriteOp::SetInheritance { subject, object, source } => {
+                    let subj_esc = escape_key_part(subject);
+                    let obj_esc = escape_key_part(object);
+                    let src_esc = escape_key_part(source);
+
+                    let by_subject_key = format!("{}/{}/{}", subj_esc, obj_esc, src_esc);
+                    let by_source_key = format!("{}/{}/{}", src_esc, obj_esc, subj_esc);
+                    let by_object_key = format!("{}/{}/{}", obj_esc, src_esc, subj_esc);
+
+                    dbs.inheritance
+                        .put(&mut wtxn, &by_subject_key, &epoch)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                    dbs.inheritance_by_source
+                        .put(&mut wtxn, &by_source_key, &epoch)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                    dbs.inheritance_by_object
+                        .put(&mut wtxn, &by_object_key, &epoch)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                }
+                WriteOp::DeleteInheritance { subject, object, source } => {
+                    let subj_esc = escape_key_part(subject);
+                    let obj_esc = escape_key_part(object);
+                    let src_esc = escape_key_part(source);
+
+                    let by_subject_key = format!("{}/{}/{}", subj_esc, obj_esc, src_esc);
+                    let by_source_key = format!("{}/{}/{}", src_esc, obj_esc, subj_esc);
+                    let by_object_key = format!("{}/{}/{}", obj_esc, src_esc, subj_esc);
+
+                    dbs.inheritance
+                        .delete(&mut wtxn, &by_subject_key)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                    dbs.inheritance_by_source
+                        .delete(&mut wtxn, &by_source_key)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                    dbs.inheritance_by_object
+                        .delete(&mut wtxn, &by_object_key)
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                }
+                WriteOp::SetCapLabel { entity, cap_bit, label } => {
+                    let ent_esc = escape_key_part(entity);
+                    let key = format!("{}/{:016x}", ent_esc, cap_bit);
+
+                    dbs.cap_labels
+                        .put(&mut wtxn, &key, label.as_str())
+                        .map_err(|e| CapbitError::from(e.to_string()))?;
+                }
+            }
+        }
+
+        wtxn.commit().map_err(|e| CapbitError::from(e.to_string()))?;
+        Ok(epoch)
+    }
+}
+
+/// Create a new WriteBatch (convenience function)
+pub fn write_batch() -> WriteBatch {
+    WriteBatch::new()
 }
