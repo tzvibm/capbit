@@ -5,8 +5,8 @@
 //!
 //! ## Features
 //!
-//! - **O(1) Evaluation**: Bitmask AND operations for permission checks
-//! - **O(log N) Lookup**: LMDB B-tree storage
+//! - **O(1) Bitmask Eval**: Final permission check is a single AND operation
+//! - **O(log N) Lookup**: LMDB B-tree storage (full check is O(k × log N))
 //! - **String Relationships**: Human-readable types ("editor", "viewer", "member")
 //! - **Per-Entity Semantics**: Each entity defines what relationships mean to it
 //! - **Inheritance**: Inherit relationships without graph traversal

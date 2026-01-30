@@ -224,17 +224,34 @@ not total system size.
 
 | Feature | Capbit | Zanzibar | SpiceDB | OpenFGA | Casbin | OPA |
 |---------|--------|----------|---------|---------|--------|-----|
-| O(1) permission eval | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| O(1) bitmask eval* | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Per-entity semantics | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | No tuple explosion | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Embedded/local-first | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Typed entities | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
 | Group inheritance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Bidirectional queries | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Protected mutations | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Built-in mutation auth | ✅ | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ |
 | Fine-grained bits | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Cycle-safe inheritance | ✅ | ✅ | ✅ | ✅ | ❌ | N/A |
 | ACID transactions | ✅ | ✅ | ✅ | ✅ | ❌ | N/A |
+| WriteBatch API | ✅ | ✅ | ✅ | ✅ | ❌ | N/A |
+| Capability labels | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Production tooling | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Global distribution | ❌ | ✅ | ✅ | ⚠️ | ❌ | ❌ |
+
+*O(1) applies to the final bitmask AND operation; full lookup is O(k × log N) where k = relations
+⚠️ = Available at API/service layer, not built into core storage
+
+### Additional Capbit Features
+
+| Feature | Description |
+|---------|-------------|
+| **WriteBatch API** | Atomic multi-operation transactions |
+| **Capability Labels** | Human-readable names for capability bits |
+| **v1/v2 API Compat** | Unprotected API for simple use cases |
+| **Bidirectional Indexes** | Efficient "who can access X" queries |
+| **Audit-friendly Storage** | Timestamps on all records |
 
 ### Unique Capbit Features
 
@@ -305,11 +322,13 @@ min(admin_caps, alice_caps) = min(0xFF, 0x03) = 0x03
 
 | System | Cold Query | Cached | Notes |
 |--------|------------|--------|-------|
-| **Capbit** | 2-3 μs | 1 μs | LMDB memory-mapped |
+| **Capbit** | 7-8 μs | ~5 μs | LMDB memory-mapped (measured on ARM64) |
 | **SpiceDB** | 1-5 ms | 100 μs | Network + graph |
 | **OpenFGA** | 1-10 ms | 200 μs | Network + graph |
 | **Casbin** | 10-100 μs | 10 μs | In-memory policy |
 | **OPA** | 100-500 μs | 50 μs | Rego evaluation |
+
+**Note:** Capbit times are from actual benchmarks on Android/ARM64. x86 systems may be faster.
 
 ### Query: "What can user X access?" (Reverse lookup)
 
@@ -496,13 +515,16 @@ Tests run on Android/Termux (ARM64). Run yourself: `cargo test benchmark_ -- --n
 | O(k) relation merge | 10x relations | 2.87x time | ✓ VERIFIED |
 | Bounded inheritance | 3-level depth | 3.2x overhead | ✓ VERIFIED |
 
-### Actual Performance
+### Actual Performance (Measured on ARM64/Android)
 
 | Operation | Measured Time |
 |-----------|---------------|
 | Single permission check | 7-8 μs |
 | Bitmask evaluation | 6-8 μs |
-| With 3-level inheritance | 25 μs |
+| With 3-level inheritance | ~25 μs |
+| Lookup scaling (20x data) | 1.08x time (confirms O(log N)) |
+
+Run benchmarks yourself: `cargo test benchmark_ -- --nocapture`
 
 ### Storage Notes
 
@@ -525,6 +547,56 @@ At small scales (1K entities), LMDB overhead dominates and Capbit uses more spac
 | **Mutation protection** | Built-in | Application layer | Secure by default |
 
 Where: E = edges/relations, R = resources, T = relation types, V = vertices
+
+---
+
+## Limitations & Honest Assessment
+
+### What Capbit Does NOT Have
+
+| Feature | Status | Mitigation |
+|---------|--------|------------|
+| **Global distribution** | Not built-in | Add your own replication layer |
+| **Production tooling** | Minimal | No admin UI, limited observability |
+| **Graph queries** | Limited | Can't easily query "all children of folder X" |
+| **Schema validation** | None | Application must validate entity formats |
+| **Caching layer** | LMDB only | No distributed cache like Zookies |
+| **Battle-tested at scale** | No | Only tested to ~2K entities in benchmarks |
+
+### Complexity Clarifications
+
+The "O(1) permission evaluation" claim requires context:
+
+```
+Full permission check complexity:
+1. Find relations: O(k × log N)     ← k relations, B-tree lookup each
+2. Lookup capabilities: O(k × log N) ← for each relation
+3. OR bitmasks: O(k)                 ← combine results
+4. AND check: O(1)                   ← final evaluation
+
+Total: O(k × log N) where k = number of relations
+
+The O(1) claim applies only to step 4.
+```
+
+### When Zanzibar-Family Systems Are Better
+
+- **Hierarchical queries**: "Who can access any document in this folder tree?"
+- **Global consistency**: Need strong consistency across regions
+- **Ecosystem**: Need GraphQL APIs, admin UIs, policy testing tools
+- **Team familiarity**: Your team already knows ReBAC/Zanzibar patterns
+
+### Storage Efficiency Reality Check
+
+At small scale (<10K entities), LMDB overhead dominates:
+- B-tree metadata per page
+- 4KB page alignment
+- Index overhead
+
+The efficiency claims only manifest at scale (100K+ entities) where:
+- Capability deduplication saves space
+- No tuple explosion from group expansion
+- No materialized permission views needed
 
 ---
 

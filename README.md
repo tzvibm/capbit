@@ -24,8 +24,9 @@ Can user:alice edit team:engineering?
 
 | Feature | Description |
 |---------|-------------|
-| **O(1) Evaluation** | Bitmask AND operations for instant permission checks |
+| **O(1) Bitmask Eval** | Final permission check is a single AND operation |
 | **O(log N) Lookup** | LMDB B-tree storage for fast lookups |
+| **O(k × log N) Total** | Full check: k relations × log N lookup each |
 | **Typed Entities** | `user:alice`, `team:sales`, `app:backend` |
 | **Protected Mutations** | All writes require authorization |
 | **Per-Entity Semantics** | Each entity defines what roles mean to it |
@@ -420,12 +421,19 @@ protected::create_entity("user:alice", "user", "new-hire")?;
 
 ## Performance
 
-| Operation | Complexity |
-|-----------|------------|
-| Key lookup | O(log N) |
-| Prefix scan | O(log N + K) |
-| Bitmask check | O(1) |
-| Access check | O(log N) |
+| Operation | Complexity | Notes |
+|-----------|------------|-------|
+| Key lookup | O(log N) | LMDB B-tree |
+| Prefix scan | O(log N + K) | K = matching keys |
+| Bitmask check | O(1) | Single AND operation |
+| Full access check | O(k × log N) | k = user's relations on target |
+| With inheritance | O(d × k × log N) | d = delegation depth |
+
+**Measured performance** (ARM64/Android):
+- Single permission check: 7-8 μs
+- With 3-level inheritance: ~25 μs
+
+Run benchmarks: `cargo test benchmark_ -- --nocapture`
 
 LMDB provides:
 - Memory-mapped I/O for fast reads

@@ -455,7 +455,7 @@ if has_capability("user:bob", "team:engineering", SystemCap::GRANT_WRITE).unwrap
 │    47 tests including security scenarios               │
 │                                                        │
 │  ✓ Fast                                                │
-│    O(log N) lookups, O(1) permission checks            │
+│    O(log N) lookups, O(1) bitmask evaluation           │
 │                                                        │
 └────────────────────────────────────────────────────────┘
 ```
