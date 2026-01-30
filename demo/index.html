@@ -529,14 +529,6 @@
                     <div class="input-group">
                         <label>Required Capability</label>
                         <select id="check-cap">
-                            <option value="16">GRANT_READ (0x0010)</option>
-                            <option value="32">GRANT_WRITE (0x0020)</option>
-                            <option value="64">GRANT_DELETE (0x0040)</option>
-                            <option value="4">ENTITY_CREATE (0x0004)</option>
-                            <option value="256">CAP_WRITE (0x0100)</option>
-                            <option value="2048">DELEGATE_WRITE (0x0800)</option>
-                            <option value="48">READ+WRITE (0x0030)</option>
-                            <option value="112">FULL GRANT (0x0070)</option>
                             <option value="0">ANY (0x0000)</option>
                         </select>
                     </div>
@@ -1160,16 +1152,41 @@
         function renderTestSelects() {
             const subjectSelect = document.getElementById('check-subject');
             const objectSelect = document.getElementById('check-object');
+            const capSelect = document.getElementById('check-cap');
 
             // Filter out system _type: entities from dropdowns
             const orgEntities = known.entities.filter(e => !e.id.startsWith('_type:'));
-            const options = orgEntities.map(e =>
+            const entityOptions = orgEntities.map(e =>
                 `<option value="${e.id}">${e.id}</option>`
             ).join('');
 
             const placeholder = '<option value="">-- Select entity --</option>';
-            subjectSelect.innerHTML = placeholder + options;
-            objectSelect.innerHTML = placeholder + options;
+            subjectSelect.innerHTML = placeholder + entityOptions;
+            objectSelect.innerHTML = placeholder + entityOptions;
+
+            // Build capability options from org-defined capabilities
+            const orgCaps = known.capabilities.filter(c => !c.scope.startsWith('_type:'));
+
+            // Get unique cap_mask values with their relation names
+            const capMap = new Map();
+            orgCaps.forEach(c => {
+                const key = c.cap_mask;
+                if (!capMap.has(key)) {
+                    capMap.set(key, []);
+                }
+                capMap.get(key).push(c.relation);
+            });
+
+            // Sort by cap_mask value
+            const sortedCaps = [...capMap.entries()].sort((a, b) => a[0] - b[0]);
+
+            let capOptions = '<option value="0">ANY (0x0000)</option>';
+            sortedCaps.forEach(([mask, relations]) => {
+                const uniqueRelations = [...new Set(relations)].slice(0, 3).join(', ');
+                capOptions += `<option value="${mask}">${uniqueRelations} (0x${mask.toString(16).padStart(4, '0')})</option>`;
+            });
+
+            capSelect.innerHTML = capOptions;
         }
 
         function renderEntities() {
