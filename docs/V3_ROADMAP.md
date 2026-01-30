@@ -354,7 +354,14 @@ batch.execute()?;  // All or nothing
 
 **Problem:** Current 64-bit capability masks limit organizations to 64 primitives per entity. Complex systems may need hundreds of fine-grained permissions.
 
-**Solution:**
+**Reality Check:** In practice, 64 bits is almost always sufficient because:
+- **Capabilities are scoped per entity** - Each entity (resource:office, app:api, team:sales) defines its own primitive bits independently
+- **Grants are per entity** - You don't need a global namespace of thousands of actions
+- **Roles bundle primitives** - An entity typically has 5-15 meaningful roles, not thousands
+
+Even a large corporation with thousands of resources only needs 64 primitives *per resource*. The bits for `resource:nyc-office` are completely separate from `resource:london-office`. This scoping makes word masks a "nice to have" rather than essential.
+
+**Solution (for rare edge cases):**
 
 ```rust
 // v3: Variable-width capability masks using multiple words
@@ -425,11 +432,11 @@ get_capability_with_labels(entity, relation) -> Result<(CapabilityMask, HashMap<
 set_primitive_labels(actor, scope, labels: HashMap<u32, String>) -> Result<()>
 ```
 
-**Use Cases:**
-- Large enterprises with hundreds of fine-grained permissions
-- Multi-tenant SaaS with tenant-specific capabilities
-- IoT systems with per-device permission bits
-- Healthcare/finance compliance requiring granular audit
+**Use Cases (rare edge cases):**
+- Single entities with genuinely 100+ distinct actions (e.g., complex manufacturing equipment)
+- Legacy systems migrating from flat permission lists
+- Regulatory environments requiring bit-level audit of all possible actions
+- Most organizations will never need this - 64 primitives per entity is plenty
 
 ---
 
@@ -458,10 +465,10 @@ init_v3("./data", V3Config {
 | Audit Logging | HIGH | Medium | None |
 | Revocation Propagation | HIGH | Medium | None |
 | Rate Limiting | MEDIUM | Low | None |
-| Word Masks (Unlimited Primitives) | MEDIUM | Medium | None |
 | Policy Engine | MEDIUM | High | Audit (optional) |
 | User Authentication | LOW | High | None |
 | Capability Expiration | LOW | Low | Audit |
+| Word Masks (Unlimited Primitives) | LOW | Medium | None (rarely needed - 64 bits/entity is plenty) |
 
 ---
 
