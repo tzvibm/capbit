@@ -202,3 +202,62 @@ fn attack_grant_nonexistent_scope() {
     // Adjust test based on desired behavior.
     assert!(result.is_err());
 }
+
+/// ATTACK: Fake SystemCap - user defines same bitmask value on their own entity
+/// This proves that SystemCap values are only protected when on _type:* scopes
+#[test]
+fn attack_fake_systemcap_bitmask() {
+    let _lock = setup_bootstrapped();
+
+    // Create alice and give her a resource she controls
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::create_entity("user:root", "resource", "alice-doc").unwrap();
+
+    // Give alice full control on her own resource
+    protected::set_capability("user:root", "resource:alice-doc", "owner",
+        SystemCap::ENTITY_ADMIN | SystemCap::GRANT_ADMIN | SystemCap::CAP_ADMIN).unwrap();
+    protected::set_grant("user:root", "user:alice", "owner", "resource:alice-doc").unwrap();
+
+    // Alice now has ALL SystemCap bits on resource:alice-doc
+    let alice_caps_on_doc = check_access("user:alice", "resource:alice-doc", None).unwrap();
+    assert!(alice_caps_on_doc > 0); // She has capabilities on HER resource
+
+    // ATTACK: Alice tries to use these "powers" to create a user
+    // She has ENTITY_CREATE (0x0004) on her resource, but NOT on _type:user
+    let result = protected::create_entity("user:alice", "user", "hacked");
+
+    // Expected: DENIED - having SystemCap bits on resource:alice-doc
+    // does NOT grant system powers on _type:user
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("lacks permission"));
+
+    // Verify alice has zero capabilities on _type:user
+    let alice_caps_on_type = check_access("user:alice", "_type:user", None).unwrap();
+    assert_eq!(alice_caps_on_type, 0, "Alice should have no caps on _type:user");
+}
+
+/// Verify root's grants on _type:* are properly protected
+#[test]
+fn verify_root_grants_protected() {
+    let _lock = setup_bootstrapped();
+
+    protected::create_entity("user:root", "user", "alice").unwrap();
+
+    // Verify root has SystemCap on _type:user
+    let root_caps = check_access("user:root", "_type:user", None).unwrap();
+    assert!((root_caps & SystemCap::ENTITY_CREATE) == SystemCap::ENTITY_CREATE);
+    assert!((root_caps & SystemCap::GRANT_WRITE) == SystemCap::GRANT_WRITE);
+    assert!((root_caps & SystemCap::CAP_WRITE) == SystemCap::CAP_WRITE);
+
+    // Alice has NOTHING on _type:user
+    let alice_caps = check_access("user:alice", "_type:user", None).unwrap();
+    assert_eq!(alice_caps, 0);
+
+    // Alice cannot grant herself admin on _type:user
+    let result = protected::set_grant("user:alice", "user:alice", "admin", "_type:user");
+    assert!(result.is_err());
+
+    // Alice cannot define capabilities on _type:user
+    let result = protected::set_capability("user:alice", "_type:user", "fake", 0xFFFF);
+    assert!(result.is_err());
+}
