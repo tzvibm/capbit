@@ -902,13 +902,14 @@
 
                 // ═══════════════════════════════════════════════════════════
                 // CUSTOM ORG CAPABILITIES - Document Access Levels
-                // Using custom bits: 0x01=view, 0x02=comment, 0x04=edit, 0x08=delete
+                // Org bits: 0x01=view, 0x02=comment, 0x04=edit, 0x08=delete
+                // Plus GRANT_WRITE (0x20) for owner to grant others
                 // ═══════════════════════════════════════════════════════════
                 const docCaps = [
                     { relation: 'viewer',    cap: 0x01, desc: 'view only' },
                     { relation: 'commenter', cap: 0x03, desc: 'view + comment' },
                     { relation: 'editor',    cap: 0x07, desc: 'view + comment + edit' },
-                    { relation: 'owner',     cap: 0x0F, desc: 'full control' }
+                    { relation: 'owner',     cap: 0x2F, desc: 'full control + can grant' }  // 0x20=GRANT_WRITE + 0x0F
                 ];
 
                 for (const doc of ['roadmap', 'budget', 'contracts']) {
@@ -926,13 +927,14 @@
 
                 // ═══════════════════════════════════════════════════════════
                 // CUSTOM ORG CAPABILITIES - Team Roles
-                // Using bits: 0x10=read members, 0x20=add members, 0x40=remove members, 0x80=manage settings
+                // Org bits: 0x01=see members, 0x02=add members, 0x04=remove, 0x08=settings
+                // Plus system GRANT_WRITE (0x20) for admin to grant roles
                 // ═══════════════════════════════════════════════════════════
                 const teamCaps = [
-                    { relation: 'member',    cap: 0x10,  desc: 'see team members' },
-                    { relation: 'lead',      cap: 0x30,  desc: 'see + add members' },
-                    { relation: 'manager',   cap: 0x70,  desc: 'see + add + remove members' },
-                    { relation: 'admin',     cap: 0xF0,  desc: 'full team control' }
+                    { relation: 'member',    cap: 0x01,  desc: 'see team members' },
+                    { relation: 'lead',      cap: 0x03,  desc: 'see + add members' },
+                    { relation: 'manager',   cap: 0x07,  desc: 'see + add + remove members' },
+                    { relation: 'admin',     cap: 0x2F,  desc: 'full team + can grant' }  // 0x20=GRANT_WRITE + 0x0F
                 ];
 
                 for (const team of ['engineering', 'sales']) {
@@ -1159,7 +1161,9 @@
             const subjectSelect = document.getElementById('check-subject');
             const objectSelect = document.getElementById('check-object');
 
-            const options = known.entities.map(e =>
+            // Filter out system _type: entities from dropdowns
+            const orgEntities = known.entities.filter(e => !e.id.startsWith('_type:'));
+            const options = orgEntities.map(e =>
                 `<option value="${e.id}">${e.id}</option>`
             ).join('');
 
@@ -1170,11 +1174,13 @@
 
         function renderEntities() {
             const list = document.getElementById('entity-list');
-            if (known.entities.length === 0) {
+            // Filter out system _type: entities
+            const orgEntities = known.entities.filter(e => !e.id.startsWith('_type:'));
+            if (orgEntities.length === 0) {
                 list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>No entities yet</p></div>';
                 return;
             }
-            list.innerHTML = known.entities.map(e => `
+            list.innerHTML = orgEntities.map(e => `
                 <div class="list-item">
                     <span class="chip ${e.type}"><span class="type">${e.type}:</span>${e.id.split(':')[1]}</span>
                 </div>
@@ -1183,11 +1189,13 @@
 
         function renderGrants() {
             const list = document.getElementById('grant-list');
-            if (known.grants.length === 0) {
+            // Filter out system _type: grants (root's admin on _type:*)
+            const orgGrants = known.grants.filter(g => !g.scope.startsWith('_type:'));
+            if (orgGrants.length === 0) {
                 list.innerHTML = '<div class="empty"><div class="empty-icon">🔗</div><p>No grants yet</p></div>';
                 return;
             }
-            list.innerHTML = known.grants.map(g => {
+            list.innerHTML = orgGrants.map(g => {
                 const seekerType = g.seeker.split(':')[0];
                 const scopeType = g.scope.split(':')[0];
                 return `
@@ -1204,11 +1212,13 @@
 
         function renderCapabilities() {
             const list = document.getElementById('cap-list');
-            if (known.capabilities.length === 0) {
+            // Filter out system _type: capabilities (bootstrap admin caps)
+            const orgCaps = known.capabilities.filter(c => !c.scope.startsWith('_type:'));
+            if (orgCaps.length === 0) {
                 list.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div><p>No capabilities yet</p></div>';
                 return;
             }
-            list.innerHTML = known.capabilities.map(c => {
+            list.innerHTML = orgCaps.map(c => {
                 const scopeType = c.scope.split(':')[0];
                 return `
                     <div class="list-item">
