@@ -82,46 +82,49 @@ Common types:
 - `app:` - Applications (backend, frontend)
 - `resource:` - Things to protect (documents, files)
 
-### 2. Capabilities (Actions)
+### 2. Capabilities (Roles = Sets of Actions)
 
-**Capabilities are ACTIONS.** Each capability is a single bit representing something you can DO.
+**For org-defined entities, capabilities are ROLES that bundle multiple primitive actions.**
 
 ```
-    On resource:office, you define what actions are possible:
+    Primitive bits on resource:office:
     ┌─────────────────────────────────────────────────┐
-    │  "enter"      = 0x01  (bit0) - enter building   │
-    │  "print"      = 0x02  (bit1) - use printer      │
-    │  "fax"        = 0x04  (bit2) - use fax machine  │
-    │  "safe"       = 0x08  (bit3) - open safe        │
-    │  "server"     = 0x10  (bit4) - access server rm │
-    │  "can-grant"  = 0x20  (bit5) - grant to others  │
+    │  bit0 = enter building                          │
+    │  bit1 = use printer                             │
+    │  bit2 = use fax                                 │
+    │  bit3 = open safe                               │
+    │  bit4 = server room                             │
+    │  bit5 = can grant                               │
     └─────────────────────────────────────────────────┘
 
-    Each capability = one action = one bit
-```
-
-### 3. Grants (Sets of Actions)
-
-**Grants assign capabilities to users.** Multiple grants accumulate via OR to form roles.
-
-```
-    ALICE'S GRANTS ON resource:office:
+    Capabilities (roles) combine these primitives:
     ┌─────────────────────────────────────────────────┐
-    │  Grant: "enter" ─────────────► 0x01             │
-    │  Grant: "print" ─────────────► 0x02             │
-    │  Grant: "fax"   ─────────────► 0x04             │
-    │  ────────────────────────────────────           │
-    │  Total (via OR): 0x07 = enter + print + fax     │
+    │  "visitor"  = 0x01  (enter only)                │
+    │  "employee" = 0x07  (enter + print + fax)       │
+    │  "manager"  = 0x0F  (+ safe)                    │
+    │  "owner"    = 0x3F  (all actions)               │
     └─────────────────────────────────────────────────┘
-
-    user:alice ──── "enter" ────► resource:office
-    user:alice ──── "print" ────► resource:office
-    user:alice ──── "fax"   ────► resource:office
-
-    Alice's effective capabilities = 0x07 (all three grants combined)
 ```
 
-Multiple grants on the same scope accumulate. This is how you build "roles" - by granting multiple actions.
+### 3. Grants (Assign Roles)
+
+**Each grant assigns ONE role, giving the user a SET of actions.**
+
+```
+    ONE GRANT = ONE ROLE = SET OF ACTIONS
+    ┌─────────────────────────────────────────────────┐
+    │  Grant alice "owner" on office                  │
+    │       → alice gets 0x3F (all 6 actions)         │
+    │                                                 │
+    │  Grant bob "employee" on office                 │
+    │       → bob gets 0x07 (enter + print + fax)     │
+    │                                                 │
+    │  Grant charlie "visitor" on office              │
+    │       → charlie gets 0x01 (enter only)          │
+    └─────────────────────────────────────────────────┘
+```
+
+**Note:** System grants on `_type:*` are one-to-one (each SystemCap is a single action). Org grants assign roles (sets of actions).
 
 ### 4. For System Operations (Layer 1)
 
@@ -410,72 +413,65 @@ protected::create_entity("user:admin", "user", "alice").unwrap();
 protected::create_entity("user:admin", "user", "bob").unwrap();
 ```
 
-### Define Capabilities (Actions)
+### Define Capabilities (Roles)
 
 ```rust
 use capbit::protected;
 
-// Capabilities are ACTIONS - each with a single bit
-// Define what actions are possible on this entity
+// For org entities, capabilities are ROLES (sets of primitive actions)
+// Primitive bits: enter=0x01, print=0x02, fax=0x04, safe=0x08, server=0x10, grant=0x20
 
 protected::set_capability(
     "user:admin",           // who's doing this
     "resource:office",      // the entity
-    "enter",                // action name
-    0x01                    // bit0
+    "visitor",              // role name
+    0x01                    // enter only
 ).unwrap();
 
 protected::set_capability(
     "user:admin",
     "resource:office",
-    "print",                // action name
-    0x02                    // bit1
+    "employee",             // role name
+    0x07                    // enter + print + fax
 ).unwrap();
 
 protected::set_capability(
     "user:admin",
     "resource:office",
-    "fax",                  // action name
-    0x04                    // bit2
-).unwrap();
-
-protected::set_capability(
-    "user:admin",
-    "resource:office",
-    "can-grant",            // action name - ability to grant others
-    0x20                    // bit5
+    "owner",                // role name
+    0x3F                    // all actions
 ).unwrap();
 ```
 
-### Create Grants (Sets of Actions)
+### Create Grants (Assign Roles)
 
-Grants assign capabilities (actions) to users. Multiple grants accumulate via OR.
+Each grant assigns ONE role, giving the user a SET of actions.
 
 ```rust
-// Grant Bob the "enter" action on the office
+// Grant Bob the "employee" role on the office
+// This ONE grant gives him enter + print + fax (0x07)
 protected::set_grant(
     "user:admin",        // who's granting
     "user:bob",          // who receives (seeker)
-    "enter",             // action/capability name
+    "employee",          // role name
     "resource:office"    // entity (scope)
 ).unwrap();
 
-// Grant Bob the "print" action too
+// Bob now has 0x07 (enter + print + fax) from this single grant
+
+// Grant Alice the "owner" role
 protected::set_grant(
     "user:admin",
-    "user:bob",
-    "print",
+    "user:alice",
+    "owner",
     "resource:office"
 ).unwrap();
 
-// Bob now has 0x03 (enter + print) on resource:office
-// Multiple grants accumulate via OR to build his effective permissions
-
-// Alice (with can-grant action) can grant others
+// Alice now has 0x3F (all actions) - she can grant others
 protected::set_grant(
     "user:alice",
     "user:charlie",
-    "enter",             // Charlie can only enter
+    "visitor",           // Charlie gets visitor role (enter only)
     "resource:office"
 ).unwrap();
 ```

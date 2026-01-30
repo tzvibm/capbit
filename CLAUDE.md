@@ -6,11 +6,13 @@ Technical guidance for Claude Code when working with this repository.
 
 Capbit is a Rust library for high-performance access control with:
 - **Entities**: Things/resources in format `type:id` (e.g., `user:john`, `resource:office`)
-- **Capabilities**: Actions you can do - each a single bit (e.g., `enter`=0x01, `print`=0x02)
-- **Grants**: Assign capabilities to users - multiple grants accumulate via OR
+- **Capabilities**: For org entities, ROLES that bundle primitive actions (e.g., `employee`=0x07)
+- **Grants**: Assign ONE role → user gets SET of actions
 - **Delegations**: Inherited grants (bounded by delegator's capabilities)
 - **Protected mutations**: All writes require authorization
 - **Bitmask evaluation**: O(1) permission check via single AND operation
+
+**Key distinction:** System grants on `_type:*` are one-to-one (each SystemCap = one action). Org grants assign roles (sets of actions).
 
 ## Commands
 
@@ -105,12 +107,17 @@ LMDB
 
 ```
 ENTITIES = Things/resources (user:alice, resource:office, team:sales)
-CAPABILITIES = Actions - each a single bit (enter=0x01, print=0x02, fax=0x04)
-GRANTS = Assign actions to users - multiple grants OR together
+CAPABILITIES = For org entities: ROLES (sets of primitive actions)
+               For _type:*: SystemCap bits (one-to-one)
+GRANTS = Assign ONE role → get SET of actions
 DELEGATIONS = Inherited grants (bounded by delegator)
 
-Example: Alice's grants on resource:office
-  Grant "enter" (0x01) + Grant "print" (0x02) = Effective 0x03
+Example: Roles on resource:office
+  "visitor"  = 0x01 (enter only)
+  "employee" = 0x07 (enter + print + fax)
+  "owner"    = 0x3F (all actions)
+
+Grant bob "employee" → bob gets 0x07 (one grant, multiple actions)
 ```
 
 ### Permission Check Flow (check_access)
@@ -157,17 +164,18 @@ Composites:
 
 ### Org-Defined Capabilities (Layer 2)
 
-On non-`_type:*` entities, capabilities are ACTIONS with single bits:
+On non-`_type:*` entities, capabilities are ROLES (sets of primitive actions):
 ```
-resource:office:
-  "enter"  = 0x01  (bit0)
-  "print"  = 0x02  (bit1)
-  "fax"    = 0x04  (bit2)
+resource:office (primitives: enter=0x01, print=0x02, fax=0x04, safe=0x08):
+  "visitor"  = 0x01  (enter only)
+  "employee" = 0x07  (enter + print + fax)
+  "manager"  = 0x0F  (+ safe)
+  "owner"    = 0x3F  (all)
 
-app:api-gateway:
-  "read"   = 0x01  (bit0)
-  "write"  = 0x02  (bit1)
-  "delete" = 0x04  (bit2)
+app:api-gateway (primitives: read=0x01, write=0x02, delete=0x04, bulk=0x08):
+  "basic"      = 0x03  (read + write)
+  "pro"        = 0x1F  (+ delete + bulk + webhooks)
+  "enterprise" = 0xFF  (all)
 ```
 
 ### Scope Isolation Security

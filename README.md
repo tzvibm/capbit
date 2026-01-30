@@ -83,45 +83,49 @@ protected::create_entity("user:admin", "user", "alice")?;
 protected::create_entity("user:admin", "user", "bob")?;
 ```
 
-### 3. Define Capabilities (Actions)
+### 3. Define Capabilities (Roles)
 
 **The model is simple:**
 - **Entities** = Things/resources (`user:alice`, `resource:office`)
-- **Capabilities** = Actions you can do (`enter`, `print`, `fax`)
-- **Grants** = Sets of capabilities assigned to someone
+- **Capabilities** = Roles (sets of primitive actions)
+- **Grants** = Assign a role to someone → they get the set of actions
 
 ```rust
 use capbit::protected;
 
 // ═══════════════════════════════════════════════════════════
-// CAPABILITIES ARE ACTIONS - each with a single bit
+// FOR ORG ENTITIES: CAPABILITIES ARE ROLES (sets of actions)
+// Primitive bits: enter=0x01, print=0x02, fax=0x04, safe=0x08
 // ═══════════════════════════════════════════════════════════
 
-// On resource:office, define what actions are possible:
-protected::set_capability("user:admin", "resource:office", "enter", 0x01)?;  // bit0
-protected::set_capability("user:admin", "resource:office", "print", 0x02)?;  // bit1
-protected::set_capability("user:admin", "resource:office", "fax",   0x04)?;  // bit2
-protected::set_capability("user:admin", "resource:office", "safe",  0x08)?;  // bit3
+// Define roles on resource:office:
+protected::set_capability("user:admin", "resource:office", "visitor",  0x01)?; // enter only
+protected::set_capability("user:admin", "resource:office", "employee", 0x07)?; // enter+print+fax
+protected::set_capability("user:admin", "resource:office", "manager",  0x0F)?; // +safe
+protected::set_capability("user:admin", "resource:office", "owner",    0x3F)?; // all actions
 ```
 
 **Two layers:**
-1. **System Capabilities** - On `_type:*` scopes only (TYPE_CREATE, ENTITY_CREATE, etc.)
-2. **Org-Defined Capabilities** - Your own actions on your own entities
+1. **System Capabilities** - On `_type:*` scopes only - one-to-one (each SystemCap is a single action)
+2. **Org-Defined Capabilities** - Roles that bundle multiple primitive actions together
 
-### 4. Create Grants (Business Rules)
+### 4. Create Grants (Assign Roles)
 
-Grants ARE the role assignments. They assign relations (with their capability bitmasks) to seekers.
+Each grant assigns ONE role, giving the user a SET of actions.
 
 ```rust
-// Grant Bob the "employee" relation on the office
-// This is the business rule: "Bob has employee access to the office"
+// Grant Bob the "employee" role on the office
+// This ONE grant gives him enter + print + fax (0x07)
 protected::set_grant("user:admin", "user:bob", "employee", "resource:office")?;
 
-// Bob now has capabilities 0x07 (bits 0-2) on resource:office
-// because "employee" was defined as 0x07 in step 3
+// Bob now has 0x07 from this single grant
 
-// Alice can grant others (if she has a relation with GRANT_WRITE bit)
+// Grant Alice the "owner" role
+protected::set_grant("user:admin", "user:alice", "owner", "resource:office")?;
+
+// Alice (owner) can grant others
 protected::set_grant("user:alice", "user:charlie", "visitor", "resource:office")?;
+// Charlie gets 0x01 (enter only)
 ```
 
 ### 5. Check Permissions
