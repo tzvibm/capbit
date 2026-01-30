@@ -109,6 +109,11 @@ pub use core::{
     list_accessible,
     list_subjects,
 
+    // List all (for admin/demo)
+    list_all_entities,
+    list_all_grants,
+    list_all_capabilities,
+
     // WriteBatch
     write_batch,
 };

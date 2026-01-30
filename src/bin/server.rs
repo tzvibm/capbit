@@ -15,8 +15,7 @@
 //!   POST /reset              - Reset database (dev only)
 
 use axum::{
-    extract::State,
-    http::{header, StatusCode},
+    http::StatusCode,
     response::{Html, IntoResponse},
     routing::{get, post},
     Json, Router,
@@ -27,6 +26,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use capbit::{
     bootstrap, check_access, clear_all, get_meta, init, is_bootstrapped, protected, SystemCap,
+    list_all_entities, list_all_grants, list_all_capabilities,
 };
 
 // ============================================================================
@@ -173,9 +173,22 @@ async fn post_entity(
 }
 
 async fn get_entities() -> Json<ApiResponse<Vec<EntityInfo>>> {
-    // Note: This is a simplified implementation. In production, you'd have a proper list function.
-    // For now, we return an empty list - the demo tracks entities client-side too.
-    Json(ApiResponse::ok(vec![]))
+    match list_all_entities() {
+        Ok(entities) => {
+            let infos: Vec<EntityInfo> = entities
+                .into_iter()
+                .filter_map(|id| {
+                    // Parse "type:name" format
+                    id.split_once(':').map(|(t, _)| EntityInfo {
+                        id: id.clone(),
+                        entity_type: t.to_string(),
+                    })
+                })
+                .collect();
+            Json(ApiResponse::ok(infos))
+        }
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
 }
 
 async fn post_grant(
@@ -188,7 +201,16 @@ async fn post_grant(
 }
 
 async fn get_grants() -> Json<ApiResponse<Vec<GrantInfo>>> {
-    Json(ApiResponse::ok(vec![]))
+    match list_all_grants() {
+        Ok(grants) => {
+            let infos: Vec<GrantInfo> = grants
+                .into_iter()
+                .map(|(seeker, relation, scope)| GrantInfo { seeker, relation, scope })
+                .collect();
+            Json(ApiResponse::ok(infos))
+        }
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
 }
 
 async fn post_capability(
@@ -201,7 +223,21 @@ async fn post_capability(
 }
 
 async fn get_capabilities() -> Json<ApiResponse<Vec<CapabilityInfo>>> {
-    Json(ApiResponse::ok(vec![]))
+    match list_all_capabilities() {
+        Ok(caps) => {
+            let infos: Vec<CapabilityInfo> = caps
+                .into_iter()
+                .map(|(scope, relation, cap_mask)| CapabilityInfo {
+                    scope,
+                    relation,
+                    cap_string: cap_to_string(cap_mask),
+                    cap_mask,
+                })
+                .collect();
+            Json(ApiResponse::ok(infos))
+        }
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
 }
 
 async fn post_check(

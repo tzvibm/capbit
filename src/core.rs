@@ -715,3 +715,55 @@ impl WriteBatch {
 pub fn write_batch() -> WriteBatch {
     WriteBatch::new()
 }
+
+// ============================================================================
+// List All Functions (for admin/demo purposes)
+// ============================================================================
+
+/// List all registered entities
+pub fn list_all_entities() -> Result<Vec<String>> {
+    with_read_txn(|txn, dbs| {
+        let mut results = Vec::new();
+        for item in dbs.entities.iter(txn).map_err(err)? {
+            let (key, _) = item.map_err(err)?;
+            results.push(key.to_string());
+        }
+        Ok(results)
+    })
+}
+
+/// List all relationships (grants)
+pub fn list_all_grants() -> Result<Vec<(String, String, String)>> {
+    with_read_txn(|txn, dbs| {
+        let mut results = Vec::new();
+        for item in dbs.relationships.iter(txn).map_err(err)? {
+            let (key, _) = item.map_err(err)?;
+            // Key format: subject/rel_type/object (escaped)
+            let parts: Vec<&str> = key.splitn(3, '/').collect();
+            if parts.len() == 3 {
+                let subject = unescape(parts[0]).into_owned();
+                let rel_type = unescape(parts[1]).into_owned();
+                let object = unescape(parts[2]).into_owned();
+                results.push((subject, rel_type, object));
+            }
+        }
+        Ok(results)
+    })
+}
+
+/// List all capability definitions
+pub fn list_all_capabilities() -> Result<Vec<(String, String, u64)>> {
+    with_read_txn(|txn, dbs| {
+        let mut results = Vec::new();
+        for item in dbs.capabilities.iter(txn).map_err(err)? {
+            let (key, cap_mask) = item.map_err(err)?;
+            // Key format: entity/rel_type (escaped)
+            if let Some(pos) = key.rfind('/') {
+                let entity = unescape(&key[..pos]).into_owned();
+                let rel_type = unescape(&key[pos + 1..]).into_owned();
+                results.push((entity, rel_type, cap_mask));
+            }
+        }
+        Ok(results)
+    })
+}
