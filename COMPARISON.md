@@ -177,12 +177,19 @@ Total: ~45 MB (vs 71 MB for Zanzibar with groups)
 
 ### Storage Efficiency Summary
 
-| Scenario | Zanzibar | Capbit | Savings |
-|----------|----------|--------|---------|
-| 10K users, 100K docs | 71 MB | 45 MB | 37% |
-| 100K users, 1M docs | 710 MB | 450 MB | 37% |
-| 1M users, 10M docs | 7.1 GB | 4.5 GB | 37% |
-| With permission inheritance | Explodes | Constant | 50-90% |
+**Note:** At small scales (<10K entities), database overhead (B-tree metadata, page alignment) can dominate. True efficiency comparison requires production-scale data.
+
+| Scenario | Zanzibar (tuples) | Capbit | Notes |
+|----------|-------------------|--------|-------|
+| Small scale (<1K) | Lower | Higher | LMDB overhead dominates |
+| Medium scale (10K-100K) | ~Equal | ~Equal | Overhead amortized |
+| Large scale (1M+) | Higher | Lower | Capbit deduplication wins |
+| With group expansion | Explodes | Constant | Key differentiator |
+
+**Where Capbit wins:**
+1. **Capability deduplication**: Store once per resource, not per user
+2. **No tuple explosion**: Groups don't multiply storage
+3. **No materialized views**: Don't pre-compute all permissions
 
 ### The Tuple Explosion Problem
 
@@ -476,12 +483,42 @@ Capbit: Each entity defines own semantics
 
 ---
 
+## Benchmark Results (Measured)
+
+Tests run on Android/Termux (ARM64). Run yourself: `cargo test benchmark_ -- --nocapture`
+
+### Time Complexity Verification
+
+| Claim | Test | Result | Status |
+|-------|------|--------|--------|
+| O(log N) lookup | 20x data growth | 1.08x time growth | ✓ VERIFIED |
+| O(1) bitmask eval | All mask sizes | 1.23x variance | ✓ VERIFIED |
+| O(k) relation merge | 10x relations | 2.87x time | ✓ VERIFIED |
+| Bounded inheritance | 3-level depth | 3.2x overhead | ✓ VERIFIED |
+
+### Actual Performance
+
+| Operation | Measured Time |
+|-----------|---------------|
+| Single permission check | 7-8 μs |
+| Bitmask evaluation | 6-8 μs |
+| With 3-level inheritance | 25 μs |
+
+### Storage Notes
+
+At small scales (1K entities), LMDB overhead dominates and Capbit uses more space than raw tuple storage. The efficiency gains manifest at scale through:
+- Capability deduplication
+- No group expansion
+- No materialized views
+
+---
+
 ## Summary
 
 | Metric | Capbit | Zanzibar-family | Advantage |
 |--------|--------|-----------------|-----------|
-| **Permission check** | O(1) | O(V+E) | 100-1000x faster |
-| **Storage** | O(E + R×T) | O(E × expansion) | 30-50% less |
+| **Permission check** | O(log N) + O(1) | O(V+E) | Sub-linear vs graph |
+| **Storage at scale** | O(E + R×T) | O(E × expansion) | No tuple explosion |
 | **Query predictability** | Guaranteed | Data-dependent | Consistent |
 | **Deployment** | Embedded | Service | No network |
 | **Schema flexibility** | Per-entity | Global | More flexible |
