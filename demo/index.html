@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capbit Demo</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #475569;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 5rem;
+        }
+
+        .container { max-width: 600px; margin: 0 auto; padding: 1rem; }
+
+        header {
+            text-align: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1rem;
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 100;
+        }
+
+        h1 { font-size: 1.5rem; font-weight: 700; }
+        h1 span { color: var(--primary); }
+        .subtitle { color: var(--text-muted); font-size: 0.75rem; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            background: var(--bg-card);
+            padding: 0.25rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.625rem 0.5rem;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Forms */
+        .form-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-row.stack {
+            flex-direction: column;
+        }
+
+        .input-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .input-group label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        select, input {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.625rem;
+            color: var(--text);
+            font-size: 0.875rem;
+            width: 100%;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background: var(--primary-dark); }
+        .btn:active { transform: scale(0.98); }
+        .btn.sm { padding: 0.5rem 0.75rem; font-size: 0.75rem; }
+        .btn.danger { background: var(--danger); }
+        .btn.success { background: var(--success); }
+        .btn.outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        .btn.full { width: 100%; }
+
+        /* Status Badge */
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.625rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status.success { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+        .status.danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+        .status.warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+        .status.info { background: rgba(99, 102, 241, 0.15); color: var(--primary); }
+
+        /* Entity chips */
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: var(--bg-input);
+            border-radius: 6px;
+            padding: 0.375rem 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .chip .type { color: var(--primary); font-weight: 600; }
+        .chip.user .type { color: #22c55e; }
+        .chip.team .type { color: #f59e0b; }
+        .chip.app .type { color: #ec4899; }
+        .chip.resource .type { color: #06b6d4; }
+
+        /* Lists */
+        .list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem;
+            background: var(--bg-input);
+            border-radius: 8px;
+            font-size: 0.8125rem;
+            flex-wrap: wrap;
+        }
+
+        .list-item .arrow { color: var(--text-muted); }
+
+        .relation-badge {
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .cap-badge {
+            font-family: monospace;
+            background: var(--bg);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+        }
+
+        .list-item .actions {
+            margin-left: auto;
+        }
+
+        .delete-btn {
+            background: transparent;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1rem;
+            opacity: 0.7;
+        }
+
+        .delete-btn:hover { opacity: 1; }
+
+        /* Result box */
+        .result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .result.allowed { background: rgba(34, 197, 94, 0.15); border: 1px solid var(--success); }
+        .result.denied { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); }
+
+        .result-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .result-text { font-weight: 600; font-size: 1rem; }
+        .result-detail { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+        /* Structure Tree */
+        .tree { padding-left: 0; }
+
+        .tree-node {
+            margin: 0.5rem 0;
+            padding-left: 1rem;
+            border-left: 2px solid var(--border);
+        }
+
+        .tree-node.root { border-left: none; padding-left: 0; }
+
+        .tree-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--bg-input);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .tree-header:hover { background: var(--border); }
+
+        .tree-children { margin-top: 0.25rem; }
+
+        .tree-relation {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-left: 0.5rem;
+        }
+
+        /* Empty state */
+        .empty {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
+        /* Log */
+        .log {
+            font-family: monospace;
+            font-size: 0.7rem;
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 0.75rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-entry { padding: 0.25rem 0; border-bottom: 1px solid var(--border); }
+        .log-entry:last-child { border-bottom: none; }
+        .log-entry.success { color: var(--success); }
+        .log-entry.error { color: var(--danger); }
+        .log-entry .time { color: var(--text-muted); }
+
+        /* Templates */
+        .template-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .template-btn {
+            padding: 1rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-btn:hover {
+            border-color: var(--primary);
+            background: var(--bg-card);
+        }
+
+        .template-btn .icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .template-btn .name { font-weight: 600; font-size: 0.875rem; }
+        .template-btn .desc { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        /* Hidden */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Cap<span>bit</span></h1>
+        <p class="subtitle">Interactive Access Control Demo</p>
+    </header>
+
+    <div class="container">
+        <!-- Bootstrap Screen -->
+        <div id="bootstrap-screen">
+            <div class="card">
+                <div class="card-title">System Status</div>
+                <div class="empty">
+                    <div class="empty-icon">🔒</div>
+                    <p>System not bootstrapped</p>
+                    <p style="font-size: 0.75rem; margin-top: 0.5rem;">Choose a template or start fresh</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Quick Start Templates</div>
+                <div class="template-grid">
+                    <div class="template-btn" onclick="loadTemplate('startup')">
+                        <div class="icon">🚀</div>
+                        <div class="name">Startup</div>
+                        <div class="desc">3 teams, 5 users</div>
+                    </div>
+                    <div class="template-btn" onclick="loadTemplate('saas')">
+                        <div class="icon">☁️</div>
+                        <div class="name">SaaS App</div>
+                        <div class="desc">Tenants & resources</div>
+                    </div>
+                    <div class="template-btn" onclick="loadTemplate('minimal')">
+                        <div class="icon">📦</div>
+                        <div class="name">Minimal</div>
+                        <div class="desc">Just root user</div>
+                    </div>
+                    <div class="template-btn" onclick="loadTemplate('custom')">
+                        <div class="icon">⚙️</div>
+                        <div class="name">Custom</div>
+                        <div class="desc">Build from scratch</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="main-app" class="hidden">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('structure')">Structure</button>
+                <button class="tab" onclick="showTab('entities')">Entities</button>
+                <button class="tab" onclick="showTab('grants')">Grants</button>
+                <button class="tab" onclick="showTab('caps')">Caps</button>
+                <button class="tab" onclick="showTab('test')">Test</button>
+            </div>
+
+            <!-- Structure Tab -->
+            <div id="tab-structure" class="tab-content active">
+                <div class="card">
+                    <div class="card-title">
+                        Organization Structure
+                        <button class="btn sm outline" onclick="resetSystem()">Reset</button>
+                    </div>
+                    <div id="structure-tree"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Activity Log</div>
+                    <div class="log" id="activity-log"></div>
+                </div>
+            </div>
+
+            <!-- Entities Tab -->
+            <div id="tab-entities" class="tab-content">
+                <div class="card">
+                    <div class="card-title">Create Entity</div>
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Type</label>
+                            <select id="new-entity-type">
+                                <option value="user">user</option>
+                                <option value="team">team</option>
+                                <option value="app">app</option>
+                                <option value="resource">resource</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>ID</label>
+                            <input type="text" id="new-entity-id" placeholder="e.g. alice">
+                        </div>
+                    </div>
+                    <button class="btn full" onclick="createEntity()">Create Entity</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">All Entities</div>
+                    <div class="list" id="entity-list"></div>
+                </div>
+            </div>
+
+            <!-- Grants Tab -->
+            <div id="tab-grants" class="tab-content">
+                <div class="card">
+                    <div class="card-title">Create Grant</div>
+                    <div class="form-row stack">
+                        <div class="input-group">
+                            <label>Actor (who's granting)</label>
+                            <select id="grant-actor"></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Seeker (who receives)</label>
+                            <select id="grant-seeker"></select>
+                        </div>
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label>Relation</label>
+                                <input type="text" id="grant-relation" placeholder="e.g. lead, member, editor">
+                            </div>
+                            <div class="input-group">
+                                <label>Scope (on what)</label>
+                                <select id="grant-scope"></select>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn full" onclick="createGrant()">Create Grant</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">All Grants</div>
+                    <div class="list" id="grant-list"></div>
+                </div>
+            </div>
+
+            <!-- Capabilities Tab -->
+            <div id="tab-caps" class="tab-content">
+                <div class="card">
+                    <div class="card-title">Define Capability</div>
+                    <div class="form-row stack">
+                        <div class="input-group">
+                            <label>Actor (who's defining)</label>
+                            <select id="cap-actor"></select>
+                        </div>
+                        <div class="form-row">
+                            <div class="input-group">
+                                <label>Scope (on what entity)</label>
+                                <select id="cap-scope"></select>
+                            </div>
+                            <div class="input-group">
+                                <label>Relation</label>
+                                <input type="text" id="cap-relation" placeholder="e.g. admin, editor">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Capability Bits</label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem;">
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                    <input type="checkbox" class="cap-bit" value="0x0010"> READ
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                    <input type="checkbox" class="cap-bit" value="0x0020"> WRITE
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                    <input type="checkbox" class="cap-bit" value="0x0040"> DELETE
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                    <input type="checkbox" class="cap-bit" value="0x0004"> CREATE
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                    <input type="checkbox" class="cap-bit" value="0x0100"> CAP_WRITE
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem;">
+                                    <input type="checkbox" class="cap-bit" value="0x0800"> DELEGATE
+                                </label>
+                            </div>
+                            <div style="margin-top: 0.5rem; font-family: monospace; font-size: 0.75rem; color: var(--text-muted);">
+                                Selected: <span id="cap-value">0x0000</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn full" onclick="createCapability()">Define Capability</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">All Capability Definitions</div>
+                    <div class="list" id="cap-list"></div>
+                </div>
+            </div>
+
+            <!-- Test Tab -->
+            <div id="tab-test" class="tab-content">
+                <div class="card">
+                    <div class="card-title">Permission Checker</div>
+                    <div class="form-row stack">
+                        <div class="input-group">
+                            <label>Subject (who's asking)</label>
+                            <select id="test-subject"></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Object (accessing what)</label>
+                            <select id="test-object"></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Required Capability</label>
+                            <select id="test-cap">
+                                <option value="0x0010">GRANT_READ (0x0010)</option>
+                                <option value="0x0020">GRANT_WRITE (0x0020)</option>
+                                <option value="0x0040">GRANT_DELETE (0x0040)</option>
+                                <option value="0x0004">ENTITY_CREATE (0x0004)</option>
+                                <option value="0x0100">CAP_WRITE (0x0100)</option>
+                                <option value="0x0800">DELEGATE_WRITE (0x0800)</option>
+                                <option value="0x0030">READ+WRITE (0x0030)</option>
+                                <option value="0x0070">FULL GRANT (0x0070)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn full success" onclick="testAccess()">Check Access</button>
+                    <div id="test-result"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">How Check Works</div>
+                    <div id="check-explanation" style="font-size: 0.75rem; color: var(--text-muted);">
+                        Select subject and object to see the evaluation path.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // Capbit Simulation Engine
+        // ============================================================
+
+        const state = {
+            bootstrapped: false,
+            rootEntity: null,
+            entities: new Map(),      // entity_id -> { type, id, created }
+            grants: new Map(),        // "seeker/relation/scope" -> epoch
+            capabilities: new Map(),  // "scope/relation" -> cap_mask
+            log: []
+        };
+
+        // System caps
+        const SystemCap = {
+            TYPE_CREATE: 0x0001,
+            TYPE_DELETE: 0x0002,
+            ENTITY_CREATE: 0x0004,
+            ENTITY_DELETE: 0x0008,
+            GRANT_READ: 0x0010,
+            GRANT_WRITE: 0x0020,
+            GRANT_DELETE: 0x0040,
+            CAP_READ: 0x0080,
+            CAP_WRITE: 0x0100,
+            CAP_DELETE: 0x0200,
+            DELEGATE_READ: 0x0400,
+            DELEGATE_WRITE: 0x0800,
+            DELEGATE_DELETE: 0x1000,
+            ENTITY_ADMIN: 0x1ffc,
+            TYPE_ADMIN: 0x1fff,
+            ALL: 0x1fff
+        };
+
+        function capToString(cap) {
+            const names = [];
+            if (cap & 0x0010) names.push('READ');
+            if (cap & 0x0020) names.push('WRITE');
+            if (cap & 0x0040) names.push('DELETE');
+            if (cap & 0x0004) names.push('CREATE');
+            if (cap & 0x0100) names.push('CAP_WRITE');
+            if (cap & 0x0800) names.push('DELEGATE');
+            return names.join('+') || 'NONE';
+        }
+
+        function log(msg, type = '') {
+            const time = new Date().toLocaleTimeString();
+            state.log.unshift({ time, msg, type });
+            if (state.log.length > 50) state.log.pop();
+            renderLog();
+        }
+
+        // Bootstrap
+        function bootstrap(rootId) {
+            if (state.bootstrapped) {
+                log('Already bootstrapped', 'error');
+                return false;
+            }
+
+            // Create type entities
+            ['_type', 'user', 'team', 'app', 'resource'].forEach(t => {
+                state.entities.set(`_type:${t}`, { type: '_type', id: t });
+            });
+
+            // Define admin caps on types
+            state.capabilities.set('_type:_type/admin', SystemCap.TYPE_ADMIN);
+            ['user', 'team', 'app', 'resource'].forEach(t => {
+                state.capabilities.set(`_type:${t}/admin`, SystemCap.ENTITY_ADMIN);
+            });
+
+            // Create root user
+            const rootEntity = `user:${rootId}`;
+            state.entities.set(rootEntity, { type: 'user', id: rootId });
+            state.rootEntity = rootEntity;
+
+            // Grant root admin on all types
+            ['_type', 'user', 'team', 'app', 'resource'].forEach(t => {
+                state.grants.set(`${rootEntity}/admin/_type:${t}`, Date.now());
+            });
+
+            state.bootstrapped = true;
+            log(`Bootstrap complete: ${rootEntity} is root`, 'success');
+            return true;
+        }
+
+        // Check access (simulates Capbit's check_access)
+        function checkAccess(subject, object, maxDepth = 10) {
+            let effective = 0;
+            const visited = new Set();
+            const stack = [{ entity: subject, depth: 0 }];
+            const path = [];
+
+            while (stack.length > 0) {
+                const { entity, depth } = stack.pop();
+                const visitKey = `${entity}:${object}`;
+
+                if (visited.has(visitKey)) continue;
+                visited.add(visitKey);
+
+                // Find all grants for this entity on the object
+                for (const [key, epoch] of state.grants) {
+                    const [seeker, relation, scope] = key.split('/');
+                    if (seeker === entity && scope === object) {
+                        // Look up capability
+                        const capKey = `${object}/${relation}`;
+                        const cap = state.capabilities.get(capKey) || 0;
+                        if (cap > 0) {
+                            effective |= cap;
+                            path.push({ entity, relation, scope: object, cap });
+                        }
+                    }
+                }
+
+                // TODO: Add inheritance traversal here
+            }
+
+            // Also check type-level permissions
+            if (!object.startsWith('_type:')) {
+                const [objType] = object.split(':');
+                const typeScope = `_type:${objType}`;
+                const typeResult = checkAccess(subject, typeScope, maxDepth);
+                effective |= typeResult.effective;
+                path.push(...typeResult.path);
+            }
+
+            return { effective, path };
+        }
+
+        // Protected create entity
+        function protectedCreateEntity(actor, entityType, id) {
+            const typeScope = `_type:${entityType}`;
+            const { effective } = checkAccess(actor, typeScope);
+
+            if ((effective & SystemCap.ENTITY_CREATE) !== SystemCap.ENTITY_CREATE) {
+                log(`${actor} lacks ENTITY_CREATE on ${typeScope}`, 'error');
+                return false;
+            }
+
+            const entityId = `${entityType}:${id}`;
+            if (state.entities.has(entityId)) {
+                log(`Entity ${entityId} already exists`, 'error');
+                return false;
+            }
+
+            state.entities.set(entityId, { type: entityType, id });
+            log(`Created ${entityId}`, 'success');
+            return true;
+        }
+
+        // Protected set grant
+        function protectedSetGrant(actor, seeker, relation, scope) {
+            const { effective } = checkAccess(actor, scope);
+
+            if ((effective & SystemCap.GRANT_WRITE) !== SystemCap.GRANT_WRITE) {
+                log(`${actor} lacks GRANT_WRITE on ${scope}`, 'error');
+                return false;
+            }
+
+            const key = `${seeker}/${relation}/${scope}`;
+            state.grants.set(key, Date.now());
+            log(`Grant: ${seeker} → ${relation} → ${scope}`, 'success');
+            return true;
+        }
+
+        // Protected set capability
+        function protectedSetCapability(actor, scope, relation, capMask) {
+            const { effective } = checkAccess(actor, scope);
+
+            if ((effective & SystemCap.CAP_WRITE) !== SystemCap.CAP_WRITE) {
+                log(`${actor} lacks CAP_WRITE on ${scope}`, 'error');
+                return false;
+            }
+
+            const key = `${scope}/${relation}`;
+            state.capabilities.set(key, capMask);
+            log(`Capability: ${scope}/${relation} = 0x${capMask.toString(16)}`, 'success');
+            return true;
+        }
+
+        // ============================================================
+        // Templates
+        // ============================================================
+
+        const templates = {
+            minimal: () => {
+                bootstrap('root');
+            },
+
+            startup: () => {
+                bootstrap('root');
+                const root = 'user:root';
+
+                // Create teams
+                ['engineering', 'sales', 'hr'].forEach(t => {
+                    protectedCreateEntity(root, 'team', t);
+                });
+
+                // Create users
+                ['alice', 'bob', 'charlie', 'dave', 'eve'].forEach(u => {
+                    protectedCreateEntity(root, 'user', u);
+                });
+
+                // Create app
+                protectedCreateEntity(root, 'app', 'backend');
+                protectedCreateEntity(root, 'resource', 'docs');
+
+                // Define team capabilities
+                ['engineering', 'sales', 'hr'].forEach(t => {
+                    protectedSetCapability(root, `team:${t}`, 'owner', SystemCap.GRANT_WRITE | SystemCap.CAP_WRITE | SystemCap.DELEGATE_WRITE);
+                    protectedSetCapability(root, `team:${t}`, 'lead', SystemCap.GRANT_WRITE | SystemCap.GRANT_READ);
+                    protectedSetCapability(root, `team:${t}`, 'member', SystemCap.GRANT_READ);
+                });
+
+                // Assign leads
+                protectedSetGrant(root, 'user:alice', 'lead', 'team:engineering');
+                protectedSetGrant(root, 'user:bob', 'lead', 'team:sales');
+                protectedSetGrant(root, 'user:charlie', 'lead', 'team:hr');
+
+                // Alice adds members
+                protectedSetGrant('user:alice', 'user:dave', 'member', 'team:engineering');
+                protectedSetGrant('user:alice', 'user:eve', 'member', 'team:engineering');
+            },
+
+            saas: () => {
+                bootstrap('admin');
+                const root = 'user:admin';
+
+                // Create tenants as teams
+                ['acme-corp', 'globex'].forEach(t => {
+                    protectedCreateEntity(root, 'team', t);
+                    protectedSetCapability(root, `team:${t}`, 'owner', SystemCap.ALL);
+                    protectedSetCapability(root, `team:${t}`, 'admin', SystemCap.GRANT_WRITE | SystemCap.CAP_WRITE);
+                    protectedSetCapability(root, `team:${t}`, 'member', SystemCap.GRANT_READ);
+                });
+
+                // Create users
+                ['alice', 'bob'].forEach(u => protectedCreateEntity(root, 'user', u));
+
+                // Create resources
+                ['project-alpha', 'project-beta'].forEach(r => {
+                    protectedCreateEntity(root, 'resource', r);
+                    protectedSetCapability(root, `resource:${r}`, 'editor', SystemCap.GRANT_WRITE | SystemCap.GRANT_READ);
+                    protectedSetCapability(root, `resource:${r}`, 'viewer', SystemCap.GRANT_READ);
+                });
+
+                // Assignments
+                protectedSetGrant(root, 'user:alice', 'owner', 'team:acme-corp');
+                protectedSetGrant(root, 'user:bob', 'admin', 'team:globex');
+                protectedSetGrant(root, 'user:alice', 'editor', 'resource:project-alpha');
+            },
+
+            custom: () => {
+                bootstrap('root');
+            }
+        };
+
+        function loadTemplate(name) {
+            // Reset
+            state.entities.clear();
+            state.grants.clear();
+            state.capabilities.clear();
+            state.bootstrapped = false;
+            state.log = [];
+
+            templates[name]();
+
+            document.getElementById('bootstrap-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            renderAll();
+        }
+
+        function resetSystem() {
+            if (confirm('Reset entire system?')) {
+                state.entities.clear();
+                state.grants.clear();
+                state.capabilities.clear();
+                state.bootstrapped = false;
+                state.log = [];
+                document.getElementById('main-app').classList.add('hidden');
+                document.getElementById('bootstrap-screen').classList.remove('hidden');
+            }
+        }
+
+        // ============================================================
+        // UI Functions
+        // ============================================================
+
+        function showTab(name) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab-content#tab-${name}`).classList.add('active');
+            document.querySelector(`.tab[onclick="showTab('${name}')"]`).classList.add('active');
+            renderAll();
+        }
+
+        function createEntity() {
+            const type = document.getElementById('new-entity-type').value;
+            const id = document.getElementById('new-entity-id').value.trim();
+            if (!id) return alert('Enter an ID');
+
+            const actor = state.rootEntity || 'user:root';
+            if (protectedCreateEntity(actor, type, id)) {
+                document.getElementById('new-entity-id').value = '';
+                renderAll();
+            }
+        }
+
+        function createGrant() {
+            const actor = document.getElementById('grant-actor').value;
+            const seeker = document.getElementById('grant-seeker').value;
+            const relation = document.getElementById('grant-relation').value.trim();
+            const scope = document.getElementById('grant-scope').value;
+
+            if (!relation) return alert('Enter a relation');
+            if (protectedSetGrant(actor, seeker, relation, scope)) {
+                document.getElementById('grant-relation').value = '';
+                renderAll();
+            }
+        }
+
+        function createCapability() {
+            const actor = document.getElementById('cap-actor').value;
+            const scope = document.getElementById('cap-scope').value;
+            const relation = document.getElementById('cap-relation').value.trim();
+
+            let capMask = 0;
+            document.querySelectorAll('.cap-bit:checked').forEach(cb => {
+                capMask |= parseInt(cb.value);
+            });
+
+            if (!relation) return alert('Enter a relation');
+            if (protectedSetCapability(actor, scope, relation, capMask)) {
+                document.getElementById('cap-relation').value = '';
+                document.querySelectorAll('.cap-bit').forEach(cb => cb.checked = false);
+                updateCapValue();
+                renderAll();
+            }
+        }
+
+        function testAccess() {
+            const subject = document.getElementById('test-subject').value;
+            const object = document.getElementById('test-object').value;
+            const required = parseInt(document.getElementById('test-cap').value);
+
+            const { effective, path } = checkAccess(subject, object);
+            const allowed = (effective & required) === required;
+
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.className = `result ${allowed ? 'allowed' : 'denied'}`;
+            resultDiv.innerHTML = `
+                <div class="result-icon">${allowed ? '✓' : '✗'}</div>
+                <div class="result-text">${allowed ? 'ACCESS ALLOWED' : 'ACCESS DENIED'}</div>
+                <div class="result-detail">
+                    Required: 0x${required.toString(16).padStart(4, '0')} (${capToString(required)})<br>
+                    Effective: 0x${effective.toString(16).padStart(4, '0')} (${capToString(effective)})
+                </div>
+            `;
+
+            // Explanation
+            const expDiv = document.getElementById('check-explanation');
+            if (path.length === 0) {
+                expDiv.innerHTML = `<p>No grants found for ${subject} on ${object}</p>`;
+            } else {
+                expDiv.innerHTML = `
+                    <p><strong>Evaluation path:</strong></p>
+                    ${path.map(p => `
+                        <p style="margin: 0.25rem 0;">
+                            ${p.entity} → <span style="color: var(--primary)">${p.relation}</span> → ${p.scope}
+                            = 0x${p.cap.toString(16)}
+                        </p>
+                    `).join('')}
+                    <p style="margin-top: 0.5rem;">
+                        Combined (OR): 0x${effective.toString(16).padStart(4, '0')}<br>
+                        Check: (0x${effective.toString(16)} & 0x${required.toString(16)}) == 0x${required.toString(16)} → ${allowed}
+                    </p>
+                `;
+            }
+        }
+
+        function deleteGrant(key) {
+            state.grants.delete(key);
+            log(`Deleted grant: ${key}`, 'success');
+            renderAll();
+        }
+
+        function deleteCap(key) {
+            state.capabilities.delete(key);
+            log(`Deleted capability: ${key}`, 'success');
+            renderAll();
+        }
+
+        function updateCapValue() {
+            let cap = 0;
+            document.querySelectorAll('.cap-bit:checked').forEach(cb => {
+                cap |= parseInt(cb.value);
+            });
+            document.getElementById('cap-value').textContent = '0x' + cap.toString(16).padStart(4, '0');
+        }
+
+        // ============================================================
+        // Rendering
+        // ============================================================
+
+        function renderAll() {
+            renderEntityList();
+            renderGrantList();
+            renderCapList();
+            renderSelects();
+            renderStructure();
+            renderLog();
+        }
+
+        function renderLog() {
+            const container = document.getElementById('activity-log');
+            if (!container) return;
+            container.innerHTML = state.log.map(l => `
+                <div class="log-entry ${l.type}">
+                    <span class="time">${l.time}</span> ${l.msg}
+                </div>
+            `).join('') || '<div class="empty">No activity yet</div>';
+        }
+
+        function renderEntityList() {
+            const container = document.getElementById('entity-list');
+            if (!container) return;
+
+            const entities = [...state.entities.entries()]
+                .filter(([id]) => !id.startsWith('_type:'))
+                .sort((a, b) => a[0].localeCompare(b[0]));
+
+            container.innerHTML = entities.length ? entities.map(([id, e]) => `
+                <div class="list-item">
+                    <span class="chip ${e.type}"><span class="type">${e.type}:</span>${e.id}</span>
+                    ${id === state.rootEntity ? '<span class="status info">root</span>' : ''}
+                </div>
+            `).join('') : '<div class="empty">No entities</div>';
+        }
+
+        function renderGrantList() {
+            const container = document.getElementById('grant-list');
+            if (!container) return;
+
+            const grants = [...state.grants.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+            container.innerHTML = grants.length ? grants.map(([key]) => {
+                const [seeker, relation, scope] = key.split('/');
+                const [seekerType] = seeker.split(':');
+                const [scopeType] = scope.split(':');
+                return `
+                    <div class="list-item">
+                        <span class="chip ${seekerType}"><span class="type">${seekerType}:</span>${seeker.split(':')[1]}</span>
+                        <span class="arrow">→</span>
+                        <span class="relation-badge">${relation}</span>
+                        <span class="arrow">→</span>
+                        <span class="chip ${scopeType}"><span class="type">${scopeType}:</span>${scope.split(':')[1]}</span>
+                        <span class="actions">
+                            <button class="delete-btn" onclick="deleteGrant('${key}')">×</button>
+                        </span>
+                    </div>
+                `;
+            }).join('') : '<div class="empty">No grants</div>';
+        }
+
+        function renderCapList() {
+            const container = document.getElementById('cap-list');
+            if (!container) return;
+
+            const caps = [...state.capabilities.entries()]
+                .filter(([key]) => !key.startsWith('_type:'))
+                .sort((a, b) => a[0].localeCompare(b[0]));
+
+            container.innerHTML = caps.length ? caps.map(([key, cap]) => {
+                const [scope, relation] = key.split('/');
+                const [scopeType] = scope.split(':');
+                return `
+                    <div class="list-item">
+                        <span class="chip ${scopeType}"><span class="type">${scopeType}:</span>${scope.split(':')[1]}</span>
+                        <span class="relation-badge">${relation}</span>
+                        <span class="cap-badge">0x${cap.toString(16).padStart(4, '0')}</span>
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">${capToString(cap)}</span>
+                        <span class="actions">
+                            <button class="delete-btn" onclick="deleteCap('${key}')">×</button>
+                        </span>
+                    </div>
+                `;
+            }).join('') : '<div class="empty">No capabilities defined</div>';
+        }
+
+        function renderSelects() {
+            const entities = [...state.entities.keys()].filter(id => !id.startsWith('_type:'));
+            const allEntities = [...state.entities.keys()];
+
+            const options = entities.map(e => `<option value="${e}">${e}</option>`).join('');
+            const allOptions = allEntities.map(e => `<option value="${e}">${e}</option>`).join('');
+
+            ['grant-actor', 'grant-seeker', 'cap-actor', 'test-subject'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = options;
+            });
+
+            ['grant-scope', 'cap-scope', 'test-object'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = allOptions;
+            });
+        }
+
+        function renderStructure() {
+            const container = document.getElementById('structure-tree');
+            if (!container) return;
+
+            // Build tree structure
+            const userEntities = [...state.entities.entries()]
+                .filter(([id]) => id.startsWith('user:') && !id.startsWith('_type:'));
+
+            const teamEntities = [...state.entities.entries()]
+                .filter(([id]) => id.startsWith('team:'));
+
+            const otherEntities = [...state.entities.entries()]
+                .filter(([id]) => !id.startsWith('user:') && !id.startsWith('team:') && !id.startsWith('_type:'));
+
+            let html = '';
+
+            // Teams with their members
+            teamEntities.forEach(([teamId]) => {
+                const members = [];
+                state.grants.forEach((_, key) => {
+                    const [seeker, relation, scope] = key.split('/');
+                    if (scope === teamId) {
+                        members.push({ seeker, relation });
+                    }
+                });
+
+                html += `
+                    <div class="tree-node root">
+                        <div class="tree-header">
+                            <span class="chip team"><span class="type">team:</span>${teamId.split(':')[1]}</span>
+                        </div>
+                        <div class="tree-children">
+                            ${members.map(m => `
+                                <div class="tree-node">
+                                    <div class="tree-header">
+                                        <span class="chip ${m.seeker.split(':')[0]}">
+                                            <span class="type">${m.seeker.split(':')[0]}:</span>${m.seeker.split(':')[1]}
+                                        </span>
+                                        <span class="tree-relation">${m.relation}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Other entities
+            otherEntities.forEach(([id, e]) => {
+                html += `
+                    <div class="tree-node root">
+                        <div class="tree-header">
+                            <span class="chip ${e.type}"><span class="type">${e.type}:</span>${e.id}</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html || '<div class="empty">No structure yet</div>';
+        }
+
+        // Init cap checkboxes
+        document.querySelectorAll('.cap-bit').forEach(cb => {
+            cb.addEventListener('change', updateCapValue);
+        });
+    </script>
+</body>
+</html>
