@@ -900,94 +900,65 @@
                 await api('POST', '/bootstrap', { root_id: 'root' });
                 known.entities.push({ id: 'user:root', type: 'user' });
 
-                // Create teams
-                for (const t of ['engineering', 'sales']) {
-                    const r = await api('POST', '/entity', { actor: 'user:root', entity_type: 'team', id: t });
-                    if (r.ok) known.entities.push({ id: `team:${t}`, type: 'team' });
-                    await sleep(50);
-                }
-
                 // Create users
-                for (const u of ['alice', 'bob', 'charlie', 'dave']) {
+                for (const u of ['alice', 'bob', 'charlie']) {
                     const r = await api('POST', '/entity', { actor: 'user:root', entity_type: 'user', id: u });
                     if (r.ok) known.entities.push({ id: `user:${u}`, type: 'user' });
                     await sleep(50);
                 }
 
-                // Create documents
-                for (const d of ['roadmap', 'budget', 'contracts']) {
-                    const r = await api('POST', '/entity', { actor: 'user:root', entity_type: 'resource', id: d });
-                    if (r.ok) known.entities.push({ id: `resource:${d}`, type: 'resource' });
-                    await sleep(50);
-                }
+                // Create an office with equipment
+                await api('POST', '/entity', { actor: 'user:root', entity_type: 'resource', id: 'hq-office' });
+                known.entities.push({ id: 'resource:hq-office', type: 'resource' });
+                await sleep(50);
 
-                log('Defining custom capability meanings...', 'info');
+                log('Defining PRIMITIVE capabilities (what each bit means)...', 'info');
 
                 // ═══════════════════════════════════════════════════════════
-                // CUSTOM ORG CAPABILITIES - Document Access Levels
-                // Org bits: 0x01=view, 0x02=comment, 0x04=edit, 0x08=delete
-                // Plus GRANT_WRITE (0x20) for owner to grant others
+                // PRIMITIVE CAPABILITIES - Each bit = one atomic action
+                // These are the building blocks. Roles combine them.
                 // ═══════════════════════════════════════════════════════════
-                const docCaps = [
-                    { relation: 'viewer',    cap: 0x01, desc: 'view only' },
-                    { relation: 'commenter', cap: 0x03, desc: 'view + comment' },
-                    { relation: 'editor',    cap: 0x07, desc: 'view + comment + edit' },
-                    { relation: 'owner',     cap: 0x2F, desc: 'full control + can grant' }  // 0x20=GRANT_WRITE + 0x0F
+                // bit0 = enter building
+                // bit1 = use printer
+                // bit2 = use fax
+                // bit3 = open safe
+                // bit4 = access server room
+                // bit5 = GRANT_WRITE (system - allows granting roles)
+                // ═══════════════════════════════════════════════════════════
+
+                log('Defining ROLES (combinations of primitives)...', 'info');
+
+                // Roles combine primitives into meaningful access levels
+                const officeRoles = [
+                    { role: 'visitor',    cap: 0x01 },  // just enter (bit0)
+                    { role: 'intern',     cap: 0x03 },  // enter + printer (bit0+1)
+                    { role: 'employee',   cap: 0x07 },  // enter + printer + fax (bit0+1+2)
+                    { role: 'manager',    cap: 0x0F },  // all above + safe (bit0+1+2+3)
+                    { role: 'sysadmin',   cap: 0x17 },  // enter + printer + fax + server (bit0+1+2+4)
+                    { role: 'owner',      cap: 0x3F },  // everything + can grant (all bits + bit5)
                 ];
 
-                for (const doc of ['roadmap', 'budget', 'contracts']) {
-                    for (const c of docCaps) {
-                        await api('POST', '/capability', {
-                            actor: 'user:root',
-                            scope: `resource:${doc}`,
-                            relation: c.relation,
-                            cap_mask: c.cap
-                        });
-                        known.capabilities.push({ scope: `resource:${doc}`, relation: c.relation, cap_mask: c.cap });
-                    }
+                for (const r of officeRoles) {
+                    await api('POST', '/capability', {
+                        actor: 'user:root',
+                        scope: 'resource:hq-office',
+                        relation: r.role,
+                        cap_mask: r.cap
+                    });
+                    known.capabilities.push({ scope: 'resource:hq-office', relation: r.role, cap_mask: r.cap });
                     await sleep(50);
                 }
 
-                // ═══════════════════════════════════════════════════════════
-                // CUSTOM ORG CAPABILITIES - Team Roles
-                // Org bits: 0x01=see members, 0x02=add members, 0x04=remove, 0x08=settings
-                // Plus system GRANT_WRITE (0x20) for admin to grant roles
-                // ═══════════════════════════════════════════════════════════
-                const teamCaps = [
-                    { relation: 'member',    cap: 0x01,  desc: 'see team members' },
-                    { relation: 'lead',      cap: 0x03,  desc: 'see + add members' },
-                    { relation: 'manager',   cap: 0x07,  desc: 'see + add + remove members' },
-                    { relation: 'admin',     cap: 0x2F,  desc: 'full team + can grant' }  // 0x20=GRANT_WRITE + 0x0F
-                ];
+                log('Granting ROLES to users...', 'info');
 
-                for (const team of ['engineering', 'sales']) {
-                    for (const c of teamCaps) {
-                        await api('POST', '/capability', {
-                            actor: 'user:root',
-                            scope: `team:${team}`,
-                            relation: c.relation,
-                            cap_mask: c.cap
-                        });
-                        known.capabilities.push({ scope: `team:${team}`, relation: c.relation, cap_mask: c.cap });
-                    }
-                    await sleep(50);
-                }
-
-                log('Assigning roles...', 'info');
-
-                // Grants - varied access levels
+                // Grants assign roles (not primitives) to users
                 const grants = [
-                    // Alice: eng admin, owns roadmap
-                    { actor: 'user:root', seeker: 'user:alice', relation: 'admin', scope: 'team:engineering' },
-                    { actor: 'user:root', seeker: 'user:alice', relation: 'owner', scope: 'resource:roadmap' },
-                    // Bob: sales lead, can edit budget
-                    { actor: 'user:root', seeker: 'user:bob', relation: 'lead', scope: 'team:sales' },
-                    { actor: 'user:root', seeker: 'user:bob', relation: 'editor', scope: 'resource:budget' },
-                    // Charlie: eng member, can comment on roadmap
-                    { actor: 'user:alice', seeker: 'user:charlie', relation: 'member', scope: 'team:engineering' },
-                    { actor: 'user:alice', seeker: 'user:charlie', relation: 'commenter', scope: 'resource:roadmap' },
-                    // Dave: can only view contracts
-                    { actor: 'user:root', seeker: 'user:dave', relation: 'viewer', scope: 'resource:contracts' },
+                    // Alice is the owner - can do everything + grant others
+                    { actor: 'user:root', seeker: 'user:alice', relation: 'owner', scope: 'resource:hq-office' },
+                    // Bob is an employee - can enter, print, fax
+                    { actor: 'user:root', seeker: 'user:bob', relation: 'employee', scope: 'resource:hq-office' },
+                    // Charlie is a visitor - can only enter
+                    { actor: 'user:alice', seeker: 'user:charlie', relation: 'visitor', scope: 'resource:hq-office' },
                 ];
 
                 for (const g of grants) {
@@ -995,6 +966,10 @@
                     known.grants.push({ seeker: g.seeker, relation: g.relation, scope: g.scope });
                     await sleep(50);
                 }
+
+                log('', 'info');
+                log('Test it: Check if bob can use the fax (bit2 = 0x04)', 'info');
+                log('         Check if charlie can access server room (bit4 = 0x10)', 'info');
 
             } else if (name === 'saas') {
                 // Bootstrap
