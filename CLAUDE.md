@@ -5,12 +5,12 @@ Technical guidance for Claude Code when working with this repository.
 ## Project Overview
 
 Capbit is a Rust library for high-performance access control with:
-- **Entities**: Things in format `type:id` (e.g., `user:john`, `team:sales`, `resource:office`)
-- **Capabilities**: Define what relation names MEAN on an entity (maps relation → bitmask)
-- **Grants**: Business rules assigning relations to seekers (these ARE the role assignments!)
+- **Entities**: Things/resources in format `type:id` (e.g., `user:john`, `resource:office`)
+- **Capabilities**: Actions you can do - each a single bit (e.g., `enter`=0x01, `print`=0x02)
+- **Grants**: Assign capabilities to users - multiple grants accumulate via OR
 - **Delegations**: Inherited grants (bounded by delegator's capabilities)
 - **Protected mutations**: All writes require authorization
-- **Bitmask primitives**: O(1) permission evaluation (bits are atomic actions)
+- **Bitmask evaluation**: O(1) permission check via single AND operation
 
 ## Commands
 
@@ -104,10 +104,13 @@ LMDB
 ### Core Model
 
 ```
-ENTITIES = Things (user:alice, resource:office, team:sales)
-CAPABILITIES = What relation names MEAN on an entity (relation → bitmask)
-GRANTS = Business rules assigning relations to seekers (role assignments!)
+ENTITIES = Things/resources (user:alice, resource:office, team:sales)
+CAPABILITIES = Actions - each a single bit (enter=0x01, print=0x02, fax=0x04)
+GRANTS = Assign actions to users - multiple grants OR together
 DELEGATIONS = Inherited grants (bounded by delegator)
+
+Example: Alice's grants on resource:office
+  Grant "enter" (0x01) + Grant "print" (0x02) = Effective 0x03
 ```
 
 ### Permission Check Flow (check_access)
@@ -154,11 +157,17 @@ Composites:
 
 ### Org-Defined Capabilities (Layer 2)
 
-On non-`_type:*` entities, bits have org-defined meanings:
+On non-`_type:*` entities, capabilities are ACTIONS with single bits:
 ```
-resource:office      → bit0=enter, bit1=printer, bit2=fax
-app:api-gateway      → bit0=read, bit1=write, bit2=delete
-team:sales           → bit0=view, bit1=invite, bit2=billing
+resource:office:
+  "enter"  = 0x01  (bit0)
+  "print"  = 0x02  (bit1)
+  "fax"    = 0x04  (bit2)
+
+app:api-gateway:
+  "read"   = 0x01  (bit0)
+  "write"  = 0x02  (bit1)
+  "delete" = 0x04  (bit2)
 ```
 
 ### Scope Isolation Security
@@ -232,8 +241,8 @@ bootstrap("root"):
 ## Design Principles
 
 1. **Entities are Things**: `type:id` format (user:alice, resource:office)
-2. **Capabilities Define Meanings**: Map relation names to bitmasks per entity
-3. **Grants are Business Rules**: Assign relations to seekers (role assignments!)
+2. **Capabilities are Actions**: Single bits (enter=0x01, print=0x02, fax=0x04)
+3. **Grants are Sets of Actions**: Assign capabilities to users, accumulate via OR
 4. **Protected by Default**: v2 API requires authorization
 5. **Type-Level Permissions**: Control entity creation at `_type:*` level
 6. **Bounded Delegation**: Inherited grants never exceed delegator's

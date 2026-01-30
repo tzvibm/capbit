@@ -980,33 +980,22 @@
                 await sleep(50);
 
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 1: Define CAPABILITIES on resource:hq-office', 'info');
-                log('        (what each relation NAME means in terms of bits)', 'info');
+                log('STEP 1: Define CAPABILITIES (primitive actions)', 'info');
+                log('        Each capability = ONE primitive action (single bit)', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
                 // ═══════════════════════════════════════════════════════════
-                // CAPABILITIES define what relation names MEAN on this entity
-                // The BITS are the primitives: bit0=enter, bit1=print, etc.
-                // The RELATION NAME maps to a bitmask combination
-                // ═══════════════════════════════════════════════════════════
-                //
-                // Primitives (what each bit means on this entity):
-                //   bit0 = enter building
-                //   bit1 = use printer
-                //   bit2 = use fax machine
-                //   bit3 = open safe
-                //   bit4 = access server room
-                //   bit5 = can grant access to others
-                //
+                // CAPABILITIES ARE PRIMITIVES - each is ONE atomic action
+                // Each capability has a SINGLE BIT
                 // ═══════════════════════════════════════════════════════════
 
                 const capabilities = [
-                    { relation: 'visitor',    cap: 0x01, desc: 'bit0 only (enter)' },
-                    { relation: 'intern',     cap: 0x03, desc: 'bits 0-1 (enter + print)' },
-                    { relation: 'employee',   cap: 0x07, desc: 'bits 0-2 (enter + print + fax)' },
-                    { relation: 'manager',    cap: 0x0F, desc: 'bits 0-3 (+ safe)' },
-                    { relation: 'sysadmin',   cap: 0x17, desc: 'bits 0-2,4 (+ server room)' },
-                    { relation: 'full-access',cap: 0x3F, desc: 'all bits (everything + can grant)' },
+                    { relation: 'enter',      cap: 0x01, desc: 'bit0 - enter building' },
+                    { relation: 'print',      cap: 0x02, desc: 'bit1 - use printer' },
+                    { relation: 'fax',        cap: 0x04, desc: 'bit2 - use fax' },
+                    { relation: 'safe',       cap: 0x08, desc: 'bit3 - open safe' },
+                    { relation: 'server',     cap: 0x10, desc: 'bit4 - server room' },
+                    { relation: 'can-grant',  cap: 0x20, desc: 'bit5 - grant others' },
                 ];
 
                 for (const c of capabilities) {
@@ -1023,20 +1012,27 @@
 
                 log('', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 2: Create GRANTS (business rules - who has what)', 'info');
-                log('        Grants ARE the role assignments!', 'info');
+                log('STEP 2: Create GRANTS (multiple grants = a "role")', 'info');
+                log('        Grant primitives to users. They accumulate via OR.', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
-                // GRANTS are the business rules - they assign relations to seekers
-                // The GRANT is the "role" - it's the assignment that says
-                // "this person has this relation on this entity"
+                // GRANTS assign primitive relations to seekers
+                // Multiple grants to same person on same entity = their "role"
+                // Effective capability = OR of all granted primitives
                 const grants = [
-                    // Alice gets full-access grant on the office
-                    { actor: 'user:root', seeker: 'user:alice', relation: 'full-access', scope: 'resource:hq-office' },
-                    // Bob gets employee grant - can enter, print, fax
-                    { actor: 'user:root', seeker: 'user:bob', relation: 'employee', scope: 'resource:hq-office' },
-                    // Charlie gets visitor grant - can only enter
-                    { actor: 'user:alice', seeker: 'user:charlie', relation: 'visitor', scope: 'resource:hq-office' },
+                    // Alice gets ALL primitives (owner-like role)
+                    { actor: 'user:root', seeker: 'user:alice', relation: 'enter', scope: 'resource:hq-office' },
+                    { actor: 'user:root', seeker: 'user:alice', relation: 'print', scope: 'resource:hq-office' },
+                    { actor: 'user:root', seeker: 'user:alice', relation: 'fax', scope: 'resource:hq-office' },
+                    { actor: 'user:root', seeker: 'user:alice', relation: 'safe', scope: 'resource:hq-office' },
+                    { actor: 'user:root', seeker: 'user:alice', relation: 'server', scope: 'resource:hq-office' },
+                    { actor: 'user:root', seeker: 'user:alice', relation: 'can-grant', scope: 'resource:hq-office' },
+                    // Bob gets enter + print + fax (employee-like role)
+                    { actor: 'user:root', seeker: 'user:bob', relation: 'enter', scope: 'resource:hq-office' },
+                    { actor: 'user:root', seeker: 'user:bob', relation: 'print', scope: 'resource:hq-office' },
+                    { actor: 'user:root', seeker: 'user:bob', relation: 'fax', scope: 'resource:hq-office' },
+                    // Charlie gets enter only (visitor-like role)
+                    { actor: 'user:alice', seeker: 'user:charlie', relation: 'enter', scope: 'resource:hq-office' },
                 ];
 
                 for (const g of grants) {
@@ -1053,30 +1049,30 @@
 
                 log('', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 3: Create DELEGATION (inherited grant)', 'info');
-                log('        Dana inherits Alice\'s grants on hq-office', 'info');
+                log('STEP 3: Create DELEGATION (inherited grants)', 'info');
+                log('        Dana inherits ALL of Alice\'s grants on hq-office', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
-                // First, give alice the ability to delegate (via DELEGATE_WRITE)
+                // Alice already has can-grant, which includes DELEGATE_WRITE implicitly
+                // For the demo, we need to add DELEGATE_WRITE capability
                 await api('POST', '/capability', {
                     actor: 'user:root',
                     scope: 'resource:hq-office',
-                    relation: 'can-delegate',
+                    relation: 'delegate',
                     cap_mask: 0x0800  // DELEGATE_WRITE
                 });
-                known.capabilities.push({ scope: 'resource:hq-office', relation: 'can-delegate', cap_mask: 0x0800 });
+                known.capabilities.push({ scope: 'resource:hq-office', relation: 'delegate', cap_mask: 0x0800 });
 
                 await api('POST', '/grant', {
                     actor: 'user:root',
                     seeker: 'user:alice',
-                    relation: 'can-delegate',
+                    relation: 'delegate',
                     scope: 'resource:hq-office'
                 });
-                known.grants.push({ seeker: 'user:alice', relation: 'can-delegate', scope: 'resource:hq-office' });
+                known.grants.push({ seeker: 'user:alice', relation: 'delegate', scope: 'resource:hq-office' });
                 await sleep(50);
 
-                // Now alice delegates her office access to dana
-                // Dana will INHERIT alice's grants (but never MORE than alice has)
+                // Alice delegates to dana - dana inherits ALL of alice's primitives
                 log('  Delegation: dana inherits from alice on hq-office', 'info');
                 await api('POST', '/delegation', {
                     actor: 'user:alice',
@@ -1091,14 +1087,20 @@
                 log('═══════════════════════════════════════════════════════════', 'info');
                 log('SUMMARY:', 'info');
                 log('  Entities: things (users, office)', 'info');
-                log('  Capabilities: what relation names mean (visitor=0x01, employee=0x07)', 'info');
-                log('  Grants: business rules assigning relations to seekers', 'info');
-                log('  Delegations: inherited grants (dana inherits from alice)', 'info');
+                log('  Capabilities: PRIMITIVE ACTIONS (enter=0x01, print=0x02, fax=0x04)', 'info');
+                log('  Grants: assign primitives to seekers (multiple grants = "role")', 'info');
+                log('  Delegations: inherit ALL grants from another user', 'info');
+                log('', 'info');
+                log('EFFECTIVE CAPABILITIES:', 'info');
+                log('  alice: 0x3F (enter|print|fax|safe|server|can-grant)', 'info');
+                log('  bob:   0x07 (enter|print|fax)', 'info');
+                log('  charlie: 0x01 (enter only)', 'info');
+                log('  dana: 0x3F (inherited from alice)', 'info');
                 log('', 'info');
                 log('TEST SUGGESTIONS:', 'info');
-                log('  - bob on hq-office with 0x04 (bit2=fax) -> ALLOWED (employee=0x07)', 'info');
-                log('  - charlie on hq-office with 0x04 -> DENIED (visitor=0x01)', 'info');
-                log('  - dana on hq-office with 0x0F -> ALLOWED (inherited from alice)', 'info');
+                log('  - bob on hq-office with 0x04 (fax) -> ALLOWED', 'info');
+                log('  - charlie on hq-office with 0x04 (fax) -> DENIED', 'info');
+                log('  - dana on hq-office with 0x08 (safe) -> ALLOWED (inherited)', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
             } else if (name === 'saas') {
@@ -1128,65 +1130,50 @@
                 }
 
                 // ═══════════════════════════════════════════════════════════
-                // STEP 1: Define CAPABILITIES on each entity
-                // Capabilities map relation names to bitmasks (primitives)
+                // STEP 1: Define CAPABILITIES (actions) on each entity
                 // ═══════════════════════════════════════════════════════════
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 1: Define CAPABILITIES on app:api-gateway', 'info');
-                log('        Primitives: bit0=read, bit1=write, bit2=delete, etc.', 'info');
+                log('STEP 1: Define CAPABILITIES (actions) on app:api-gateway', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
                 const apiCaps = [
-                    { relation: 'free',       cap: 0x01,  desc: 'bit0 only (read)' },
-                    { relation: 'basic',      cap: 0x03,  desc: 'bits 0-1 (read + write)' },
-                    { relation: 'pro',        cap: 0x1F,  desc: 'bits 0-4 (CRUD + bulk + webhooks)' },
-                    { relation: 'enterprise', cap: 0xFF,  desc: 'all bits (unlimited)' }
+                    { relation: 'read',     cap: 0x01, desc: 'bit0 - read data' },
+                    { relation: 'write',    cap: 0x02, desc: 'bit1 - write data' },
+                    { relation: 'delete',   cap: 0x04, desc: 'bit2 - delete data' },
+                    { relation: 'bulk',     cap: 0x08, desc: 'bit3 - bulk operations' },
+                    { relation: 'webhooks', cap: 0x10, desc: 'bit4 - use webhooks' },
+                    { relation: 'export',   cap: 0x20, desc: 'bit5 - export data' },
+                    { relation: 'admin',    cap: 0x40, desc: 'bit6 - admin API' },
+                    { relation: 'unlimited',cap: 0x80, desc: 'bit7 - no rate limit' },
                 ];
                 for (const c of apiCaps) {
-                    log(`  Capability: "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
+                    log(`  Action: "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
                     await api('POST', '/capability', { actor: 'user:admin', scope: 'app:api-gateway', relation: c.relation, cap_mask: c.cap });
                     known.capabilities.push({ scope: 'app:api-gateway', relation: c.relation, cap_mask: c.cap });
                 }
                 await sleep(50);
 
                 log('', 'info');
-                log('Define CAPABILITIES on app:dashboard', 'info');
-                log('        Primitives: bit0=view, bit1=create, bit2=share, bit3=schedule', 'info');
+                log('Define CAPABILITIES (actions) on app:dashboard', 'info');
                 const dashCaps = [
-                    { relation: 'viewer',     cap: 0x01, desc: 'bit0 only (view)' },
-                    { relation: 'analyst',    cap: 0x07, desc: 'bits 0-2 (view + create + share)' },
-                    { relation: 'power-user', cap: 0x0F, desc: 'all bits' }
+                    { relation: 'view',     cap: 0x01, desc: 'bit0 - view dashboards' },
+                    { relation: 'create',   cap: 0x02, desc: 'bit1 - create reports' },
+                    { relation: 'share',    cap: 0x04, desc: 'bit2 - share dashboards' },
+                    { relation: 'schedule', cap: 0x08, desc: 'bit3 - schedule reports' },
                 ];
                 for (const c of dashCaps) {
-                    log(`  Capability: "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
+                    log(`  Action: "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
                     await api('POST', '/capability', { actor: 'user:admin', scope: 'app:dashboard', relation: c.relation, cap_mask: c.cap });
                     known.capabilities.push({ scope: 'app:dashboard', relation: c.relation, cap_mask: c.cap });
                 }
                 await sleep(50);
 
                 log('', 'info');
-                log('Define CAPABILITIES on app:analytics', 'info');
-                log('        Primitives: bit0=basic, bit1=advanced, bit2=raw, bit3=ML', 'info');
-                const analyticsCaps = [
-                    { relation: 'basic-user', cap: 0x01, desc: 'bit0 only' },
-                    { relation: 'analyst',    cap: 0x03, desc: 'bits 0-1' },
-                    { relation: 'data-eng',   cap: 0x07, desc: 'bits 0-2' },
-                    { relation: 'ml-admin',   cap: 0x0F, desc: 'all bits' }
-                ];
-                for (const c of analyticsCaps) {
-                    log(`  Capability: "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
-                    await api('POST', '/capability', { actor: 'user:admin', scope: 'app:analytics', relation: c.relation, cap_mask: c.cap });
-                    known.capabilities.push({ scope: 'app:analytics', relation: c.relation, cap_mask: c.cap });
-                }
-                await sleep(50);
-
-                log('', 'info');
-                log('Define CAPABILITIES on team:acme and team:globex', 'info');
-                log('        Primitives: bit8=view, bit9=invite, bit10=billing, bit11=settings', 'info');
+                log('Define CAPABILITIES (actions) on team:acme and team:globex', 'info');
                 const tenantCaps = [
-                    { relation: 'member',  cap: 0x100,  desc: 'bit8 only (view)' },
-                    { relation: 'manager', cap: 0x300,  desc: 'bits 8-9 (view + invite)' },
-                    { relation: 'billing', cap: 0x500,  desc: 'bits 8,10 (view + billing)' },
-                    { relation: 'owner',   cap: 0xF00,  desc: 'bits 8-11 (all org)' }
+                    { relation: 'view-org',   cap: 0x01, desc: 'bit0 - view org' },
+                    { relation: 'invite',     cap: 0x02, desc: 'bit1 - invite users' },
+                    { relation: 'billing',    cap: 0x04, desc: 'bit2 - manage billing' },
+                    { relation: 'settings',   cap: 0x08, desc: 'bit3 - org settings' },
                 ];
                 for (const tenant of ['acme', 'globex']) {
                     for (const c of tenantCaps) {
@@ -1197,97 +1184,108 @@
                 await sleep(50);
 
                 // ═══════════════════════════════════════════════════════════
-                // STEP 2: Create GRANTS (business rules - who has what)
-                // Grants ARE the role assignments!
+                // STEP 2: Create GRANTS (sets of capabilities/actions)
                 // ═══════════════════════════════════════════════════════════
                 log('', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 2: Create GRANTS (business rules - who has what)', 'info');
-                log('        Grants ARE the role assignments!', 'info');
+                log('STEP 2: Create GRANTS (sets of actions for each user)', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
-                // Grants assign relations to seekers - these ARE the role assignments
+                // Grants give users sets of capabilities (actions)
                 const grants = [
-                    // Alice: owner of Acme, enterprise API, power-user dashboard, ml-admin analytics
-                    { actor: 'user:admin', seeker: 'user:alice', relation: 'owner', scope: 'team:acme' },
-                    { actor: 'user:admin', seeker: 'user:alice', relation: 'enterprise', scope: 'app:api-gateway' },
-                    { actor: 'user:admin', seeker: 'user:alice', relation: 'power-user', scope: 'app:dashboard' },
-                    { actor: 'user:admin', seeker: 'user:alice', relation: 'ml-admin', scope: 'app:analytics' },
-                    // Bob: member of Acme, pro API, analyst dashboard
-                    { actor: 'user:alice', seeker: 'user:bob', relation: 'member', scope: 'team:acme' },
-                    { actor: 'user:admin', seeker: 'user:bob', relation: 'pro', scope: 'app:api-gateway' },
-                    { actor: 'user:admin', seeker: 'user:bob', relation: 'analyst', scope: 'app:dashboard' },
-                    // Charlie: owner of Globex, basic API, viewer dashboard
-                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'owner', scope: 'team:globex' },
-                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'basic', scope: 'app:api-gateway' },
-                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'viewer', scope: 'app:dashboard' },
-                    // Dana: member of Globex, free API, basic analytics
-                    { actor: 'user:charlie', seeker: 'user:dana', relation: 'member', scope: 'team:globex' },
-                    { actor: 'user:admin', seeker: 'user:dana', relation: 'free', scope: 'app:api-gateway' },
-                    { actor: 'user:admin', seeker: 'user:dana', relation: 'basic-user', scope: 'app:analytics' },
+                    // Alice: ALL actions on api-gateway (enterprise tier)
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'read', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'write', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'delete', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'bulk', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'webhooks', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'export', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'admin', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'unlimited', scope: 'app:api-gateway' },
+                    // Alice: ALL actions on dashboard
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'view', scope: 'app:dashboard' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'create', scope: 'app:dashboard' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'share', scope: 'app:dashboard' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'schedule', scope: 'app:dashboard' },
+                    // Alice: ALL actions on team:acme (owner)
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'view-org', scope: 'team:acme' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'invite', scope: 'team:acme' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'billing', scope: 'team:acme' },
+                    { actor: 'user:admin', seeker: 'user:alice', relation: 'settings', scope: 'team:acme' },
+
+                    // Bob: pro tier on api-gateway (read, write, delete, bulk, webhooks)
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'read', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'write', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'delete', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'bulk', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'webhooks', scope: 'app:api-gateway' },
+                    // Bob: analyst on dashboard (view, create, share)
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'view', scope: 'app:dashboard' },
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'create', scope: 'app:dashboard' },
+                    { actor: 'user:admin', seeker: 'user:bob', relation: 'share', scope: 'app:dashboard' },
+                    // Bob: member of acme (view only)
+                    { actor: 'user:alice', seeker: 'user:bob', relation: 'view-org', scope: 'team:acme' },
+
+                    // Charlie: basic on api (read, write only)
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'read', scope: 'app:api-gateway' },
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'write', scope: 'app:api-gateway' },
+                    // Charlie: viewer on dashboard
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'view', scope: 'app:dashboard' },
+                    // Charlie: owner of globex
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'view-org', scope: 'team:globex' },
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'invite', scope: 'team:globex' },
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'billing', scope: 'team:globex' },
+                    { actor: 'user:admin', seeker: 'user:charlie', relation: 'settings', scope: 'team:globex' },
+
+                    // Dana: free tier (read only)
+                    { actor: 'user:admin', seeker: 'user:dana', relation: 'read', scope: 'app:api-gateway' },
+                    // Dana: member of globex
+                    { actor: 'user:charlie', seeker: 'user:dana', relation: 'view-org', scope: 'team:globex' },
                 ];
 
                 for (const g of grants) {
-                    log(`  Grant: ${g.seeker} -> "${g.relation}" on ${g.scope}`, 'info');
                     await api('POST', '/grant', g);
                     known.grants.push({ seeker: g.seeker, relation: g.relation, scope: g.scope });
-                    await sleep(50);
                 }
+                log(`  Created ${grants.length} grants`, 'info');
+                await sleep(50);
 
                 // ═══════════════════════════════════════════════════════════
                 // STEP 3: Create DELEGATION (inherited grants)
                 // ═══════════════════════════════════════════════════════════
                 log('', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 3: Create DELEGATION (inherited grants)', 'info');
-                log('        Contractor inherits Alice\'s grants on api-gateway', 'info');
+                log('STEP 3: Create DELEGATION', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
-                // Create a contractor user
+                // Create contractor
                 await api('POST', '/entity', { actor: 'user:admin', entity_type: 'user', id: 'contractor' });
                 known.entities.push({ id: 'user:contractor', type: 'user' });
-                await sleep(50);
 
-                // Give alice ability to delegate on api-gateway
-                await api('POST', '/capability', {
-                    actor: 'user:admin',
-                    scope: 'app:api-gateway',
-                    relation: 'can-delegate',
-                    cap_mask: 0x0800  // DELEGATE_WRITE
-                });
-                known.capabilities.push({ scope: 'app:api-gateway', relation: 'can-delegate', cap_mask: 0x0800 });
-                await api('POST', '/grant', {
-                    actor: 'user:admin',
-                    seeker: 'user:alice',
-                    relation: 'can-delegate',
-                    scope: 'app:api-gateway'
-                });
-                known.grants.push({ seeker: 'user:alice', relation: 'can-delegate', scope: 'app:api-gateway' });
-                await sleep(50);
+                // Add delegate capability
+                await api('POST', '/capability', { actor: 'user:admin', scope: 'app:api-gateway', relation: 'delegate', cap_mask: 0x0800 });
+                known.capabilities.push({ scope: 'app:api-gateway', relation: 'delegate', cap_mask: 0x0800 });
+                await api('POST', '/grant', { actor: 'user:admin', seeker: 'user:alice', relation: 'delegate', scope: 'app:api-gateway' });
+                known.grants.push({ seeker: 'user:alice', relation: 'delegate', scope: 'app:api-gateway' });
 
-                // Alice delegates her API access to contractor
+                // Alice delegates to contractor
                 log('  Delegation: contractor inherits from alice on api-gateway', 'info');
-                await api('POST', '/delegation', {
-                    actor: 'user:alice',
-                    seeker: 'user:contractor',
-                    scope: 'app:api-gateway',
-                    delegate: 'user:alice'
-                });
+                await api('POST', '/delegation', { actor: 'user:alice', seeker: 'user:contractor', scope: 'app:api-gateway', delegate: 'user:alice' });
                 known.delegations.push({ seeker: 'user:contractor', scope: 'app:api-gateway', delegate: 'user:alice' });
-                await sleep(50);
 
                 log('', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
                 log('SUMMARY:', 'info');
-                log('  Entities: things (users, apps, teams)', 'info');
-                log('  Capabilities: what relation names mean (free=0x01, enterprise=0xFF)', 'info');
-                log('  Grants: business rules assigning relations to seekers', 'info');
-                log('  Delegations: inherited grants (contractor inherits from alice)', 'info');
+                log('  Entities = things (users, apps, teams)', 'info');
+                log('  Capabilities = actions (read, write, delete, view, etc.)', 'info');
+                log('  Grants = sets of actions assigned to users', 'info');
                 log('', 'info');
-                log('TEST SUGGESTIONS:', 'info');
-                log('  - alice on api-gateway with 0xFF -> ALLOWED (enterprise)', 'info');
-                log('  - bob on api-gateway with 0x80 -> DENIED (pro=0x1F)', 'info');
-                log('  - contractor on api-gateway with 0xFF -> ALLOWED (inherited!)', 'info');
+                log('EFFECTIVE CAPABILITIES:', 'info');
+                log('  alice on api-gateway: 0xFF (all actions)', 'info');
+                log('  bob on api-gateway:   0x1F (read|write|delete|bulk|webhooks)', 'info');
+                log('  charlie on api:       0x03 (read|write)', 'info');
+                log('  dana on api:          0x01 (read only)', 'info');
+                log('  contractor on api:    0xFF (inherited from alice)', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
             }
 

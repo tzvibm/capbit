@@ -82,42 +82,46 @@ Common types:
 - `app:` - Applications (backend, frontend)
 - `resource:` - Things to protect (documents, files)
 
-### 2. Capabilities (What Relations Mean)
+### 2. Capabilities (Actions)
 
-Capabilities define what **relation names** MEAN on an entity. The BITS are primitives.
+**Capabilities are ACTIONS.** Each capability is a single bit representing something you can DO.
 
 ```
-    On resource:office, you define what each bit means:
+    On resource:office, you define what actions are possible:
     ┌─────────────────────────────────────────────────┐
-    │  bit0 = enter building                          │
-    │  bit1 = use printer                             │
-    │  bit2 = use fax                                 │
-    │  bit3 = open safe                               │
-    │  bit4 = access server room                      │
-    │  bit5 = can grant others                        │
+    │  "enter"      = 0x01  (bit0) - enter building   │
+    │  "print"      = 0x02  (bit1) - use printer      │
+    │  "fax"        = 0x04  (bit2) - use fax machine  │
+    │  "safe"       = 0x08  (bit3) - open safe        │
+    │  "server"     = 0x10  (bit4) - access server rm │
+    │  "can-grant"  = 0x20  (bit5) - grant to others  │
     └─────────────────────────────────────────────────┘
 
-    Then you define what relation NAMES mean (bitmask combinations):
+    Each capability = one action = one bit
+```
+
+### 3. Grants (Sets of Actions)
+
+**Grants assign capabilities to users.** Multiple grants accumulate via OR to form roles.
+
+```
+    ALICE'S GRANTS ON resource:office:
     ┌─────────────────────────────────────────────────┐
-    │  "visitor"     = 0x01  (bit0 only)              │
-    │  "employee"    = 0x07  (bits 0-2)               │
-    │  "manager"     = 0x0F  (bits 0-3)               │
-    │  "full-access" = 0x3F  (all bits)               │
+    │  Grant: "enter" ─────────────► 0x01             │
+    │  Grant: "print" ─────────────► 0x02             │
+    │  Grant: "fax"   ─────────────► 0x04             │
+    │  ────────────────────────────────────           │
+    │  Total (via OR): 0x07 = enter + print + fax     │
     └─────────────────────────────────────────────────┘
+
+    user:alice ──── "enter" ────► resource:office
+    user:alice ──── "print" ────► resource:office
+    user:alice ──── "fax"   ────► resource:office
+
+    Alice's effective capabilities = 0x07 (all three grants combined)
 ```
 
-### 3. Grants (Business Rules)
-
-**Grants ARE the role assignments!** They assign relations to seekers.
-
-```
-    user:alice ──── "employee" ────► resource:office
-
-    "Alice has the 'employee' relation on the office"
-    "employee" = 0x07, so Alice has bits 0-2 (enter, print, fax)
-```
-
-A grant is a business rule that says WHO has WHAT relation on WHICH entity.
+Multiple grants on the same scope accumulate. This is how you build "roles" - by granting multiple actions.
 
 ### 4. For System Operations (Layer 1)
 
@@ -406,56 +410,72 @@ protected::create_entity("user:admin", "user", "alice").unwrap();
 protected::create_entity("user:admin", "user", "bob").unwrap();
 ```
 
-### Define Capabilities
+### Define Capabilities (Actions)
 
 ```rust
 use capbit::protected;
 
-// Define what relation names MEAN on this entity
-// The bits are primitives that you define per entity
+// Capabilities are ACTIONS - each with a single bit
+// Define what actions are possible on this entity
+
 protected::set_capability(
     "user:admin",           // who's doing this
     "resource:office",      // the entity
-    "visitor",              // relation name
-    0x01                    // bit0 only (e.g., enter)
+    "enter",                // action name
+    0x01                    // bit0
 ).unwrap();
 
 protected::set_capability(
     "user:admin",
     "resource:office",
-    "employee",
-    0x07                    // bits 0-2 (e.g., enter + print + fax)
+    "print",                // action name
+    0x02                    // bit1
 ).unwrap();
 
 protected::set_capability(
     "user:admin",
     "resource:office",
-    "full-access",
-    0x3F                    // all bits
+    "fax",                  // action name
+    0x04                    // bit2
+).unwrap();
+
+protected::set_capability(
+    "user:admin",
+    "resource:office",
+    "can-grant",            // action name - ability to grant others
+    0x20                    // bit5
 ).unwrap();
 ```
 
-### Create Grants (Business Rules)
+### Create Grants (Sets of Actions)
 
-Grants ARE the role assignments!
+Grants assign capabilities (actions) to users. Multiple grants accumulate via OR.
 
 ```rust
-// Grant bob the "employee" relation on the office
-// This is the business rule: "Bob has employee access"
+// Grant Bob the "enter" action on the office
 protected::set_grant(
     "user:admin",        // who's granting
     "user:bob",          // who receives (seeker)
-    "employee",          // relation name
+    "enter",             // action/capability name
     "resource:office"    // entity (scope)
 ).unwrap();
 
-// Bob now has 0x07 (bits 0-2) on resource:office
+// Grant Bob the "print" action too
+protected::set_grant(
+    "user:admin",
+    "user:bob",
+    "print",
+    "resource:office"
+).unwrap();
 
-// Alice (with full-access + GRANT_WRITE) can grant others
+// Bob now has 0x03 (enter + print) on resource:office
+// Multiple grants accumulate via OR to build his effective permissions
+
+// Alice (with can-grant action) can grant others
 protected::set_grant(
     "user:alice",
     "user:charlie",
-    "visitor",
+    "enter",             // Charlie can only enter
     "resource:office"
 ).unwrap();
 ```
@@ -535,15 +555,15 @@ Example: app:api-gateway
 │                                                        │
 │  ✓ Three Core Concepts                                 │
 │    Entities = things (user:alice, resource:office)     │
-│    Capabilities = what relation names mean (bitmasks)  │
-│    Grants = business rules (role assignments!)         │
+│    Capabilities = actions (enter, print, fax - bits)   │
+│    Grants = sets of actions assigned to users          │
 │                                                        │
 │  ✓ Two-Layer Capability Model                          │
 │    Layer 1: System caps on _type:* (protected)         │
-│    Layer 2: Org-defined caps (you choose meanings)     │
+│    Layer 2: Org-defined caps (you define actions)      │
 │                                                        │
-│  ✓ Protected Mutations                                 │
-│    Every change requires permission on correct scope   │
+│  ✓ Grant Accumulation                                  │
+│    Multiple grants OR together to form effective caps  │
 │                                                        │
 │  ✓ Typed Entities                                      │
 │    user:alice, team:sales, app:backend                 │

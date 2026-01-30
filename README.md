@@ -83,34 +83,30 @@ protected::create_entity("user:admin", "user", "alice")?;
 protected::create_entity("user:admin", "user", "bob")?;
 ```
 
-### 3. Define Capabilities
+### 3. Define Capabilities (Actions)
 
-Capbit has a **two-layer capability model**:
-
-1. **System Capabilities (SystemCap)** - Used on `_type:*` scopes only. Control who can create entities, define grants, etc.
-2. **Org-Defined Capabilities** - Arbitrary bitmasks where YOUR organization defines the meaning per entity.
-
-**Key concepts:**
-- **Entities** = Things (`user:alice`, `resource:office`, `team:sales`)
-- **Capabilities** = Define what relation names MEAN on an entity (maps relation name → bitmask)
-- **Grants** = Business rules that assign relations to seekers (these ARE the role assignments!)
+**The model is simple:**
+- **Entities** = Things/resources (`user:alice`, `resource:office`)
+- **Capabilities** = Actions you can do (`enter`, `print`, `fax`)
+- **Grants** = Sets of capabilities assigned to someone
 
 ```rust
 use capbit::protected;
 
 // ═══════════════════════════════════════════════════════════
-// CAPABILITIES: Define what relation names mean on this entity
-// The BITS are primitives: bit0=enter, bit1=print, bit2=fax, etc.
+// CAPABILITIES ARE ACTIONS - each with a single bit
 // ═══════════════════════════════════════════════════════════
 
-// On resource:office, define what each relation name means:
-protected::set_capability("user:admin", "resource:office", "visitor",  0x01)?;  // bit0 only
-protected::set_capability("user:admin", "resource:office", "employee", 0x07)?;  // bits 0-2
-protected::set_capability("user:admin", "resource:office", "manager",  0x0F)?;  // bits 0-3
-protected::set_capability("user:admin", "resource:office", "full-access", 0x3F)?;  // all bits
+// On resource:office, define what actions are possible:
+protected::set_capability("user:admin", "resource:office", "enter", 0x01)?;  // bit0
+protected::set_capability("user:admin", "resource:office", "print", 0x02)?;  // bit1
+protected::set_capability("user:admin", "resource:office", "fax",   0x04)?;  // bit2
+protected::set_capability("user:admin", "resource:office", "safe",  0x08)?;  // bit3
 ```
 
-**Key insight**: The BITS within bitmasks are the primitives (atomic actions). Capabilities map relation NAMES to combinations of those bits. The same bitmask value (e.g., 0x01) means different things on different entities.
+**Two layers:**
+1. **System Capabilities** - On `_type:*` scopes only (TYPE_CREATE, ENTITY_CREATE, etc.)
+2. **Org-Defined Capabilities** - Your own actions on your own entities
 
 ### 4. Create Grants (Business Rules)
 
@@ -154,19 +150,20 @@ if has_capability("user:bob", "team:engineering", SystemCap::GRANT_WRITE)? {
 │                         CAPBIT MODEL                                 │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│   ENTITIES = Things                                                  │
-│   ─────────────────                                                  │
+│   ENTITIES = Things/Resources                                        │
+│   ───────────────────────────                                        │
 │   user:alice, team:sales, resource:office, app:api                  │
 │                                                                      │
-│   CAPABILITIES = What relation names MEAN on an entity              │
-│   ──────────────────────────────────────────────────                │
-│   On resource:office: "visitor"=0x01, "employee"=0x07               │
-│   The BITS are primitives (bit0=enter, bit1=print, etc.)            │
+│   CAPABILITIES = Actions (single bits)                               │
+│   ────────────────────────────────────                               │
+│   On resource:office: "enter"=0x01, "print"=0x02, "fax"=0x04        │
+│   Each capability = one action = one bit                             │
 │                                                                      │
-│   GRANTS = Business rules assigning relations to seekers            │
-│   ──────────────────────────────────────────────────                │
-│   "user:alice has 'employee' on resource:office"                    │
-│   Grants ARE the role assignments!                                   │
+│   GRANTS = Sets of capabilities assigned to users                    │
+│   ───────────────────────────────────────────────                    │
+│   Grant alice "enter" on office (0x01)                               │
+│   Grant alice "print" on office (0x02)                               │
+│   → Alice's effective = 0x03 (grants accumulate via OR)              │
 │                                                                      │
 │   DELEGATIONS = Inherited grants                                     │
 │   ─────────────────────────────                                      │
