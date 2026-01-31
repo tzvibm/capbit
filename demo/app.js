@@ -22,6 +22,7 @@ let modalBits = 0;
 let selectedBits = 0;
 
 const known = {
+    types: [],
     entities: [],
     grants: [],
     capabilities: [],
@@ -453,16 +454,20 @@ function doCopyToken() {
 }
 
 async function loadData() {
-    const [entities, grants, caps, labels] = await Promise.all([
+    const [types, entities, grants, caps, labels, delegs] = await Promise.all([
+        api('GET', '/types'),
         api('GET', '/entities'),
         api('GET', '/grants'),
         api('GET', '/capabilities'),
-        api('GET', '/cap-labels')
+        api('GET', '/cap-labels'),
+        api('GET', '/delegations')
     ]);
+    if (types.ok) known.types = types.data;
     if (entities.ok) known.entities = entities.data.map(e => ({ id: e.id, type: e.entity_type }));
     if (grants.ok) known.grants = grants.data.map(g => ({ seeker: g.seeker, relation: g.relation, scope: g.scope }));
     if (caps.ok) known.capabilities = caps.data.map(c => ({ scope: c.scope, relation: c.relation, cap_mask: c.cap_mask }));
     if (labels.ok) known.capLabels = labels.data.map(l => ({ scope: l.scope, bit: l.bit, label: l.label }));
+    if (delegs.ok) known.delegations = delegs.data.map(d => ({ seeker: d.seeker, scope: d.scope, delegate: d.source }));
     await updateViewerPermission();
 }
 
@@ -494,6 +499,7 @@ async function doReset() {
         authToken = null;
         localStorage.removeItem('capbit_token');
         localStorage.removeItem('capbit_entity');
+        known.types = [];
         known.entities = [];
         known.grants = [];
         known.capabilities = [];
@@ -530,47 +536,74 @@ async function doCheckAccess() {
     }
 }
 
-function showQueryMode(mode) {
-    document.querySelectorAll('.seg-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
-    document.getElementById('query-check').classList.toggle('hidden', mode !== 'check');
-    document.getElementById('query-accessible').classList.toggle('hidden', mode !== 'accessible');
-    document.getElementById('query-subjects').classList.toggle('hidden', mode !== 'subjects');
+function showQuery(type) {
+    const queries = ['check', 'outbound', 'inbound', 'delegation'];
+    const content = $(`qf-${type}`);
+    const isHidden = content.classList.contains('hidden');
+
+    // Close all first
+    queries.forEach(q => {
+        const el = $(`qf-${q}`);
+        if (el) el.classList.add('hidden');
+    });
+
+    // Open clicked one if it was closed
+    if (isHidden) {
+        content.classList.remove('hidden');
+    }
 }
+
 
 async function doQueryAccessible() {
     const subject = document.getElementById('query-subject').value;
-    if (!subject) return alert('Select a subject');
+    if (!subject) return alert('Select a user or entity');
     const result = await api('POST', '/query/accessible', { subject });
-    const resultDiv = document.getElementById('accessible-result');
-    if (result.ok) {
-        if (result.data.length === 0) {
-            resultDiv.innerHTML = '<div class="empty" style="margin-top: 1rem;"><p>No access found</p></div>';
-            return;
-        }
-        resultDiv.innerHTML = `<div class="list" style="margin-top: 1rem;">${result.data.map(e => `
-            <div class="list-item">${chip(e.entity)} ${badge(e.relation)} ${capBadge(e.effective)}</div>
-        `).join('')}</div>`;
-    } else {
-        resultDiv.innerHTML = `<div class="result denied"><div class="result-detail">${result.error}</div></div>`;
-    }
+    renderQueryResult('accessible-result', result, 'No access found', e =>
+        `<div class="list-item">${chip(e.entity)} ${badge(e.relation)} ${capBadge(e.effective)}</div>`);
 }
 
 async function doQuerySubjects() {
     const object = document.getElementById('query-object').value;
-    if (!object) return alert('Select an object');
+    if (!object) return alert('Select a resource');
     const result = await api('POST', '/query/subjects', { object });
-    const resultDiv = document.getElementById('subjects-result');
-    if (result.ok) {
-        if (result.data.length === 0) {
-            resultDiv.innerHTML = '<div class="empty" style="margin-top: 1rem;"><p>No subjects have access</p></div>';
-            return;
-        }
-        resultDiv.innerHTML = `<div class="list" style="margin-top: 1rem;">${result.data.map(e => `
-            <div class="list-item">${chip(e.entity)} ${badge(e.relation)} ${capBadge(e.effective)}</div>
-        `).join('')}</div>`;
-    } else {
-        resultDiv.innerHTML = `<div class="result denied"><div class="result-detail">${result.error}</div></div>`;
+    renderQueryResult('subjects-result', result, 'No one has access', e =>
+        `<div class="list-item">${chip(e.entity)} ${badge(e.relation)} ${capBadge(e.effective)}</div>`);
+}
+
+async function doQueryDelegation() {
+    const receiver = getValue('deleg-receiver');
+    const resource = getValue('deleg-resource');
+    const source = getValue('deleg-source');
+
+    // Filter from known delegations based on filled fields
+    let results = known.delegations.filter(d => {
+        if (receiver && d.seeker !== receiver) return false;
+        if (resource && d.scope !== resource) return false;
+        if (source && d.delegate !== source) return false;
+        return true;
+    });
+
+    const div = $('delegation-result');
+    if (results.length === 0) {
+        div.innerHTML = `<div class="empty mt-1"><p>No sharing found</p></div>`;
+        return;
     }
+    div.innerHTML = `<div class="list mt-1">${results.map(d =>
+        `<div class="list-item delegation-item">${chip(d.delegate)} <span class="arrow">→</span> ${chip(d.seeker)} <span class="text-muted text-sm">on</span> ${chip(d.scope)}</div>`
+    ).join('')}</div>`;
+}
+
+function renderQueryResult(containerId, result, emptyMsg, itemRenderer) {
+    const div = document.getElementById(containerId);
+    if (!result.ok) {
+        div.innerHTML = `<div class="result denied mt-1"><div class="result-detail">${result.error}</div></div>`;
+        return;
+    }
+    if (result.data.length === 0) {
+        div.innerHTML = `<div class="empty mt-1"><p>${emptyMsg}</p></div>`;
+        return;
+    }
+    div.innerHTML = `<div class="list mt-1">${result.data.map(itemRenderer).join('')}</div>`;
 }
 
 // ============================================================================
@@ -585,7 +618,16 @@ async function runTemplate(name) {
     if (status.ok && status.data.bootstrapped) {
         if (!confirm(`System is already bootstrapped (root: ${status.data.root_entity}).\n\nReset database and run "${name}" template?`)) return;
         log('Resetting database...', 'info');
-        await api('POST', '/reset');
+        const resetResult = await api('POST', '/reset');
+        if (!resetResult.ok) {
+            showError('Reset failed: ' + (resetResult.error || 'Unknown error'));
+            return;
+        }
+        // Logout after successful reset
+        authToken = null;
+        localStorage.removeItem('capbit_token');
+        localStorage.removeItem('capbit_entity');
+        known.types = [];
         known.entities = [];
         known.grants = [];
         known.capabilities = [];
@@ -694,10 +736,10 @@ function showForm(name) {
     const titles = {
         'type': 'Create Type',
         'entity': 'Create Entity',
-        'cap-bit': 'Define Capability Bit',
-        'relation': 'Define Relation',
-        'grant': 'Create Grant',
-        'delegate': 'Create Delegation'
+        'cap-bit': 'Define Action',
+        'relation': 'Create Group',
+        'grant': 'Add Member',
+        'delegate': 'Share'
     };
     document.getElementById('modal-title').textContent = titles[name] || 'Create';
     document.getElementById('modal-menu').classList.add('hidden');
@@ -930,14 +972,30 @@ function showTab(name) {
     $$('.tab-content').forEach(t => t.classList.remove('active'));
     $(`tab-${name}`)?.classList.add('active');
     document.querySelector(`.tab[onclick="showTab('${name}')"]`)?.classList.add('active');
+
+    // Close home tab expanded sections only
+    const homeSections = ['types', 'entities', 'capbits', 'relations', 'grants', 'delegations'];
+    homeSections.forEach(s => {
+        const el = $(`section-${s}`);
+        if (el) el.classList.add('hidden');
+    });
 }
 
-function toggleAccordion(section) {
+function toggleMini(section) {
+    const sections = ['types', 'entities', 'capbits', 'relations', 'grants', 'delegations'];
     const content = $(`section-${section}`);
-    const arrow = document.querySelector(`.accordion[data-section="${section}"] .accordion-arrow`);
-    const isOpen = content.classList.contains('open');
-    content.classList.toggle('open');
-    arrow.textContent = isOpen ? '▶' : '▼';
+    const isHidden = content.classList.contains('hidden');
+
+    // Close all sections first
+    sections.forEach(s => {
+        const el = $(`section-${s}`);
+        if (el) el.classList.add('hidden');
+    });
+
+    // Open clicked one if it was closed
+    if (isHidden) {
+        content.classList.remove('hidden');
+    }
 }
 
 async function updateViewerPermission() {
@@ -956,6 +1014,7 @@ function filterSystem(items, scopeField = 'id') {
 const isSystemEntity = (id) => id.startsWith('_type:') || id.startsWith('_system:');
 
 function renderAll() {
+    renderTypes();
     renderEntities();
     renderPrimitiveCapabilities();
     renderCapabilities();
@@ -969,26 +1028,41 @@ function updateCounts() {
     const displayEntities = filterSystem(known.entities, 'id');
     const displayCaps = filterSystem(known.capabilities, 'scope');
     const displayGrants = filterSystem(known.grants, 'scope');
+    $('count-types').textContent = known.types.length;
     $('count-entities').textContent = displayEntities.length;
     $('count-capbits').textContent = known.capLabels.length;
     $('count-relations').textContent = displayCaps.length;
     $('count-grants').textContent = displayGrants.length;
     $('count-delegations').textContent = known.delegations.length;
-    const total = displayEntities.length + known.capLabels.length + displayCaps.length + displayGrants.length + known.delegations.length;
+    const total = known.types.length + displayEntities.length + known.capLabels.length + displayCaps.length + displayGrants.length + known.delegations.length;
     const homeBtn = $('tab-btn-home');
     if (homeBtn) homeBtn.textContent = total > 0 ? `Home (${total})` : 'Home';
 }
 
 function renderTestSelects() {
     const displayEntities = filterSystem(known.entities, 'id');
-    const opts = '<option value="">-- Select entity --</option>' + displayEntities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
+    const opts = '<option value="">-- Select --</option>' + displayEntities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
+    const optsAny = '<option value="">Any</option>' + displayEntities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
+    // Query tab selects
     ['check-subject', 'check-object', 'query-subject', 'query-object'].forEach(id => setHtml(id, opts));
+    ['deleg-receiver', 'deleg-resource', 'deleg-source'].forEach(id => setHtml(id, optsAny));
 
     const displayCaps = filterSystem(known.capabilities, 'scope');
     const sortedCaps = [...displayCaps].sort((a, b) => a.scope !== b.scope ? a.scope.localeCompare(b.scope) : a.cap_mask - b.cap_mask);
-    const capOpts = '<option value="0">0x0000 (ANY)</option>' +
+    const capOpts = '<option value="0">Any (0x0000)</option>' +
         sortedCaps.map(c => `<option value="${c.cap_mask}">${c.scope} → ${c.relation} (0x${c.cap_mask.toString(16).padStart(4, '0').toUpperCase()})</option>`).join('');
     setHtml('check-cap', capOpts);
+}
+
+function renderTypes() {
+    if (known.types.length === 0) {
+        setHtml('type-list', '<div class="empty"><div class="empty-icon">📁</div><p>No types yet</p><button class="btn sm mt-1" onclick="toggleModal(); showForm(\'type\');">+ Create Type</button></div>');
+        return;
+    }
+    const html = '<div class="list">' + known.types.map(t =>
+        `<div class="list-item${t.startsWith('_') ? ' system-item' : ''}">${t.startsWith('_') ? systemIcon() : ''}<span class="chip"><span class="type">${t}</span></span></div>`
+    ).join('') + '</div>';
+    setHtml('type-list', html);
 }
 
 function renderEntities() {

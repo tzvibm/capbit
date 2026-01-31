@@ -112,9 +112,11 @@ pub use core::{
 
     // List all (for admin/demo)
     list_all_entities,
+    list_all_types,
     list_all_grants,
     list_all_capabilities,
     list_all_cap_labels,
+    list_all_delegations,
 
     // WriteBatch
     write_batch,

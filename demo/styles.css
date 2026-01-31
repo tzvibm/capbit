@@ -507,3 +507,76 @@ select:focus, input:focus {
 .cap-item { flex-wrap: wrap; }
 .cap-labels { font-size: 0.7rem; color: var(--text-muted); width: 100%; margin-top: 0.25rem; }
 .cap-badge-success { background: var(--success); color: white; }
+
+/* ============================================================================
+   Home Tab - Simple List
+   ============================================================================ */
+
+.home-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.home-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 0.875rem 1rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.home-card:hover {
+    background: var(--bg-input);
+}
+
+.hc-icon {
+    font-size: 1.25rem;
+}
+
+.hc-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.hc-count {
+    background: var(--bg-input);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    min-width: 2rem;
+    text-align: center;
+}
+
+.expand-section {
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    padding: 1rem;
+    margin-top: -0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.expand-section.hidden {
+    display: none;
+}
+
+.expand-section .list-item {
+    background: var(--bg-input);
+    margin-bottom: 0.5rem;
+}
+
+.expand-section .list-item:last-child {
+    margin-bottom: 0;
+}
+
+.expand-section .empty {
+    padding: 1.5rem;
+}
+

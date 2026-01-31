@@ -16,7 +16,8 @@ use tower_http::cors::{Any, CorsLayer};
 
 use capbit::{
     auth, check_access, clear_all, get_meta, init, is_bootstrapped, protected, SystemCap,
-    list_accessible, list_subjects, set_cap_label,
+    list_accessible, list_subjects, set_cap_label, list_all_types, list_all_delegations,
+    get_inheritance, get_inheritors_from_source, get_inheritance_for_object,
 };
 
 // ============================================================================
@@ -78,6 +79,15 @@ struct QueryAccessibleReq { subject: String }
 struct QuerySubjectsReq { object: String }
 
 #[derive(Deserialize)]
+struct QueryDelegationReq { subject: String, object: String }
+
+#[derive(Deserialize)]
+struct QueryDelegateesReq { source: String, object: String }
+
+#[derive(Deserialize)]
+struct QueryDelegationsReq { object: String }
+
+#[derive(Deserialize)]
 struct CreateCapLabelReq { scope: String, bit: u64, label: String }
 
 #[derive(Deserialize)]
@@ -120,6 +130,9 @@ struct CapLabelInfo { scope: String, bit: u64, label: String }
 
 #[derive(Serialize)]
 struct AccessEntry { entity: String, relation: String, effective: u64, effective_string: String }
+
+#[derive(Serialize)]
+struct DelegationEntry { source: String, subject: String }
 
 #[derive(Serialize)]
 struct SessionInfo { created_at: u64, expires_at: u64 }
@@ -250,6 +263,18 @@ async fn get_entities(Auth(actor): Auth) -> Json<ApiResponse<Vec<EntityInfo>>> {
     }
 }
 
+async fn get_types(Auth(actor): Auth) -> Json<ApiResponse<Vec<String>>> {
+    // Requires SYSTEM_READ on _type:_type to see types
+    let caps = check_access(&actor, "_type:_type", None).unwrap_or(0);
+    if (caps & SystemCap::SYSTEM_READ) == 0 {
+        return Json(ApiResponse::err("Requires SYSTEM_READ on _type:_type"));
+    }
+    match list_all_types() {
+        Ok(types) => Json(ApiResponse::ok(types)),
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
+}
+
 async fn post_grant(Auth(actor): Auth, Json(req): Json<CreateGrantReq>) -> (StatusCode, Json<ApiResponse<String>>) {
     match protected::set_grant(&actor, &req.seeker, &req.relation, &req.scope) {
         Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("created".into()))),
@@ -308,9 +333,12 @@ async fn post_check(Auth(actor): Auth, Json(req): Json<CheckAccessReq>) -> Json<
 }
 
 async fn post_query_accessible(Auth(actor): Auth, Json(req): Json<QueryAccessibleReq>) -> Json<ApiResponse<Vec<AccessEntry>>> {
-    // User can only query their own accessible entities
+    // User can query their own access, or anyone's if they have SYSTEM_READ
     if actor != req.subject {
-        return Json(ApiResponse::err("Can only query your own accessible entities"));
+        let caps = check_access(&actor, "_type:_type", None).unwrap_or(0);
+        if (caps & SystemCap::SYSTEM_READ) == 0 {
+            return Json(ApiResponse::err("Can only query your own access, or requires SYSTEM_READ"));
+        }
     }
     match list_accessible(&req.subject) {
         Ok(results) => Json(ApiResponse::ok(results.into_iter().map(|(object, relation)| {
@@ -336,12 +364,53 @@ async fn post_query_subjects(Auth(actor): Auth, Json(req): Json<QuerySubjectsReq
     }
 }
 
+// Delegation query: Who delegated to this subject on this object?
+async fn post_query_delegators(Auth(actor): Auth, Json(req): Json<QueryDelegationReq>) -> Json<ApiResponse<Vec<String>>> {
+    // Requires DELEGATE_READ on the object
+    let caps = check_access(&actor, &req.object, None).unwrap_or(0);
+    if (caps & SystemCap::DELEGATE_READ) == 0 {
+        return Json(ApiResponse::err("Requires DELEGATE_READ on object"));
+    }
+    match get_inheritance(&req.subject, &req.object) {
+        Ok(sources) => Json(ApiResponse::ok(sources)),
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
+}
+
+// Delegation query: Who did this source delegate to on this object?
+async fn post_query_delegatees(Auth(actor): Auth, Json(req): Json<QueryDelegateesReq>) -> Json<ApiResponse<Vec<String>>> {
+    // Requires DELEGATE_READ on the object
+    let caps = check_access(&actor, &req.object, None).unwrap_or(0);
+    if (caps & SystemCap::DELEGATE_READ) == 0 {
+        return Json(ApiResponse::err("Requires DELEGATE_READ on object"));
+    }
+    match get_inheritors_from_source(&req.source, &req.object) {
+        Ok(subjects) => Json(ApiResponse::ok(subjects)),
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
+}
+
+// Delegation query: All delegations on this object
+async fn post_query_delegations(Auth(actor): Auth, Json(req): Json<QueryDelegationsReq>) -> Json<ApiResponse<Vec<DelegationEntry>>> {
+    // Requires DELEGATE_READ on the object
+    let caps = check_access(&actor, &req.object, None).unwrap_or(0);
+    if (caps & SystemCap::DELEGATE_READ) == 0 {
+        return Json(ApiResponse::err("Requires DELEGATE_READ on object"));
+    }
+    match get_inheritance_for_object(&req.object) {
+        Ok(pairs) => Json(ApiResponse::ok(pairs.into_iter().map(|(source, subject)| DelegationEntry { source, subject }).collect())),
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
+}
+
 async fn post_reset(Auth(actor): Auth) -> (StatusCode, Json<ApiResponse<String>>) {
-    // Require TYPE_CREATE + TYPE_DELETE + SYSTEM_READ on _type:_type
-    // (core admin powers, doesn't require PASSWORD_ADMIN for backwards compat)
+    // Allow reset if:
+    // 1. Actor has TYPE_ADMIN on _type:_type, OR
+    // 2. Actor IS the root entity (handles corrupted DB where grants are missing)
     let required = SystemCap::TYPE_CREATE | SystemCap::TYPE_DELETE | SystemCap::SYSTEM_READ;
     let caps = check_access(&actor, "_type:_type", None).unwrap_or(0);
-    if (caps & required) != required {
+    let is_root = get_meta("root_entity").ok().flatten().as_deref() == Some(&actor);
+    if (caps & required) != required && !is_root {
         return (StatusCode::FORBIDDEN, Json(ApiResponse::err("Requires type admin on _type:_type")));
     }
     match clear_all() {
@@ -365,6 +434,16 @@ async fn post_cap_label(Auth(actor): Auth, Json(req): Json<CreateCapLabelReq>) -
 async fn get_cap_labels(Auth(actor): Auth) -> Json<ApiResponse<Vec<CapLabelInfo>>> {
     match protected::list_cap_labels(&actor) {
         Ok(labels) => Json(ApiResponse::ok(labels.into_iter().map(|(scope, bit, label)| CapLabelInfo { scope, bit, label }).collect())),
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
+}
+
+#[derive(Serialize)]
+struct DelegationInfo { seeker: String, scope: String, source: String }
+
+async fn get_delegations(Auth(_actor): Auth) -> Json<ApiResponse<Vec<DelegationInfo>>> {
+    match list_all_delegations() {
+        Ok(delegs) => Json(ApiResponse::ok(delegs.into_iter().map(|(seeker, scope, source)| DelegationInfo { seeker, scope, source }).collect())),
         Err(e) => Json(ApiResponse::err(e.message)),
     }
 }
@@ -411,12 +490,17 @@ async fn main() {
         .route("/reset", post(post_reset))
         // Read (no auth for now - add if needed)
         .route("/entities", get(get_entities))
+        .route("/types", get(get_types))
         .route("/grants", get(get_grants))
         .route("/capabilities", get(get_capabilities))
         .route("/cap-labels", get(get_cap_labels))
+        .route("/delegations", get(get_delegations))
         .route("/check", post(post_check))
         .route("/query/accessible", post(post_query_accessible))
         .route("/query/subjects", post(post_query_subjects))
+        .route("/query/delegators", post(post_query_delegators))
+        .route("/query/delegatees", post(post_query_delegatees))
+        .route("/query/delegations", post(post_query_delegations))
         // Authenticated
         .route("/me", get(get_me))
         .route("/session", post(post_session))

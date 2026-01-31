@@ -120,165 +120,127 @@
             </div>
         </div>
 
-        <!-- Home Tab (Combined Entities + Permissions) -->
+        <!-- Home Tab -->
         <div id="tab-home" class="tab-content active">
-            <!-- Entities Section -->
-            <div class="accordion" data-section="entities">
-                <button class="accordion-header" onclick="toggleAccordion('entities')">
-                    <span>Entities <span class="count" id="count-entities">0</span></span>
-                    <span class="accordion-arrow">▼</span>
-                </button>
-                <div class="accordion-content open" id="section-entities">
-                    <div class="list" id="entity-list">
-                        <div class="empty">
-                            <div class="empty-icon">📋</div>
-                            <p>No entities yet</p>
-                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('entity');">+ Create Entity</button>
-                        </div>
-                    </div>
+            <div class="home-list">
+                <div class="home-card" onclick="toggleMini('types')">
+                    <span class="hc-icon">📁</span>
+                    <span class="hc-name">Types</span>
+                    <span class="hc-count" id="count-types">0</span>
                 </div>
-            </div>
+                <div class="expand-section hidden" id="section-types"><div id="type-list"></div></div>
 
-            <!-- Capability Bits Section -->
-            <div class="accordion" data-section="capbits">
-                <button class="accordion-header" onclick="toggleAccordion('capbits')">
-                    <span>Capability Bits <span class="count" id="count-capbits">0</span></span>
-                    <span class="accordion-arrow">▶</span>
-                </button>
-                <div class="accordion-content" id="section-capbits">
-                    <div id="primitive-cap-list">
-                        <div class="empty">
-                            <div class="empty-icon">🔹</div>
-                            <p>No capability bits defined</p>
-                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('cap-bit');">+ Define Bit</button>
-                        </div>
-                    </div>
+                <div class="home-card" onclick="toggleMini('entities')">
+                    <span class="hc-icon">👤</span>
+                    <span class="hc-name">Entities</span>
+                    <span class="hc-count" id="count-entities">0</span>
                 </div>
-            </div>
+                <div class="expand-section hidden" id="section-entities"><div id="entity-list"></div></div>
 
-            <!-- Relations Section -->
-            <div class="accordion" data-section="relations">
-                <button class="accordion-header" onclick="toggleAccordion('relations')">
-                    <span>Relations <span class="count" id="count-relations">0</span></span>
-                    <span class="accordion-arrow">▶</span>
-                </button>
-                <div class="accordion-content" id="section-relations">
-                    <div class="list" id="cap-list">
-                        <div class="empty">
-                            <div class="empty-icon">⚡</div>
-                            <p>No relations defined</p>
-                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('relation');">+ Define Relation</button>
-                        </div>
-                    </div>
+                <div class="home-card" onclick="toggleMini('capbits')">
+                    <span class="hc-icon">⚡</span>
+                    <span class="hc-name">Actions</span>
+                    <span class="hc-count" id="count-capbits">0</span>
                 </div>
-            </div>
+                <div class="expand-section hidden" id="section-capbits"><div id="primitive-cap-list"></div></div>
 
-            <!-- Grants Section -->
-            <div class="accordion" data-section="grants">
-                <button class="accordion-header" onclick="toggleAccordion('grants')">
-                    <span>Grants <span class="count" id="count-grants">0</span></span>
-                    <span class="accordion-arrow">▶</span>
-                </button>
-                <div class="accordion-content" id="section-grants">
-                    <div class="list" id="grant-list">
-                        <div class="empty">
-                            <div class="empty-icon">🔗</div>
-                            <p>No grants yet</p>
-                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('grant');">+ Create Grant</button>
-                        </div>
-                    </div>
+                <div class="home-card" onclick="toggleMini('relations')">
+                    <span class="hc-icon">👥</span>
+                    <span class="hc-name">Groups</span>
+                    <span class="hc-count" id="count-relations">0</span>
                 </div>
-            </div>
+                <div class="expand-section hidden" id="section-relations"><div id="cap-list"></div></div>
 
-            <!-- Delegations Section -->
-            <div class="accordion" data-section="delegations">
-                <button class="accordion-header" onclick="toggleAccordion('delegations')">
-                    <span>Delegations <span class="count" id="count-delegations">0</span></span>
-                    <span class="accordion-arrow">▶</span>
-                </button>
-                <div class="accordion-content" id="section-delegations">
-                    <div class="list" id="delegation-list">
-                        <div class="empty">
-                            <div class="empty-icon">↗️</div>
-                            <p>No delegations yet</p>
-                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('delegate');">+ Create Delegation</button>
-                        </div>
-                    </div>
+                <div class="home-card" onclick="toggleMini('grants')">
+                    <span class="hc-icon">🔑</span>
+                    <span class="hc-name">Members</span>
+                    <span class="hc-count" id="count-grants">0</span>
                 </div>
+                <div class="expand-section hidden" id="section-grants"><div id="grant-list"></div></div>
+
+                <div class="home-card" onclick="toggleMini('delegations')">
+                    <span class="hc-icon">🔗</span>
+                    <span class="hc-name">Sharing</span>
+                    <span class="hc-count" id="count-delegations">0</span>
+                </div>
+                <div class="expand-section hidden" id="section-delegations"><div id="delegation-list"></div></div>
             </div>
         </div>
 
         <!-- Query Tab -->
         <div id="tab-query" class="tab-content">
-            <div class="card">
-                <!-- Query Mode Selector - segmented control style -->
-                <div class="segmented-control" style="display: flex; gap: 0.25rem; margin-bottom: 1rem;">
-                    <button class="seg-btn active" data-mode="check" onclick="showQueryMode('check')">Check</button>
-                    <button class="seg-btn" data-mode="accessible" onclick="showQueryMode('accessible')">By Subject</button>
-                    <button class="seg-btn" data-mode="subjects" onclick="showQueryMode('subjects')">By Object</button>
+            <div class="home-list">
+                <div class="home-card" onclick="showQuery('check')">
+                    <span class="hc-icon">🔐</span>
+                    <span class="hc-name">Check Access</span>
                 </div>
-
-                <!-- Check Access Mode -->
-                <div id="query-check">
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-                        Does subject have required capability on object?
-                    </p>
+                <div class="expand-section hidden" id="qf-check">
                     <div class="form-row stack">
                         <div class="input-group">
-                            <label>Subject</label>
-                            <select id="check-subject">
-                                <option value="">-- Select entity --</option>
-                            </select>
+                            <label>Who?</label>
+                            <select id="check-subject"><option value="">-- Select --</option></select>
                         </div>
                         <div class="input-group">
-                            <label>Object</label>
-                            <select id="check-object">
-                                <option value="">-- Select entity --</option>
-                            </select>
+                            <label>Accessing what?</label>
+                            <select id="check-object"><option value="">-- Select --</option></select>
                         </div>
                         <div class="input-group">
-                            <label>Required Capability</label>
-                            <select id="check-cap">
-                                <option value="0">0x0000 (ANY)</option>
-                            </select>
+                            <label>Required</label>
+                            <select id="check-cap"><option value="0">Any (0x0000)</option></select>
                         </div>
                     </div>
-                    <button class="btn success full" onclick="doCheckAccess()">Check</button>
+                    <button class="btn success full mt-1" onclick="doCheckAccess()">Check</button>
                     <div id="check-result"></div>
                 </div>
 
-                <!-- Outbound: What can subject access? -->
-                <div id="query-accessible" class="hidden">
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-                        What objects can this subject access? (outbound grants)
-                    </p>
-                    <div class="form-row stack">
-                        <div class="input-group">
-                            <label>Subject</label>
-                            <select id="query-subject">
-                                <option value="">-- Select entity --</option>
-                            </select>
-                        </div>
+                <div class="home-card" onclick="showQuery('outbound')">
+                    <span class="hc-icon">📤</span>
+                    <span class="hc-name">What Can They Access?</span>
+                </div>
+                <div class="expand-section hidden" id="qf-outbound">
+                    <div class="input-group">
+                        <label>Who?</label>
+                        <select id="query-subject"><option value="">-- Select --</option></select>
                     </div>
-                    <button class="btn success full" onclick="doQueryAccessible()">Query</button>
+                    <button class="btn success full mt-1" onclick="doQueryAccessible()">Show</button>
                     <div id="accessible-result"></div>
                 </div>
 
-                <!-- Inbound: Who can access object? -->
-                <div id="query-subjects" class="hidden">
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-                        Who has access to this object? (inbound grants)
-                    </p>
+                <div class="home-card" onclick="showQuery('inbound')">
+                    <span class="hc-icon">📥</span>
+                    <span class="hc-name">Who Has Access?</span>
+                </div>
+                <div class="expand-section hidden" id="qf-inbound">
+                    <div class="input-group">
+                        <label>To what?</label>
+                        <select id="query-object"><option value="">-- Select --</option></select>
+                    </div>
+                    <button class="btn success full mt-1" onclick="doQuerySubjects()">Show</button>
+                    <div id="subjects-result"></div>
+                </div>
+
+                <div class="home-card" onclick="showQuery('delegation')">
+                    <span class="hc-icon">🔗</span>
+                    <span class="hc-name">Sharing Chain</span>
+                </div>
+                <div class="expand-section hidden" id="qf-delegation">
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">Fill any combination to search</p>
                     <div class="form-row stack">
                         <div class="input-group">
-                            <label>Object</label>
-                            <select id="query-object">
-                                <option value="">-- Select entity --</option>
-                            </select>
+                            <label>Who received?</label>
+                            <select id="deleg-receiver"><option value="">Any</option></select>
+                        </div>
+                        <div class="input-group">
+                            <label>On what?</label>
+                            <select id="deleg-resource"><option value="">Any</option></select>
+                        </div>
+                        <div class="input-group">
+                            <label>From who?</label>
+                            <select id="deleg-source"><option value="">Any</option></select>
                         </div>
                     </div>
-                    <button class="btn success full" onclick="doQuerySubjects()">Query</button>
-                    <div id="subjects-result"></div>
+                    <button class="btn success full mt-1" onclick="doQueryDelegation()">Search</button>
+                    <div id="delegation-result"></div>
                 </div>
             </div>
         </div>
@@ -321,24 +283,21 @@
                         <div><strong>Entity</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Add user, team, app, or resource</span></div>
                     </button>
 
-                    <div class="menu-group-label">Define</div>
                     <button class="action-item" onclick="showForm('cap-bit')">
-                        <span class="action-icon cap">0</span>
-                        <div><strong>Capability Bit</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Label a bit on an entity type</span></div>
+                        <span class="action-icon cap">⚡</span>
+                        <div><strong>Action</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Define what can be done</span></div>
                     </button>
                     <button class="action-item" onclick="showForm('relation')">
-                        <span class="action-icon cap">=</span>
-                        <div><strong>Relation</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Set capability mask for a relation</span></div>
+                        <span class="action-icon cap">👥</span>
+                        <div><strong>Group</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Bundle actions together</span></div>
                     </button>
-
-                    <div class="menu-group-label">Assign</div>
                     <button class="action-item" onclick="showForm('grant')">
-                        <span class="action-icon grant">&#8594;</span>
-                        <div><strong>Grant</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Assign a relation to a user</span></div>
+                        <span class="action-icon grant">🔑</span>
+                        <div><strong>Member</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Add someone to a group</span></div>
                     </button>
                     <button class="action-item" onclick="showForm('delegate')">
-                        <span class="action-icon delegate">&#8599;</span>
-                        <div><strong>Delegation</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Inherit permissions from another</span></div>
+                        <span class="action-icon delegate">🔗</span>
+                        <div><strong>Sharing</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Inherit from another</span></div>
                     </button>
                 </div>
 
@@ -397,7 +356,7 @@
                         <label>Label</label>
                         <input type="text" id="m-label-name" placeholder="e.g. read, write, enter">
                     </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doDefineCapLabelModal()">Define Bit</button>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doDefineCapLabelModal()">Define Action</button>
                 </div>
 
                 <!-- Relation Form -->
@@ -430,57 +389,57 @@
                             <button class="btn sm outline" type="button" onclick="showForm('cap-bit')">+ Define New Bit</button>
                         </div>
                     </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateCapabilityModal()">Define Relation</button>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateCapabilityModal()">Create Group</button>
                 </div>
 
                 <!-- Grant Form -->
                 <div id="form-grant" class="hidden">
                     <div class="input-group">
-                        <label>Seeker (who gets the grant)</label>
+                        <label>Who gets access?</label>
                         <select id="m-grant-seeker">
-                            <option value="">-- Select entity --</option>
+                            <option value="">-- Select person --</option>
                         </select>
                     </div>
                     <div class="form-row" style="margin-top: 0.5rem;">
                         <div class="input-group">
-                            <label>Scope</label>
+                            <label>To what?</label>
                             <select id="m-grant-scope" onchange="updateGrantRelationDropdown()">
-                                <option value="">-- Select entity --</option>
+                                <option value="">-- Select resource --</option>
                             </select>
                         </div>
                         <div class="input-group">
-                            <label>Relation</label>
+                            <label>As what group?</label>
                             <select id="m-grant-relation">
-                                <option value="">-- Select scope first --</option>
+                                <option value="">-- Select resource first --</option>
                             </select>
                         </div>
                     </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateGrantModal()">Create Grant</button>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateGrantModal()">Add Member</button>
                 </div>
 
                 <!-- Delegate Form -->
                 <div id="form-delegate" class="hidden">
                     <div class="input-group">
-                        <label>Seeker (who inherits)</label>
+                        <label>Who receives shared access?</label>
                         <select id="m-deleg-seeker">
-                            <option value="">-- Select entity --</option>
+                            <option value="">-- Select person --</option>
                         </select>
                     </div>
                     <div class="form-row" style="margin-top: 0.5rem;">
                         <div class="input-group">
-                            <label>Scope</label>
+                            <label>On what resource?</label>
                             <select id="m-deleg-scope">
-                                <option value="">-- Select entity --</option>
+                                <option value="">-- Select resource --</option>
                             </select>
                         </div>
                         <div class="input-group">
-                            <label>Inherit From</label>
+                            <label>From who?</label>
                             <select id="m-deleg-source">
-                                <option value="">-- Select entity --</option>
+                                <option value="">-- Select person --</option>
                             </select>
                         </div>
                     </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateDelegationModal()">Create Delegation</button>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateDelegationModal()">Share</button>
                 </div>
             </div>
         </div>

@@ -696,6 +696,18 @@ pub fn list_all_entities() -> Result<Vec<String>> {
     })
 }
 
+/// List all registered types
+pub fn list_all_types() -> Result<Vec<String>> {
+    with_read_txn(|txn, dbs| {
+        let mut results = Vec::new();
+        for item in dbs.types.iter(txn).map_err(err)? {
+            let (key, _) = item.map_err(err)?;
+            results.push(key.to_string());
+        }
+        Ok(results)
+    })
+}
+
 /// List all relationships (grants)
 pub fn list_all_grants() -> Result<Vec<(String, String, String)>> {
     with_read_txn(|txn, dbs| {
@@ -737,6 +749,22 @@ pub fn list_all_cap_labels() -> Result<Vec<(String, u64, String)>> {
                 if let Ok(bit) = u64::from_str_radix(parts[1], 16) {
                     results.push((parts[0].to_string(), bit, label.to_string()));
                 }
+            }
+        }
+        Ok(results)
+    })
+}
+
+/// List all delegations (inheritance records)
+pub fn list_all_delegations() -> Result<Vec<(String, String, String)>> {
+    with_read_txn(|txn, dbs| {
+        let mut results = Vec::new();
+        for item in dbs.inheritance.iter(txn).map_err(err)? {
+            let (key, _) = item.map_err(err)?;
+            let parts = parse_key(key);
+            if parts.len() == 3 {
+                // subject, object, source
+                results.push((parts[0].to_string(), parts[1].to_string(), parts[2].to_string()));
             }
         }
         Ok(results)
