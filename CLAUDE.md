@@ -2,6 +2,8 @@
 
 Technical guidance for Claude Code when working with this repository.
 
+> **Version:** v3 (v2 deprecated - see README changelog)
+
 ## Project Overview
 
 Capbit is a Rust library for high-performance access control with:
@@ -51,10 +53,13 @@ capbit/
 │   ├── caps.rs             # SystemCap constants
 │   ├── bootstrap.rs        # Genesis/root creation
 │   ├── protected.rs        # Protected mutation API
+│   ├── auth.rs             # Password-based authentication (v3)
 │   └── bin/
 │       └── server.rs       # REST API server
 ├── demo/
-│   └── index.html          # Interactive web demo
+│   ├── index.html          # Interactive web demo
+│   ├── app.js              # Demo JavaScript (v3)
+│   └── styles.css          # Demo styles (v3)
 ├── docs/
 │   ├── GUIDE.md            # Visual guide with diagrams
 │   ├── SIMULATION.md       # Full simulation spec
@@ -90,6 +95,7 @@ capbit/
 | `caps.rs` | SystemCap bitmask constants |
 | `bootstrap.rs` | Genesis: create root user, core types |
 | `protected.rs` | Authorization-checked mutations |
+| `auth.rs` | Password-based authentication (v3) |
 
 ### Entity Types
 

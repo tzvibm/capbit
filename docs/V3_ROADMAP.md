@@ -1,6 +1,8 @@
 # Capbit v3 Roadmap
 
-Features and improvements planned for Capbit v3.
+Features implemented and planned for Capbit v3.
+
+> **v3.0.0 Released:** Password-based authentication is now implemented. See sections marked with **[IMPLEMENTED]**.
 
 ---
 
@@ -241,11 +243,11 @@ pub struct AccessDecision {
 
 ---
 
-## 5. User Authentication Integration
+## 5. User Authentication Integration **[IMPLEMENTED]**
 
 **Problem:** Capbit handles authorization but not authentication.
 
-**Solution:**
+**Solution:** Implemented in `src/auth.rs` with password-based authentication using sha2/getrandom for secure hashing.
 
 ```rust
 // v3: Authentication hooks (not a full auth system)
@@ -460,15 +462,15 @@ init_v3("./data", V3Config {
 
 ## Implementation Priority
 
-| Feature | Priority | Complexity | Dependencies |
-|---------|----------|------------|--------------|
-| Audit Logging | HIGH | Medium | None |
-| Revocation Propagation | HIGH | Medium | None |
-| Rate Limiting | MEDIUM | Low | None |
-| Policy Engine | MEDIUM | High | Audit (optional) |
-| User Authentication | LOW | High | None |
-| Capability Expiration | LOW | Low | Audit |
-| Word Masks (Unlimited Primitives) | LOW | Medium | None (rarely needed - 64 bits/entity is plenty) |
+| Feature | Priority | Complexity | Status |
+|---------|----------|------------|--------|
+| User Authentication | - | High | **DONE (v3.0.0)** |
+| Audit Logging | HIGH | Medium | Planned |
+| Revocation Propagation | HIGH | Medium | Planned |
+| Rate Limiting | MEDIUM | Low | Planned |
+| Policy Engine | MEDIUM | High | Planned |
+| Capability Expiration | LOW | Low | Planned |
+| Word Masks (Unlimited Primitives) | LOW | Medium | Planned |
 
 ---
 

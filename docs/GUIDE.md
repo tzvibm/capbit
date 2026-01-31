@@ -1,6 +1,8 @@
-# Capbit v2 - User Guide
+# Capbit v3 - User Guide
 
 A simple guide to understanding how Capbit manages permissions and access control.
+
+> **New in v3:** Password-based authentication with secure hashing (sha2/getrandom). See [README changelog](../README.md#changelog).
 
 ---
 
@@ -546,7 +548,7 @@ Example: app:api-gateway
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                    CAPBIT v2                           │
+│                    CAPBIT v3                           │
 ├────────────────────────────────────────────────────────┤
 │                                                        │
 │  ✓ Three Core Concepts                                 │
@@ -602,4 +604,4 @@ cargo build --release
 
 ---
 
-*Capbit v2 - Simple, secure, fast permission management.*
+*Capbit v3 - Simple, secure, fast permission management with authentication.*
