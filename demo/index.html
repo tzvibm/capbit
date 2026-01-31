@@ -302,50 +302,218 @@
         }
 
         .hidden { display: none !important; }
+
+        /* FAB (Floating Action Button) */
+        .fab {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            font-size: 1.75rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 200;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .fab:hover { background: var(--primary-dark); }
+        .fab:active { transform: scale(0.95); }
+        .fab.open { transform: rotate(45deg); }
+
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 300;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+        }
+        .modal-overlay.open { opacity: 1; visibility: visible; }
+
+        /* Bottom sheet modal */
+        .modal-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-height: 85vh;
+            background: var(--bg-card);
+            border-radius: 1rem 1rem 0 0;
+            z-index: 301;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            overflow-y: auto;
+        }
+        .modal-overlay.open .modal-sheet { transform: translateY(0); }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--bg-card);
+        }
+        .modal-header h3 { font-size: 1rem; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+        }
+
+        .modal-content { padding: 1rem; }
+
+        /* Action menu in modal */
+        .action-menu { display: flex; flex-direction: column; gap: 0.5rem; }
+        .action-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: var(--bg-input);
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            color: var(--text);
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        .action-item:hover { background: var(--border); }
+        .action-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+        .action-icon.entity { background: rgba(34, 197, 94, 0.2); }
+        .action-icon.cap { background: rgba(99, 102, 241, 0.2); }
+        .action-icon.grant { background: rgba(245, 158, 11, 0.2); }
+        .action-icon.delegate { background: rgba(236, 72, 153, 0.2); }
+
+        /* Section headers in view tabs */
+        .section-header {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin: 1rem 0 0.5rem 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Segmented control (different from main tabs) */
+        .seg-btn {
+            flex: 1;
+            padding: 0.5rem 0.25rem;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .seg-btn:first-child { border-radius: 6px 0 0 6px; }
+        .seg-btn:last-child { border-radius: 0 6px 6px 0; }
+        .seg-btn:not(:last-child) { border-right: none; }
+        .seg-btn.active {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+        .seg-btn:hover:not(.active) { background: var(--border); }
+
+        /* Accordion */
+        .accordion {
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+        }
+        .accordion-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.875rem 1rem;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+        }
+        .accordion-header:hover { background: rgba(255,255,255,0.03); }
+        .accordion-arrow {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+        .accordion-content {
+            display: none;
+            padding: 0 1rem 1rem 1rem;
+        }
+        .accordion-content.open { display: block; }
+        .count {
+            display: inline-block;
+            background: var(--bg-input);
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            font-weight: 500;
+            padding: 0.15rem 0.4rem;
+            border-radius: 10px;
+            margin-left: 0.5rem;
+        }
+
+        /* FAB Menu Groups */
+        .menu-group-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            padding: 0.75rem 0 0.25rem 0;
+        }
+        .menu-group-label:first-child { padding-top: 0; }
     </style>
 </head>
 <body>
     <header>
-        <h1>Cap<span>bit</span></h1>
-        <div class="status-bar">
-            <div class="status-dot" id="status-dot"></div>
-            <span id="status-text">Disconnected</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 0.5rem;">
+            <h1>Cap<span>bit</span></h1>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div class="status-dot" id="status-dot"></div>
+                <select id="current-viewer" onchange="setViewer(this.value)" style="font-size: 0.7rem; padding: 0.35rem 0.5rem; border-radius: 6px; min-width: 100px;">
+                    <option value="user:root">user:root</option>
+                </select>
+            </div>
         </div>
     </header>
 
     <div class="container">
-        <!-- Server Config -->
-        <div class="card">
-            <div class="card-title">Server Connection</div>
-            <div class="config-row">
-                <input type="text" id="api-url" value="http://localhost:3000" placeholder="API URL">
-                <button class="btn sm" onclick="checkConnection()">Connect</button>
-            </div>
-        </div>
-
-        <!-- Activity Log - Always visible -->
-        <div class="card">
-            <div class="card-title">
-                Activity Log
-                <div style="display: flex; gap: 0.25rem;">
-                    <button class="btn sm outline" onclick="copyLogs()">Copy</button>
-                    <button class="btn sm outline" onclick="clearLog()">Clear</button>
-                </div>
-            </div>
-            <div class="log" id="log"></div>
-        </div>
-
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab active" onclick="showTab('setup')">Setup</button>
-            <button class="tab" onclick="showTab('entities')">Entities</button>
-            <button class="tab" onclick="showTab('grants')">Grants</button>
-            <button class="tab" onclick="showTab('caps')">Caps</button>
-            <button class="tab" onclick="showTab('test')">Test</button>
+            <button class="tab active" onclick="showTab('home')" id="tab-btn-home">Home</button>
+            <button class="tab" onclick="showTab('query')">Query</button>
+            <button class="tab" onclick="showTab('logs')">Logs</button>
+            <button class="tab" onclick="showTab('setup')">Setup</button>
         </div>
 
         <!-- Setup Tab -->
-        <div id="tab-setup" class="tab-content active">
+        <div id="tab-setup" class="tab-content">
             <div class="card">
                 <div class="card-title">Bootstrap System</div>
                 <div class="form-row">
@@ -374,199 +542,375 @@
             </div>
         </div>
 
-        <!-- Entities Tab -->
-        <div id="tab-entities" class="tab-content">
-            <div class="card">
-                <div class="card-title">Create Entity</div>
-                <div class="form-row">
-                    <div class="input-group">
-                        <label>Type</label>
-                        <select id="entity-type">
-                            <option value="user">user</option>
-                            <option value="team">team</option>
-                            <option value="app">app</option>
-                            <option value="resource">resource</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>ID</label>
-                        <input type="text" id="entity-id" placeholder="e.g. alice, engineering">
+        <!-- Home Tab (Combined Entities + Permissions) -->
+        <div id="tab-home" class="tab-content active">
+            <!-- Entities Section -->
+            <div class="accordion" data-section="entities">
+                <button class="accordion-header" onclick="toggleAccordion('entities')">
+                    <span>Entities <span class="count" id="count-entities">0</span></span>
+                    <span class="accordion-arrow">▼</span>
+                </button>
+                <div class="accordion-content open" id="section-entities">
+                    <div class="list" id="entity-list">
+                        <div class="empty">
+                            <div class="empty-icon">📋</div>
+                            <p>No entities yet</p>
+                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('entity');">+ Create Entity</button>
+                        </div>
                     </div>
                 </div>
-                <div class="input-group">
-                    <label>Actor (who's creating)</label>
-                    <input type="text" id="entity-actor" value="user:root" placeholder="e.g. user:root">
-                </div>
-                <button class="btn full" onclick="doCreateEntity()">Create Entity</button>
             </div>
 
-            <div class="card">
-                <div class="card-title">Known Entities</div>
-                <div class="list" id="entity-list">
-                    <div class="empty">
-                        <div class="empty-icon">📋</div>
-                        <p>Entities tracked client-side</p>
+            <!-- Capability Bits Section -->
+            <div class="accordion" data-section="capbits">
+                <button class="accordion-header" onclick="toggleAccordion('capbits')">
+                    <span>Capability Bits <span class="count" id="count-capbits">0</span></span>
+                    <span class="accordion-arrow">▶</span>
+                </button>
+                <div class="accordion-content" id="section-capbits">
+                    <div id="primitive-cap-list">
+                        <div class="empty">
+                            <div class="empty-icon">🔹</div>
+                            <p>No capability bits defined</p>
+                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('cap-bit');">+ Define Bit</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Relations Section -->
+            <div class="accordion" data-section="relations">
+                <button class="accordion-header" onclick="toggleAccordion('relations')">
+                    <span>Relations <span class="count" id="count-relations">0</span></span>
+                    <span class="accordion-arrow">▶</span>
+                </button>
+                <div class="accordion-content" id="section-relations">
+                    <div class="list" id="cap-list">
+                        <div class="empty">
+                            <div class="empty-icon">⚡</div>
+                            <p>No relations defined</p>
+                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('relation');">+ Define Relation</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grants Section -->
+            <div class="accordion" data-section="grants">
+                <button class="accordion-header" onclick="toggleAccordion('grants')">
+                    <span>Grants <span class="count" id="count-grants">0</span></span>
+                    <span class="accordion-arrow">▶</span>
+                </button>
+                <div class="accordion-content" id="section-grants">
+                    <div class="list" id="grant-list">
+                        <div class="empty">
+                            <div class="empty-icon">🔗</div>
+                            <p>No grants yet</p>
+                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('grant');">+ Create Grant</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delegations Section -->
+            <div class="accordion" data-section="delegations">
+                <button class="accordion-header" onclick="toggleAccordion('delegations')">
+                    <span>Delegations <span class="count" id="count-delegations">0</span></span>
+                    <span class="accordion-arrow">▶</span>
+                </button>
+                <div class="accordion-content" id="section-delegations">
+                    <div class="list" id="delegation-list">
+                        <div class="empty">
+                            <div class="empty-icon">↗️</div>
+                            <p>No delegations yet</p>
+                            <button class="btn sm" style="margin-top: 0.5rem;" onclick="toggleModal(); showForm('delegate');">+ Create Delegation</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Grants Tab -->
-        <div id="tab-grants" class="tab-content">
+        <!-- Query Tab -->
+        <div id="tab-query" class="tab-content">
             <div class="card">
-                <div class="card-title">Create Grant (Direct)</div>
-                <div class="form-row stack">
-                    <div class="input-group">
-                        <label>Actor (who's granting - must have GRANT_WRITE)</label>
-                        <input type="text" id="grant-actor" value="user:root" placeholder="e.g. user:root">
-                    </div>
-                    <div class="input-group">
-                        <label>Seeker (who receives the grant)</label>
-                        <input type="text" id="grant-seeker" placeholder="e.g. user:alice">
-                    </div>
-                    <div class="form-row">
+                <!-- Query Mode Selector - segmented control style -->
+                <div class="segmented-control" style="display: flex; gap: 0.25rem; margin-bottom: 1rem;">
+                    <button class="seg-btn active" data-mode="check" onclick="showQueryMode('check')">Check</button>
+                    <button class="seg-btn" data-mode="accessible" onclick="showQueryMode('accessible')">By Subject</button>
+                    <button class="seg-btn" data-mode="subjects" onclick="showQueryMode('subjects')">By Object</button>
+                </div>
+
+                <!-- Check Access Mode -->
+                <div id="query-check">
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                        Does subject have required capability on object?
+                    </p>
+                    <div class="form-row stack">
                         <div class="input-group">
-                            <label>Relation</label>
-                            <input type="text" id="grant-relation" placeholder="e.g. lead, member, editor">
+                            <label>Subject</label>
+                            <select id="check-subject">
+                                <option value="">-- Select entity --</option>
+                            </select>
                         </div>
                         <div class="input-group">
-                            <label>Scope (on what)</label>
-                            <input type="text" id="grant-scope" placeholder="e.g. team:engineering">
+                            <label>Object</label>
+                            <select id="check-object">
+                                <option value="">-- Select entity --</option>
+                            </select>
                         </div>
+                        <div class="input-group">
+                            <label>Required Capability</label>
+                            <select id="check-cap">
+                                <option value="0">0x0000 (ANY)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn success full" onclick="doCheckAccess()">Check</button>
+                    <div id="check-result"></div>
+                </div>
+
+                <!-- Outbound: What can subject access? -->
+                <div id="query-accessible" class="hidden">
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                        What objects can this subject access? (outbound grants)
+                    </p>
+                    <div class="form-row stack">
+                        <div class="input-group">
+                            <label>Subject</label>
+                            <select id="query-subject">
+                                <option value="">-- Select entity --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn success full" onclick="doQueryAccessible()">Query</button>
+                    <div id="accessible-result"></div>
+                </div>
+
+                <!-- Inbound: Who can access object? -->
+                <div id="query-subjects" class="hidden">
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                        Who has access to this object? (inbound grants)
+                    </p>
+                    <div class="form-row stack">
+                        <div class="input-group">
+                            <label>Object</label>
+                            <select id="query-object">
+                                <option value="">-- Select entity --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="btn success full" onclick="doQuerySubjects()">Query</button>
+                    <div id="subjects-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="tab-logs" class="tab-content">
+            <div class="card">
+                <div class="card-title">
+                    Activity Log
+                    <div style="display: flex; gap: 0.25rem;">
+                        <button class="btn sm outline" onclick="copyLogs()">Copy</button>
+                        <button class="btn sm outline" onclick="clearLog()">Clear</button>
                     </div>
                 </div>
-                <button class="btn full" onclick="doCreateGrant()">Create Grant</button>
+                <div class="log" id="log"></div>
             </div>
+        </div>
+    </div>
 
-            <div class="card">
-                <div class="card-title">Create Delegation (Inherited)</div>
-                <p style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-                    Delegation lets someone inherit another's permissions. The delegatee can never have MORE than the delegator.
-                </p>
-                <div class="form-row stack">
+    <!-- FAB Button -->
+    <button class="fab" id="fab" onclick="toggleModal()">+</button>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
+        <div class="modal-sheet" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modal-title">Create</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-content">
+                <!-- Action Menu (default view) -->
+                <div id="modal-menu" class="action-menu">
+                    <div class="menu-group-label">Create</div>
+                    <button class="action-item" onclick="showForm('type')">
+                        <span class="action-icon" style="background: rgba(139, 92, 246, 0.2);">T</span>
+                        <div><strong>Type</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Define a new entity type</span></div>
+                    </button>
+                    <button class="action-item" onclick="showForm('entity')">
+                        <span class="action-icon entity">+</span>
+                        <div><strong>Entity</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Add user, team, app, or resource</span></div>
+                    </button>
+
+                    <div class="menu-group-label">Define</div>
+                    <button class="action-item" onclick="showForm('cap-bit')">
+                        <span class="action-icon cap">0</span>
+                        <div><strong>Capability Bit</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Label a bit on an entity type</span></div>
+                    </button>
+                    <button class="action-item" onclick="showForm('relation')">
+                        <span class="action-icon cap">=</span>
+                        <div><strong>Relation</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Set capability mask for a relation</span></div>
+                    </button>
+
+                    <div class="menu-group-label">Assign</div>
+                    <button class="action-item" onclick="showForm('grant')">
+                        <span class="action-icon grant">&#8594;</span>
+                        <div><strong>Grant</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Assign a relation to a user</span></div>
+                    </button>
+                    <button class="action-item" onclick="showForm('delegate')">
+                        <span class="action-icon delegate">&#8599;</span>
+                        <div><strong>Delegation</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Inherit permissions from another</span></div>
+                    </button>
+                </div>
+
+                <!-- Type Form -->
+                <div id="form-type" class="hidden">
                     <div class="input-group">
-                        <label>Actor (who's delegating - must have DELEGATE_WRITE)</label>
-                        <input type="text" id="deleg-actor" value="user:root" placeholder="e.g. user:alice">
+                        <label>Actor</label>
+                        <input type="text" id="m-type-actor" value="user:root">
                     </div>
+                    <div class="input-group" style="margin-top: 0.5rem;">
+                        <label>Type Name</label>
+                        <input type="text" id="m-type-name" placeholder="e.g. project, document">
+                    </div>
+                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem;">
+                        Creates a new entity type and _type:{name} entity. Requires TYPE_CREATE on _type:_type.
+                    </p>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateTypeModal()">Create Type</button>
+                </div>
+
+                <!-- Entity Form -->
+                <div id="form-entity" class="hidden">
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Type</label>
+                            <select id="m-entity-type">
+                                <option value="user">user</option>
+                                <option value="team">team</option>
+                                <option value="app">app</option>
+                                <option value="resource">resource</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>ID</label>
+                            <input type="text" id="m-entity-id" placeholder="e.g. alice">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top: 0.5rem;">
+                        <label>Actor</label>
+                        <input type="text" id="m-entity-actor" value="user:root">
+                    </div>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateEntityModal()">Create Entity</button>
+                </div>
+
+                <!-- Capability Bit Form -->
+                <div id="form-cap-bit" class="hidden">
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Entity Type</label>
+                            <select id="m-label-scope">
+                                <option value="_type:resource">_type:resource</option>
+                                <option value="_type:user">_type:user</option>
+                                <option value="_type:team">_type:team</option>
+                                <option value="_type:app">_type:app</option>
+                                <option value="_type:_type">_type:_type</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Bit (0-15)</label>
+                            <input type="number" id="m-label-bit" min="0" max="15" value="0" style="width: 70px;">
+                        </div>
+                    </div>
+                    <div class="input-group" style="margin-top: 0.5rem;">
+                        <label>Label</label>
+                        <input type="text" id="m-label-name" placeholder="e.g. read, write, enter">
+                    </div>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doDefineCapLabelModal()">Define Bit</button>
+                </div>
+
+                <!-- Relation Form -->
+                <div id="form-relation" class="hidden">
                     <div class="input-group">
+                        <label>Actor</label>
+                        <input type="text" id="m-cap-actor" value="user:root">
+                    </div>
+                    <div class="form-row" style="margin-top: 0.5rem;">
+                        <div class="input-group">
+                            <label>Entity</label>
+                            <select id="m-cap-scope" onchange="updateRelationDropdown(); updateCapBitLabels();">
+                                <option value="">-- Select entity --</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Relation</label>
+                            <select id="m-cap-relation" onchange="handleRelationSelect()">
+                                <option value="">-- Select entity first --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group hidden" id="m-cap-new-relation-group" style="margin-top: 0.5rem;">
+                        <label>New Relation Name</label>
+                        <input type="text" id="m-cap-new-relation" placeholder="e.g. employee">
+                    </div>
+                    <div class="input-group" style="margin-top: 0.5rem;">
+                        <label>Capability Bits</label>
+                        <div id="m-cap-labels" style="display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.25rem;">
+                            <span style="color: var(--text-muted); font-size: 0.8rem;">Select an entity to see available capability bits</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem;">
+                            <span style="font-family: monospace; font-size: 0.85rem;">Mask = <strong id="m-cap-value">0x0000</strong></span>
+                            <button class="btn sm outline" type="button" onclick="showForm('cap-bit')">+ Define New Bit</button>
+                        </div>
+                    </div>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateCapabilityModal()">Define Relation</button>
+                </div>
+
+                <!-- Grant Form -->
+                <div id="form-grant" class="hidden">
+                    <div class="input-group">
+                        <label>Actor</label>
+                        <input type="text" id="m-grant-actor" value="user:root">
+                    </div>
+                    <div class="input-group" style="margin-top: 0.5rem;">
+                        <label>Seeker (who gets the grant)</label>
+                        <input type="text" id="m-grant-seeker" placeholder="e.g. user:alice">
+                    </div>
+                    <div class="form-row" style="margin-top: 0.5rem;">
+                        <div class="input-group">
+                            <label>Relation</label>
+                            <input type="text" id="m-grant-relation" placeholder="e.g. employee">
+                        </div>
+                        <div class="input-group">
+                            <label>Scope</label>
+                            <input type="text" id="m-grant-scope" placeholder="e.g. resource:office">
+                        </div>
+                    </div>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateGrantModal()">Create Grant</button>
+                </div>
+
+                <!-- Delegate Form -->
+                <div id="form-delegate" class="hidden">
+                    <div class="input-group">
+                        <label>Actor</label>
+                        <input type="text" id="m-deleg-actor" value="user:root">
+                    </div>
+                    <div class="input-group" style="margin-top: 0.5rem;">
                         <label>Seeker (who inherits)</label>
-                        <input type="text" id="deleg-seeker" placeholder="e.g. user:bob">
+                        <input type="text" id="m-deleg-seeker" placeholder="e.g. user:bob">
                     </div>
-                    <div class="form-row">
+                    <div class="form-row" style="margin-top: 0.5rem;">
                         <div class="input-group">
-                            <label>Scope (on what)</label>
-                            <input type="text" id="deleg-scope" placeholder="e.g. resource:hq-office">
-                        </div>
-                        <div class="input-group">
-                            <label>Delegate (inherit from)</label>
-                            <input type="text" id="deleg-source" placeholder="e.g. user:alice">
-                        </div>
-                    </div>
-                </div>
-                <button class="btn full" style="background: var(--warning);" onclick="doCreateDelegation()">Create Delegation</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title">
-                    Direct Grants
-                    <span style="font-size: 0.65rem; color: var(--text-muted);">seeker → relation → scope</span>
-                </div>
-                <div class="list" id="grant-list">
-                    <div class="empty">
-                        <div class="empty-icon">🔗</div>
-                        <p>No direct grants yet</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">
-                    Inherited (Delegations)
-                    <span style="font-size: 0.65rem; color: var(--warning);">seeker inherits from delegate on scope</span>
-                </div>
-                <div class="list" id="delegation-list">
-                    <div class="empty">
-                        <div class="empty-icon">↗️</div>
-                        <p>No delegations yet</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Capabilities Tab -->
-        <div id="tab-caps" class="tab-content">
-            <div class="card">
-                <div class="card-title">Define Capability</div>
-                <div class="form-row stack">
-                    <div class="input-group">
-                        <label>Actor (who's defining - must have CAP_WRITE)</label>
-                        <input type="text" id="cap-actor" value="user:root" placeholder="e.g. user:root">
-                    </div>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Scope (on what entity)</label>
-                            <input type="text" id="cap-scope" placeholder="e.g. team:engineering">
+                            <label>Scope</label>
+                            <input type="text" id="m-deleg-scope" placeholder="e.g. resource:office">
                         </div>
                         <div class="input-group">
-                            <label>Relation</label>
-                            <input type="text" id="cap-relation" placeholder="e.g. lead, member">
+                            <label>Inherit From</label>
+                            <input type="text" id="m-deleg-source" placeholder="e.g. user:alice">
                         </div>
                     </div>
-                    <div class="input-group">
-                        <label>Capability Bits (define your own meanings)</label>
-                        <div id="bit-selector" style="display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; margin-top: 0.25rem;">
-                            <!-- Bits 0-15 generated by JS -->
-                        </div>
-                        <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 1rem;">
-                            <span style="font-family: monospace; font-size: 0.85rem;">
-                                Value: <strong id="cap-value">0x0000</strong>
-                            </span>
-                            <input type="text" id="cap-mask-input" placeholder="or type hex"
-                                   style="font-family: monospace; width: 80px; padding: 0.25rem;"
-                                   onchange="parseAndSetBits(this.value)">
-                        </div>
-                    </div>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateDelegationModal()">Create Delegation</button>
                 </div>
-                <button class="btn full" onclick="doCreateCapability()">Define Capability</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title">Known Capabilities</div>
-                <div class="list" id="cap-list">
-                    <div class="empty">
-                        <div class="empty-icon">⚡</div>
-                        <p>Capabilities tracked client-side</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Test Tab -->
-        <div id="tab-test" class="tab-content">
-            <div class="card">
-                <div class="card-title">Check Permission</div>
-                <div class="form-row stack">
-                    <div class="input-group">
-                        <label>Subject (who's asking)</label>
-                        <select id="check-subject">
-                            <option value="">-- Select entity --</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Object (accessing what)</label>
-                        <select id="check-object">
-                            <option value="">-- Select entity --</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Required Capability</label>
-                        <select id="check-cap">
-                            <option value="0">ANY (0x0000)</option>
-                        </select>
-                    </div>
-                </div>
-                <button class="btn success full" onclick="doCheckAccess()">Check Access</button>
-                <div id="check-result"></div>
             </div>
         </div>
     </div>
@@ -578,14 +922,335 @@
 
         let apiUrl = 'http://localhost:3000';
         let connected = false;
+        let currentViewer = 'user:root';  // Who is viewing the demo
+
+        // SYSTEM_READ capability - bit 13 on _type:_type scope (matches SystemCap::SYSTEM_READ)
+        const SYSTEM_READ_SCOPE = '_type:_type';
+        const SYSTEM_READ_BIT = 0x2000;  // bit 13 = SystemCap::SYSTEM_READ
 
         // Client-side tracking (mirrors what we've created via API)
         const known = {
             entities: [],
             grants: [],
             capabilities: [],
-            delegations: []
+            delegations: [],
+            capLabels: []  // {scope, bit, label} - primitive capability definitions
         };
+
+        // ============================================================================
+        // Modal
+        // ============================================================================
+
+        let modalBits = 0;
+
+        function toggleModal() {
+            const overlay = document.getElementById('modal-overlay');
+            const fab = document.getElementById('fab');
+            if (overlay.classList.contains('open')) {
+                closeModal();
+            } else {
+                overlay.classList.add('open');
+                fab.classList.add('open');
+                showMenu();
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('open');
+            document.getElementById('fab').classList.remove('open');
+        }
+
+        function showMenu() {
+            document.getElementById('modal-title').textContent = 'Create';
+            document.getElementById('modal-menu').classList.remove('hidden');
+            document.querySelectorAll('[id^="form-"]').forEach(f => f.classList.add('hidden'));
+        }
+
+        function showForm(name) {
+            const titles = {
+                'type': 'Create Type',
+                'entity': 'Create Entity',
+                'cap-bit': 'Define Capability Bit',
+                'relation': 'Define Relation',
+                'grant': 'Create Grant',
+                'delegate': 'Create Delegation'
+            };
+            document.getElementById('modal-title').textContent = titles[name] || 'Create';
+            document.getElementById('modal-menu').classList.add('hidden');
+            document.querySelectorAll('[id^="form-"]').forEach(f => f.classList.add('hidden'));
+            document.getElementById(`form-${name}`).classList.remove('hidden');
+
+            if (name === 'relation') {
+                populateRelationEntityDropdown();
+            }
+        }
+
+        function populateRelationEntityDropdown() {
+            const select = document.getElementById('m-cap-scope');
+            select.innerHTML = '<option value="">-- Select entity --</option>';
+
+            // Add all known entities to the dropdown
+            known.entities.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.id;
+                opt.textContent = e.id;
+                select.appendChild(opt);
+            });
+
+            // Reset relation dropdown
+            document.getElementById('m-cap-relation').innerHTML = '<option value="">-- Select entity first --</option>';
+            document.getElementById('m-cap-new-relation-group').classList.add('hidden');
+            document.getElementById('m-cap-new-relation').value = '';
+
+            // Reset capability labels section
+            modalBits = 0;
+            document.getElementById('m-cap-value').textContent = '0x0000';
+            document.getElementById('m-cap-labels').innerHTML =
+                '<span style="color: var(--text-muted); font-size: 0.8rem;">Select an entity to see available capability bits</span>';
+        }
+
+        function updateRelationDropdown() {
+            const scope = document.getElementById('m-cap-scope').value;
+            const select = document.getElementById('m-cap-relation');
+
+            if (!scope) {
+                select.innerHTML = '<option value="">-- Select entity first --</option>';
+                document.getElementById('m-cap-new-relation-group').classList.add('hidden');
+                return;
+            }
+
+            // Find existing relations defined on this entity
+            const existingRelations = known.capabilities
+                .filter(c => c.scope === scope)
+                .map(c => c.relation);
+            const uniqueRelations = [...new Set(existingRelations)];
+
+            let options = '<option value="">-- Select or add new --</option>';
+            uniqueRelations.forEach(r => {
+                options += `<option value="${r}">${r}</option>`;
+            });
+            options += '<option value="__new__">+ Add new relation...</option>';
+
+            select.innerHTML = options;
+            document.getElementById('m-cap-new-relation-group').classList.add('hidden');
+        }
+
+        function handleRelationSelect() {
+            const select = document.getElementById('m-cap-relation');
+            const newGroup = document.getElementById('m-cap-new-relation-group');
+
+            if (select.value === '__new__') {
+                newGroup.classList.remove('hidden');
+                document.getElementById('m-cap-new-relation').focus();
+            } else {
+                newGroup.classList.add('hidden');
+                document.getElementById('m-cap-new-relation').value = '';
+            }
+        }
+
+        function initModalBitSelector() {
+            const container = document.getElementById('m-bit-selector');
+            container.innerHTML = '';
+            modalBits = 0;
+            for (let i = 0; i < 16; i++) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'm-bit-btn';
+                btn.dataset.bit = i;
+                btn.textContent = i;
+                btn.style.cssText = 'padding: 0.25rem; font-size: 0.65rem; border: 1px solid var(--border); background: var(--bg-input); color: var(--text-muted); border-radius: 4px; cursor: pointer;';
+                btn.onclick = () => toggleModalBit(i);
+                container.appendChild(btn);
+            }
+            updateModalBitDisplay();
+        }
+
+        function toggleModalBit(bit) {
+            modalBits ^= (1 << bit);
+            updateModalBitDisplay();
+        }
+
+        function updateModalBitDisplay() {
+            document.querySelectorAll('.m-bit-btn').forEach(btn => {
+                const bit = parseInt(btn.dataset.bit);
+                const isSet = (modalBits & (1 << bit)) !== 0;
+                btn.style.background = isSet ? 'var(--primary)' : 'var(--bg-input)';
+                btn.style.color = isSet ? 'white' : 'var(--text-muted)';
+            });
+            document.getElementById('m-cap-value').textContent = '0x' + modalBits.toString(16).padStart(4, '0');
+        }
+
+        function updateCapBitLabels() {
+            const scope = document.getElementById('m-cap-scope').value;
+            const container = document.getElementById('m-cap-labels');
+
+            if (!scope || !scope.includes(':')) {
+                container.innerHTML = '<span style="color: var(--text-muted); font-size: 0.8rem;">Select an entity to see available capability bits</span>';
+                modalBits = 0;
+                document.getElementById('m-cap-value').textContent = '0x0000';
+                return;
+            }
+
+            // Get the type from the scope (e.g., "resource:office" -> "_type:resource")
+            const entityType = scope.split(':')[0];
+            const typeScope = `_type:${entityType}`;
+
+            // Find labels for this type
+            const labels = known.capLabels.filter(l => l.scope === typeScope).sort((a, b) => a.bit - b.bit);
+
+            // Reset modalBits
+            modalBits = 0;
+            document.getElementById('m-cap-value').textContent = '0x0000';
+
+            if (labels.length === 0) {
+                container.innerHTML = `
+                    <div style="padding: 0.75rem; background: var(--bg-input); border-radius: 6px; text-align: center;">
+                        <span style="color: var(--text-muted); font-size: 0.8rem;">No capability bits defined for <strong>${typeScope}</strong></span>
+                        <br><br>
+                        <button class="btn sm outline" type="button" onclick="showForm('cap-bit'); document.getElementById('m-label-scope').value = '${typeScope}';">
+                            + Define Capability Bits
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // Create checkboxes for each label
+            container.innerHTML = labels.map(l => {
+                const mask = 1 << l.bit;
+                return `
+                    <label style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: var(--bg-input); border-radius: 6px; cursor: pointer;">
+                        <input type="checkbox" class="cap-label-cb" data-bit="${l.bit}" onchange="toggleCapLabel(${l.bit})" style="width: auto;">
+                        <span style="flex: 1;"><strong>${l.label}</strong></span>
+                        <span style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted);">bit ${l.bit} = 0x${mask.toString(16).padStart(2, '0')}</span>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function toggleCapLabel(bit) {
+            modalBits ^= (1 << bit);
+            document.getElementById('m-cap-value').textContent = '0x' + modalBits.toString(16).padStart(4, '0');
+        }
+
+        // Modal form handlers
+        async function doCreateTypeModal() {
+            const actor = document.getElementById('m-type-actor').value.trim();
+            const typeName = document.getElementById('m-type-name').value.trim();
+            if (!actor || !typeName) return alert('Fill all fields');
+
+            // Call the create_type API (need to add this endpoint)
+            const result = await api('POST', '/type', { actor, type_name: typeName });
+            if (result.ok) {
+                known.entities.push({ id: `_type:${typeName}`, type: '_type' });
+                document.getElementById('m-type-name').value = '';
+                renderAll();
+                closeModal();
+            }
+        }
+
+        async function doCreateEntityModal() {
+            const actor = document.getElementById('m-entity-actor').value.trim();
+            const entityType = document.getElementById('m-entity-type').value;
+            const id = document.getElementById('m-entity-id').value.trim();
+            if (!actor || !id) return alert('Fill all fields');
+
+            const result = await api('POST', '/entity', { actor, entity_type: entityType, id });
+            if (result.ok) {
+                known.entities.push({ id: `${entityType}:${id}`, type: entityType });
+                document.getElementById('m-entity-id').value = '';
+                renderAll();
+                closeModal();
+            }
+        }
+
+        async function doDefineCapLabelModal() {
+            const scope = document.getElementById('m-label-scope').value;
+            const bit = parseInt(document.getElementById('m-label-bit').value);
+            const label = document.getElementById('m-label-name').value.trim();
+            if (!label) return alert('Enter a label');
+
+            const result = await api('POST', '/cap-label', { scope, bit, label });
+            if (result.ok) {
+                const existing = known.capLabels.findIndex(l => l.scope === scope && l.bit === bit);
+                if (existing >= 0) known.capLabels[existing].label = label;
+                else known.capLabels.push({ scope, bit, label });
+                document.getElementById('m-label-name').value = '';
+                renderAll();
+                closeModal();
+            }
+        }
+
+        async function doCreateCapabilityModal() {
+            const actor = document.getElementById('m-cap-actor').value.trim();
+            const scope = document.getElementById('m-cap-scope').value;
+            const relationSelect = document.getElementById('m-cap-relation').value;
+
+            // Get relation name from dropdown or new input
+            let relation;
+            if (relationSelect === '__new__') {
+                relation = document.getElementById('m-cap-new-relation').value.trim();
+            } else {
+                relation = relationSelect;
+            }
+
+            if (!actor || !scope || !relation) return alert('Fill all fields');
+            if (modalBits === 0) return alert('Select at least one capability bit');
+
+            const result = await api('POST', '/capability', { actor, scope, relation, cap_mask: modalBits });
+            if (result.ok) {
+                // Update or add to known capabilities
+                const existing = known.capabilities.findIndex(c => c.scope === scope && c.relation === relation);
+                if (existing >= 0) {
+                    known.capabilities[existing].cap_mask = modalBits;
+                } else {
+                    known.capabilities.push({ scope, relation, cap_mask: modalBits });
+                }
+                document.getElementById('m-cap-scope').value = '';
+                document.getElementById('m-cap-relation').value = '';
+                document.getElementById('m-cap-new-relation').value = '';
+                document.getElementById('m-cap-new-relation-group').classList.add('hidden');
+                modalBits = 0;
+                renderAll();
+                closeModal();
+            }
+        }
+
+        async function doCreateGrantModal() {
+            const actor = document.getElementById('m-grant-actor').value.trim();
+            const seeker = document.getElementById('m-grant-seeker').value.trim();
+            const relation = document.getElementById('m-grant-relation').value.trim();
+            const scope = document.getElementById('m-grant-scope').value.trim();
+            if (!actor || !seeker || !relation || !scope) return alert('Fill all fields');
+
+            const result = await api('POST', '/grant', { actor, seeker, relation, scope });
+            if (result.ok) {
+                known.grants.push({ seeker, relation, scope });
+                document.getElementById('m-grant-seeker').value = '';
+                document.getElementById('m-grant-relation').value = '';
+                document.getElementById('m-grant-scope').value = '';
+                renderAll();
+                closeModal();
+            }
+        }
+
+        async function doCreateDelegationModal() {
+            const actor = document.getElementById('m-deleg-actor').value.trim();
+            const seeker = document.getElementById('m-deleg-seeker').value.trim();
+            const scope = document.getElementById('m-deleg-scope').value.trim();
+            const delegate = document.getElementById('m-deleg-source').value.trim();
+            if (!actor || !seeker || !scope || !delegate) return alert('Fill all fields');
+
+            const result = await api('POST', '/delegation', { actor, seeker, scope, delegate });
+            if (result.ok) {
+                known.delegations.push({ seeker, scope, delegate });
+                document.getElementById('m-deleg-seeker').value = '';
+                document.getElementById('m-deleg-scope').value = '';
+                document.getElementById('m-deleg-source').value = '';
+                renderAll();
+                closeModal();
+            }
+        }
 
         // ============================================================================
         // Logging
@@ -689,25 +1354,23 @@
         // ============================================================================
 
         async function checkConnection() {
-            const inputUrl = document.getElementById('api-url').value.trim();
-            apiUrl = inputUrl ? inputUrl.replace(/\/$/, '') : '';  // Empty = same origin
-            log(`Connecting to ${apiUrl || window.location.origin}...`, 'info');
+            apiUrl = '';  // Use same origin (server serves demo at /)
+            log(`Connecting to ${window.location.origin}...`, 'info');
 
             const result = await api('GET', '/status');
 
             if (result.ok) {
                 connected = true;
                 document.getElementById('status-dot').classList.add('connected');
-                document.getElementById('status-text').textContent =
-                    result.data.bootstrapped
-                        ? `Connected (root: ${result.data.root_entity})`
-                        : 'Connected (not bootstrapped)';
+                document.getElementById('status-dot').title = result.data.bootstrapped
+                    ? `Connected (root: ${result.data.root_entity})`
+                    : 'Connected (not bootstrapped)';
                 // Load existing data from server
                 await loadData();
             } else {
                 connected = false;
                 document.getElementById('status-dot').classList.remove('connected');
-                document.getElementById('status-text').textContent = 'Connection failed';
+                document.getElementById('status-dot').title = 'Connection failed';
             }
         }
 
@@ -741,7 +1404,18 @@
                 }));
             }
 
-            renderAll();
+            // Load capability bit labels
+            const labelsResult = await api('GET', '/cap-labels');
+            if (labelsResult.ok) {
+                known.capLabels = labelsResult.data.map(l => ({
+                    scope: l.scope,
+                    bit: l.bit,  // Already a bit number
+                    label: l.label
+                }));
+            }
+
+            // Check viewer's permission to see system entities
+            await updateViewerPermission();
         }
 
         // ============================================================================
@@ -770,6 +1444,9 @@
                 known.grants = [];
                 known.capabilities = [];
                 known.delegations = [];
+                known.capLabels = [];
+                clearLog();
+                log('Database reset complete', 'success');
                 renderAll();
                 checkConnection();
             }
@@ -903,7 +1580,34 @@
                 selectedBits = 0;
                 updateBitDisplay();
                 renderCapabilities();
+                renderPrimitiveCapabilities();
                 renderTestSelects();
+            }
+        }
+
+        async function doDefineCapLabel() {
+            const scope = document.getElementById('label-scope').value.trim();
+            const bit = parseInt(document.getElementById('label-bit').value);
+            const label = document.getElementById('label-name').value.trim();
+
+            if (!scope || !label) return alert('Fill scope and label');
+            if (isNaN(bit) || bit < 0 || bit > 15) return alert('Bit must be 0-15');
+
+            // Call API to persist the label
+            const result = await api('POST', '/cap-label', { scope, bit, label });
+
+            if (result.ok) {
+                // Update local state
+                const existing = known.capLabels.findIndex(l => l.scope === scope && l.bit === bit);
+                if (existing >= 0) {
+                    known.capLabels[existing].label = label;
+                } else {
+                    known.capLabels.push({ scope, bit, label });
+                }
+
+                // Clear form
+                document.getElementById('label-name').value = '';
+                renderPrimitiveCapabilities();
             }
         }
 
@@ -938,6 +1642,80 @@
             }
         }
 
+        function showQueryMode(mode) {
+            // Update segmented control buttons
+            document.querySelectorAll('.seg-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+
+            // Show/hide query sections
+            document.getElementById('query-check').classList.toggle('hidden', mode !== 'check');
+            document.getElementById('query-accessible').classList.toggle('hidden', mode !== 'accessible');
+            document.getElementById('query-subjects').classList.toggle('hidden', mode !== 'subjects');
+        }
+
+        async function doQueryAccessible() {
+            const subject = document.getElementById('query-subject').value;
+            if (!subject) return alert('Select a subject');
+
+            const result = await api('POST', '/query/accessible', { subject });
+            const resultDiv = document.getElementById('accessible-result');
+
+            if (result.ok) {
+                if (result.data.length === 0) {
+                    resultDiv.innerHTML = '<div class="empty" style="margin-top: 1rem;"><p>No access found</p></div>';
+                    return;
+                }
+                resultDiv.innerHTML = `
+                    <div class="list" style="margin-top: 1rem;">
+                        ${result.data.map(e => {
+                            const entityType = e.entity.split(':')[0];
+                            return `
+                                <div class="list-item">
+                                    <span class="chip ${entityType}"><span class="type">${entityType}:</span>${e.entity.split(':')[1]}</span>
+                                    <span class="relation-badge">${e.relation}</span>
+                                    <span class="cap-badge">0x${e.effective.toString(16).padStart(4, '0')}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `<div class="result denied"><div class="result-detail">${result.error}</div></div>`;
+            }
+        }
+
+        async function doQuerySubjects() {
+            const object = document.getElementById('query-object').value;
+            if (!object) return alert('Select an object');
+
+            const result = await api('POST', '/query/subjects', { object });
+            const resultDiv = document.getElementById('subjects-result');
+
+            if (result.ok) {
+                if (result.data.length === 0) {
+                    resultDiv.innerHTML = '<div class="empty" style="margin-top: 1rem;"><p>No subjects have access</p></div>';
+                    return;
+                }
+                resultDiv.innerHTML = `
+                    <div class="list" style="margin-top: 1rem;">
+                        ${result.data.map(e => {
+                            const entityType = e.entity.split(':')[0];
+                            return `
+                                <div class="list-item">
+                                    <span class="chip ${entityType}"><span class="type">${entityType}:</span>${e.entity.split(':')[1]}</span>
+                                    <span class="relation-badge">${e.relation}</span>
+                                    <span class="cap-badge">0x${e.effective.toString(16).padStart(4, '0')}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `<div class="result denied"><div class="result-detail">${result.error}</div></div>`;
+            }
+        }
+
         // ============================================================================
         // Templates
         // ============================================================================
@@ -956,6 +1734,7 @@
                 known.grants = [];
                 known.capabilities = [];
                 known.delegations = [];
+                known.capLabels = [];
             } else {
                 if (!confirm(`Run "${name}" template? This will create entities, grants, and capabilities.`)) return;
             }
@@ -963,9 +1742,49 @@
             log(`--- Running template: ${name} ---`, 'info');
 
             if (name === 'startup') {
-                // Bootstrap
+                // Bootstrap - root automatically gets SYSTEM_READ via admin on _type:_type
                 await api('POST', '/bootstrap', { root_id: 'root' });
                 known.entities.push({ id: 'user:root', type: 'user' });
+                // Track that root has admin on _type:* (these are created by bootstrap)
+                known.entities.push({ id: '_type:_type', type: '_type' });
+                known.entities.push({ id: '_type:user', type: '_type' });
+                known.entities.push({ id: '_type:team', type: '_type' });
+                known.entities.push({ id: '_type:app', type: '_type' });
+                known.entities.push({ id: '_type:resource', type: '_type' });
+                known.grants.push({ seeker: 'user:root', relation: 'admin', scope: '_type:_type' });
+                known.grants.push({ seeker: 'user:root', relation: 'admin', scope: '_type:user' });
+                known.grants.push({ seeker: 'user:root', relation: 'admin', scope: '_type:team' });
+                known.grants.push({ seeker: 'user:root', relation: 'admin', scope: '_type:app' });
+                known.grants.push({ seeker: 'user:root', relation: 'admin', scope: '_type:resource' });
+                // Bootstrap creates admin capability on each type entity
+                known.capabilities.push({ scope: '_type:_type', relation: 'admin', cap_mask: 0x3FFF }); // TYPE_ADMIN
+                known.capabilities.push({ scope: '_type:user', relation: 'admin', cap_mask: 0x1FFC }); // ENTITY_ADMIN
+                known.capabilities.push({ scope: '_type:team', relation: 'admin', cap_mask: 0x1FFC });
+                known.capabilities.push({ scope: '_type:app', relation: 'admin', cap_mask: 0x1FFC });
+                known.capabilities.push({ scope: '_type:resource', relation: 'admin', cap_mask: 0x1FFC });
+
+                // Define SystemCap bits on _type:_type (persisted to server)
+                const systemBits = [
+                    { bit: 0, label: 'type-create' },
+                    { bit: 1, label: 'type-delete' },
+                    { bit: 2, label: 'entity-create' },
+                    { bit: 3, label: 'entity-delete' },
+                    { bit: 4, label: 'grant-read' },
+                    { bit: 5, label: 'grant-write' },
+                    { bit: 6, label: 'grant-delete' },
+                    { bit: 7, label: 'cap-read' },
+                    { bit: 8, label: 'cap-write' },
+                    { bit: 9, label: 'cap-delete' },
+                    { bit: 10, label: 'delegate-read' },
+                    { bit: 11, label: 'delegate-write' },
+                    { bit: 12, label: 'delegate-delete' },
+                    { bit: 13, label: 'system-read' },
+                ];
+                for (const b of systemBits) {
+                    await api('POST', '/cap-label', { scope: '_type:_type', bit: b.bit, label: b.label });
+                    known.capLabels.push({ scope: '_type:_type', bit: b.bit, label: b.label });
+                }
+                await sleep(50);
 
                 // Create users
                 for (const u of ['alice', 'bob', 'charlie']) {
@@ -980,30 +1799,44 @@
                 await sleep(50);
 
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 1: Define CAPABILITIES (roles = sets of actions)', 'info');
-                log('        Primitive bits: enter=0x01, print=0x02, fax=0x04...', 'info');
-                log('        Roles combine bits: visitor=0x01, employee=0x07...', 'info');
+                log('STEP 1: Define CAPABILITY BITS (on entity TYPE)', 'info');
+                log('        These define what each bit means for all resources', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
-                // ═══════════════════════════════════════════════════════════
-                // CAPABILITIES ARE ROLES - each is a SET of primitive actions
-                // Primitive bits: enter=0x01, print=0x02, fax=0x04, safe=0x08, server=0x10, grant=0x20
-                // Roles combine these bits into meaningful permission sets
-                // ═══════════════════════════════════════════════════════════
-
-                const capabilities = [
-                    { relation: 'visitor',  cap: 0x01, desc: 'enter only (0x01)' },
-                    { relation: 'employee', cap: 0x07, desc: 'enter + print + fax (0x07)' },
-                    { relation: 'manager',  cap: 0x0F, desc: 'enter + print + fax + safe (0x0F)' },
-                    { relation: 'owner',    cap: 0x3F, desc: 'all actions (0x3F)' },
+                // Define capability bit labels at the TYPE level
+                const capBits = [
+                    { bit: 0, label: 'enter' },
+                    { bit: 1, label: 'print' },
+                    { bit: 2, label: 'fax' },
+                    { bit: 3, label: 'safe' },
+                    { bit: 4, label: 'server' },
+                    { bit: 5, label: 'can-grant' },
                 ];
 
-                log('  Primitive bits on resource:hq-office:', 'info');
-                log('    bit0=enter, bit1=print, bit2=fax, bit3=safe, bit4=server, bit5=can-grant', 'info');
-                log('', 'info');
+                log('  _type:resource capability bits:', 'info');
+                for (const p of capBits) {
+                    log(`    bit${p.bit} = ${p.label} (0x${(1 << p.bit).toString(16).padStart(2, '0')})`, 'info');
+                    await api('POST', '/cap-label', { scope: '_type:resource', bit: p.bit, label: p.label });
+                    known.capLabels.push({ scope: '_type:resource', bit: p.bit, label: p.label });
+                }
 
-                for (const c of capabilities) {
-                    log(`  Role: "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
+                log('', 'info');
+                log('═══════════════════════════════════════════════════════════', 'info');
+                log('STEP 2: Define GRANT RELATIONS (on entity INSTANCE)', 'info');
+                log('        These define what each relation grants on hq-office', 'info');
+                log('═══════════════════════════════════════════════════════════', 'info');
+
+                // Grant relations - defined on the entity instance
+                const grantRelations = [
+                    { relation: 'visitor',  cap: 0x01, desc: 'enter only' },
+                    { relation: 'employee', cap: 0x07, desc: 'enter + print + fax' },
+                    { relation: 'manager',  cap: 0x0F, desc: 'enter + print + fax + safe' },
+                    { relation: 'owner',    cap: 0x3F, desc: 'all actions' },
+                ];
+
+                log('  resource:hq-office grant relations:', 'info');
+                for (const c of grantRelations) {
+                    log(`    "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
                     await api('POST', '/capability', {
                         actor: 'user:root',
                         scope: 'resource:hq-office',
@@ -1016,8 +1849,8 @@
 
                 log('', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 2: Create GRANTS (assign roles to users)', 'info');
-                log('        Each grant gives a SET of capabilities', 'info');
+                log('STEP 3: Create GRANTS (assign capability sets to users)', 'info');
+                log('        Each grant gives a user a role on a scope', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
                 // GRANTS assign roles (sets of capabilities) to seekers
@@ -1045,7 +1878,7 @@
 
                 log('', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 3: Create DELEGATION (inherited grants)', 'info');
+                log('STEP 4: Create DELEGATION (inherited grants)', 'info');
                 log('        Dana inherits Alice\'s role on hq-office', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
@@ -1082,14 +1915,15 @@
                 log('═══════════════════════════════════════════════════════════', 'info');
                 log('SUMMARY:', 'info');
                 log('  Entities: things (users, office)', 'info');
-                log('  Capabilities: ROLES = sets of actions (visitor=0x01, employee=0x07)', 'info');
-                log('  Grants: assign ONE role → user gets SET of actions', 'info');
+                log('  Primitive Caps: individual action bits (enter, print, fax...)', 'info');
+                log('  Capability Sets: roles combining primitives (visitor, employee...)', 'info');
+                log('  Grants: assign a capability set to a user on a scope', 'info');
                 log('  Delegations: inherit grants from another user', 'info');
                 log('', 'info');
-                log('EFFECTIVE CAPABILITIES:', 'info');
-                log('  alice:   0x3F (owner role - all actions)', 'info');
-                log('  bob:     0x07 (employee role - enter+print+fax)', 'info');
-                log('  charlie: 0x01 (visitor role - enter only)', 'info');
+                log('EFFECTIVE PERMISSIONS:', 'info');
+                log('  alice:   0x3F (owner = enter+print+fax+safe+server+can-grant)', 'info');
+                log('  bob:     0x07 (employee = enter+print+fax)', 'info');
+                log('  charlie: 0x01 (visitor = enter)', 'info');
                 log('  dana:    0x3F (inherited owner from alice)', 'info');
                 log('', 'info');
                 log('TEST SUGGESTIONS:', 'info');
@@ -1099,9 +1933,48 @@
                 log('═══════════════════════════════════════════════════════════', 'info');
 
             } else if (name === 'saas') {
-                // Bootstrap
+                // Bootstrap - admin automatically gets SYSTEM_READ via admin on _type:_type
                 await api('POST', '/bootstrap', { root_id: 'admin' });
                 known.entities.push({ id: 'user:admin', type: 'user' });
+                // Track bootstrap-created system entities
+                known.entities.push({ id: '_type:_type', type: '_type' });
+                known.entities.push({ id: '_type:user', type: '_type' });
+                known.entities.push({ id: '_type:team', type: '_type' });
+                known.entities.push({ id: '_type:app', type: '_type' });
+                known.entities.push({ id: '_type:resource', type: '_type' });
+                known.grants.push({ seeker: 'user:admin', relation: 'admin', scope: '_type:_type' });
+                known.grants.push({ seeker: 'user:admin', relation: 'admin', scope: '_type:user' });
+                known.grants.push({ seeker: 'user:admin', relation: 'admin', scope: '_type:team' });
+                known.grants.push({ seeker: 'user:admin', relation: 'admin', scope: '_type:app' });
+                known.grants.push({ seeker: 'user:admin', relation: 'admin', scope: '_type:resource' });
+                known.capabilities.push({ scope: '_type:_type', relation: 'admin', cap_mask: 0x3FFF });
+                known.capabilities.push({ scope: '_type:user', relation: 'admin', cap_mask: 0x1FFC });
+                known.capabilities.push({ scope: '_type:team', relation: 'admin', cap_mask: 0x1FFC });
+                known.capabilities.push({ scope: '_type:app', relation: 'admin', cap_mask: 0x1FFC });
+                known.capabilities.push({ scope: '_type:resource', relation: 'admin', cap_mask: 0x1FFC });
+
+                // Define SystemCap bits on _type:_type (persisted to server)
+                const systemBits = [
+                    { bit: 0, label: 'type-create' },
+                    { bit: 1, label: 'type-delete' },
+                    { bit: 2, label: 'entity-create' },
+                    { bit: 3, label: 'entity-delete' },
+                    { bit: 4, label: 'grant-read' },
+                    { bit: 5, label: 'grant-write' },
+                    { bit: 6, label: 'grant-delete' },
+                    { bit: 7, label: 'cap-read' },
+                    { bit: 8, label: 'cap-write' },
+                    { bit: 9, label: 'cap-delete' },
+                    { bit: 10, label: 'delegate-read' },
+                    { bit: 11, label: 'delegate-write' },
+                    { bit: 12, label: 'delegate-delete' },
+                    { bit: 13, label: 'system-read' },
+                ];
+                for (const b of systemBits) {
+                    await api('POST', '/cap-label', { scope: '_type:_type', bit: b.bit, label: b.label });
+                    known.capLabels.push({ scope: '_type:_type', bit: b.bit, label: b.label });
+                }
+                await sleep(50);
 
                 // Create tenant orgs
                 for (const t of ['acme', 'globex']) {
@@ -1125,47 +1998,84 @@
                 }
 
                 // ═══════════════════════════════════════════════════════════
-                // STEP 1: Define CAPABILITIES (roles = sets of actions)
+                // STEP 1: Define CAPABILITY BITS (on entity TYPES)
                 // ═══════════════════════════════════════════════════════════
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 1: Define CAPABILITIES (roles) on app:api-gateway', 'info');
-                log('        Primitives: read=0x01, write=0x02, delete=0x04, bulk=0x08,', 'info');
-                log('                    webhooks=0x10, export=0x20, admin=0x40, unlimited=0x80', 'info');
+                log('STEP 1: Define CAPABILITY BITS (on entity TYPES)', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
+
+                // App type capability bits
+                log('  _type:app capability bits:', 'info');
+                const appBits = [
+                    { bit: 0, label: 'read' },
+                    { bit: 1, label: 'write' },
+                    { bit: 2, label: 'delete' },
+                    { bit: 3, label: 'bulk' },
+                    { bit: 4, label: 'webhooks' },
+                    { bit: 5, label: 'export' },
+                    { bit: 6, label: 'admin' },
+                    { bit: 7, label: 'unlimited' },
+                ];
+                for (const p of appBits) {
+                    log(`    bit${p.bit} = ${p.label}`, 'info');
+                    await api('POST', '/cap-label', { scope: '_type:app', bit: p.bit, label: p.label });
+                    known.capLabels.push({ scope: '_type:app', bit: p.bit, label: p.label });
+                }
+
+                // Team type capability bits
+                log('  _type:team capability bits:', 'info');
+                const teamBits = [
+                    { bit: 0, label: 'view-org' },
+                    { bit: 1, label: 'invite' },
+                    { bit: 2, label: 'billing' },
+                    { bit: 3, label: 'settings' },
+                ];
+                for (const p of teamBits) {
+                    log(`    bit${p.bit} = ${p.label}`, 'info');
+                    await api('POST', '/cap-label', { scope: '_type:team', bit: p.bit, label: p.label });
+                    known.capLabels.push({ scope: '_type:team', bit: p.bit, label: p.label });
+                }
+                await sleep(50);
+
+                // ═══════════════════════════════════════════════════════════
+                // STEP 2: Define GRANT RELATIONS (on entity INSTANCES)
+                // ═══════════════════════════════════════════════════════════
+                log('', 'info');
+                log('═══════════════════════════════════════════════════════════', 'info');
+                log('STEP 2: Define GRANT RELATIONS (on entity INSTANCES)', 'info');
+                log('═══════════════════════════════════════════════════════════', 'info');
+
+                log('  app:api-gateway grant relations:', 'info');
                 const apiCaps = [
-                    { relation: 'basic',      cap: 0x03, desc: 'read + write (0x03)' },
-                    { relation: 'pro',        cap: 0x1F, desc: 'read + write + delete + bulk + webhooks (0x1F)' },
-                    { relation: 'enterprise', cap: 0xFF, desc: 'all actions (0xFF)' },
+                    { relation: 'basic',      cap: 0x03, desc: 'read + write' },
+                    { relation: 'pro',        cap: 0x1F, desc: 'read + write + delete + bulk + webhooks' },
+                    { relation: 'enterprise', cap: 0xFF, desc: 'all actions' },
                 ];
                 for (const c of apiCaps) {
-                    log(`  Role: "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
+                    log(`    "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
                     await api('POST', '/capability', { actor: 'user:admin', scope: 'app:api-gateway', relation: c.relation, cap_mask: c.cap });
                     known.capabilities.push({ scope: 'app:api-gateway', relation: c.relation, cap_mask: c.cap });
                 }
                 await sleep(50);
 
-                log('', 'info');
-                log('Define CAPABILITIES (roles) on app:dashboard', 'info');
-                log('  Primitives: view=0x01, create=0x02, share=0x04, schedule=0x08', 'info');
+                log('  app:dashboard grant relations:', 'info');
                 const dashCaps = [
-                    { relation: 'viewer',   cap: 0x01, desc: 'view only (0x01)' },
-                    { relation: 'analyst',  cap: 0x07, desc: 'view + create + share (0x07)' },
-                    { relation: 'manager',  cap: 0x0F, desc: 'all actions (0x0F)' },
+                    { relation: 'viewer',   cap: 0x01, desc: 'view only' },
+                    { relation: 'analyst',  cap: 0x07, desc: 'view + create + share' },
+                    { relation: 'manager',  cap: 0x0F, desc: 'all actions' },
                 ];
                 for (const c of dashCaps) {
-                    log(`  Role: "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
+                    log(`    "${c.relation}" = 0x${c.cap.toString(16).padStart(2, '0')} (${c.desc})`, 'info');
                     await api('POST', '/capability', { actor: 'user:admin', scope: 'app:dashboard', relation: c.relation, cap_mask: c.cap });
                     known.capabilities.push({ scope: 'app:dashboard', relation: c.relation, cap_mask: c.cap });
                 }
                 await sleep(50);
 
-                log('', 'info');
-                log('Define CAPABILITIES (roles) on team:acme and team:globex', 'info');
-                log('  Primitives: view-org=0x01, invite=0x02, billing=0x04, settings=0x08', 'info');
+                log('  team:acme, team:globex grant relations:', 'info');
                 const tenantCaps = [
-                    { relation: 'member', cap: 0x01, desc: 'view only (0x01)' },
-                    { relation: 'admin',  cap: 0x03, desc: 'view + invite (0x03)' },
-                    { relation: 'owner',  cap: 0x0F, desc: 'all actions (0x0F)' },
+                    { relation: 'member', cap: 0x01, desc: 'view only' },
+                    { relation: 'admin',  cap: 0x03, desc: 'view + invite' },
+                    { relation: 'owner',  cap: 0x0F, desc: 'all actions' },
                 ];
                 for (const tenant of ['acme', 'globex']) {
                     for (const c of tenantCaps) {
@@ -1176,14 +2086,14 @@
                 await sleep(50);
 
                 // ═══════════════════════════════════════════════════════════
-                // STEP 2: Create GRANTS (assign roles to users)
+                // STEP 3: Create GRANTS (assign relations to users)
                 // ═══════════════════════════════════════════════════════════
                 log('', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 2: Create GRANTS (each grant = a role = set of actions)', 'info');
+                log('STEP 3: Create GRANTS (assign relations to users)', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
-                // Each grant assigns ONE role, which gives a SET of capabilities
+                // Each grant assigns a relation to a user on an entity
                 const grants = [
                     // Alice: enterprise on api-gateway (0xFF = all actions)
                     { actor: 'user:admin', seeker: 'user:alice', relation: 'enterprise', scope: 'app:api-gateway' },
@@ -1218,11 +2128,11 @@
                 await sleep(50);
 
                 // ═══════════════════════════════════════════════════════════
-                // STEP 3: Create DELEGATION (inherited grants)
+                // STEP 4: Create DELEGATION (inherited grants)
                 // ═══════════════════════════════════════════════════════════
                 log('', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
-                log('STEP 3: Create DELEGATION', 'info');
+                log('STEP 4: Create DELEGATION', 'info');
                 log('═══════════════════════════════════════════════════════════', 'info');
 
                 // Create contractor
@@ -1244,10 +2154,11 @@
                 log('═══════════════════════════════════════════════════════════', 'info');
                 log('SUMMARY:', 'info');
                 log('  Entities = things (users, apps, teams)', 'info');
-                log('  Capabilities = ROLES (sets of actions)', 'info');
-                log('  Grants = assign ONE role → get SET of actions', 'info');
+                log('  Primitive Capabilities = individual action bits', 'info');
+                log('  Capability Sets = roles combining primitives', 'info');
+                log('  Grants = assign a capability set to a user on a scope', 'info');
                 log('', 'info');
-                log('ROLES GRANTED:', 'info');
+                log('CAPABILITY SETS GRANTED:', 'info');
                 log('  alice:      enterprise (api), manager (dash), owner (acme)', 'info');
                 log('  bob:        pro (api), analyst (dash), member (acme)', 'info');
                 log('  charlie:    basic (api), viewer (dash), owner (globex)', 'info');
@@ -1278,53 +2189,143 @@
         function showTab(name) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.getElementById(`tab-${name}`).classList.add('active');
-            document.querySelector(`.tab[onclick="showTab('${name}')"]`).classList.add('active');
+            const tabContent = document.getElementById(`tab-${name}`);
+            if (tabContent) tabContent.classList.add('active');
+            const tabBtn = document.querySelector(`.tab[onclick="showTab('${name}')"]`);
+            if (tabBtn) tabBtn.classList.add('active');
+        }
+
+        function toggleAccordion(section) {
+            const content = document.getElementById(`section-${section}`);
+            const arrow = document.querySelector(`.accordion[data-section="${section}"] .accordion-arrow`);
+            const isOpen = content.classList.contains('open');
+
+            content.classList.toggle('open');
+            arrow.textContent = isOpen ? '▶' : '▼';
+        }
+
+        async function setViewer(viewer) {
+            currentViewer = viewer;
+            await updateViewerPermission();
+        }
+
+        // Check if current viewer can see system internals
+        async function canViewSystem() {
+            if (!connected) return false;
+            try {
+                const res = await fetch(`${apiUrl}/check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject: currentViewer,
+                        object: SYSTEM_READ_SCOPE,
+                        required: SYSTEM_READ_BIT
+                    })
+                });
+                const json = await res.json();
+                return json.success && json.data && json.data.allowed;
+            } catch {
+                return false;
+            }
+        }
+
+        // Cache for view system permission (updated on viewer change)
+        let viewerCanSeeSystem = false;
+
+        async function updateViewerPermission() {
+            viewerCanSeeSystem = await canViewSystem();
+            renderAll();
+        }
+
+        // Helper to filter system entities based on viewer's capability
+        function filterSystem(items, scopeField = 'id') {
+            if (viewerCanSeeSystem) return items;
+            return items.filter(item => {
+                const val = item[scopeField] || item.id || item.scope;
+                return !val.startsWith('_type:') && !val.startsWith('_system:');
+            });
+        }
+
+        // Check if an entity is a system internal
+        function isSystemEntity(id) {
+            return id.startsWith('_type:') || id.startsWith('_system:');
         }
 
         function renderAll() {
+            renderViewerSelect();
             renderEntities();
+            renderPrimitiveCapabilities();
+            renderCapabilities();
             renderGrants();
             renderDelegations();
-            renderCapabilities();
             renderTestSelects();
+            updateCounts();
+        }
+
+        function updateCounts() {
+            const displayEntities = filterSystem(known.entities, 'id');
+            const displayCaps = filterSystem(known.capabilities, 'scope');
+            const displayGrants = filterSystem(known.grants, 'scope');
+
+            document.getElementById('count-entities').textContent = displayEntities.length;
+            document.getElementById('count-capbits').textContent = known.capLabels.length;
+            document.getElementById('count-relations').textContent = displayCaps.length;
+            document.getElementById('count-grants').textContent = displayGrants.length;
+            document.getElementById('count-delegations').textContent = known.delegations.length;
+
+            // Update Home tab button with total count
+            const total = displayEntities.length + known.capLabels.length + displayCaps.length + displayGrants.length + known.delegations.length;
+            const homeBtn = document.getElementById('tab-btn-home');
+            if (homeBtn) {
+                homeBtn.textContent = total > 0 ? `Home (${total})` : 'Home';
+            }
+        }
+
+        function renderViewerSelect() {
+            const select = document.getElementById('current-viewer');
+            // Show all user entities as potential viewers
+            const users = known.entities.filter(e => e.type === 'user');
+            if (users.length === 0) {
+                select.innerHTML = '<option value="user:root">user:root</option>';
+                return;
+            }
+            select.innerHTML = users.map(u =>
+                `<option value="${u.id}" ${u.id === currentViewer ? 'selected' : ''}>${u.id}</option>`
+            ).join('');
         }
 
         function renderTestSelects() {
             const subjectSelect = document.getElementById('check-subject');
             const objectSelect = document.getElementById('check-object');
             const capSelect = document.getElementById('check-cap');
+            const querySubjectSelect = document.getElementById('query-subject');
+            const queryObjectSelect = document.getElementById('query-object');
 
-            // Filter out system _type: entities from dropdowns
-            const orgEntities = known.entities.filter(e => !e.id.startsWith('_type:'));
-            const entityOptions = orgEntities.map(e =>
+            // Filter based on toggle
+            const displayEntities = filterSystem(known.entities, 'id');
+            const entityOptions = displayEntities.map(e =>
                 `<option value="${e.id}">${e.id}</option>`
             ).join('');
 
             const placeholder = '<option value="">-- Select entity --</option>';
             subjectSelect.innerHTML = placeholder + entityOptions;
             objectSelect.innerHTML = placeholder + entityOptions;
+            querySubjectSelect.innerHTML = placeholder + entityOptions;
+            queryObjectSelect.innerHTML = placeholder + entityOptions;
 
-            // Build capability options from org-defined capabilities
-            const orgCaps = known.capabilities.filter(c => !c.scope.startsWith('_type:'));
+            // Build capability options - show scope → relation → mask
+            const displayCaps = filterSystem(known.capabilities, 'scope');
 
-            // Get unique cap_mask values with their relation names
-            const capMap = new Map();
-            orgCaps.forEach(c => {
-                const key = c.cap_mask;
-                if (!capMap.has(key)) {
-                    capMap.set(key, []);
-                }
-                capMap.get(key).push(c.relation);
+            // Sort by scope, then by cap_mask
+            const sortedCaps = [...displayCaps].sort((a, b) => {
+                if (a.scope !== b.scope) return a.scope.localeCompare(b.scope);
+                return a.cap_mask - b.cap_mask;
             });
 
-            // Sort by cap_mask value
-            const sortedCaps = [...capMap.entries()].sort((a, b) => a[0] - b[0]);
-
-            let capOptions = '<option value="0">ANY (0x0000)</option>';
-            sortedCaps.forEach(([mask, relations]) => {
-                const uniqueRelations = [...new Set(relations)].slice(0, 3).join(', ');
-                capOptions += `<option value="${mask}">${uniqueRelations} (0x${mask.toString(16).padStart(4, '0')})</option>`;
+            let capOptions = '<option value="0">0x0000 (ANY)</option>';
+            sortedCaps.forEach(c => {
+                const hex = '0x' + c.cap_mask.toString(16).padStart(4, '0').toUpperCase();
+                capOptions += `<option value="${c.cap_mask}">${c.scope} → ${c.relation} (${hex})</option>`;
             });
 
             capSelect.innerHTML = capOptions;
@@ -1332,33 +2333,76 @@
 
         function renderEntities() {
             const list = document.getElementById('entity-list');
-            // Filter out system _type: entities
-            const orgEntities = known.entities.filter(e => !e.id.startsWith('_type:'));
-            if (orgEntities.length === 0) {
+            const displayEntities = filterSystem(known.entities, 'id');
+            if (displayEntities.length === 0) {
                 list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>No entities yet</p></div>';
                 return;
             }
-            list.innerHTML = orgEntities.map(e => `
-                <div class="list-item">
-                    <span class="chip ${e.type}"><span class="type">${e.type}:</span>${e.id.split(':')[1]}</span>
-                </div>
-            `).join('');
+            list.innerHTML = displayEntities.map(e => {
+                const isSystem = isSystemEntity(e.id);
+                const icon = isSystem ? '<span title="System internal" style="opacity: 0.6; margin-right: 0.25rem;">⚙</span>' : '';
+                const style = isSystem ? 'opacity: 0.7;' : '';
+                return `
+                    <div class="list-item" style="${style}">
+                        ${icon}<span class="chip ${e.type}"><span class="type">${e.type}:</span>${e.id.split(':')[1]}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderPrimitiveCapabilities() {
+            const container = document.getElementById('primitive-cap-list');
+
+            if (known.capLabels.length === 0) {
+                container.innerHTML = '<div class="empty"><div class="empty-icon">🔹</div><p>No primitive capabilities defined yet</p></div>';
+                return;
+            }
+
+            // Group by scope, sort by bit
+            const byScope = new Map();
+            known.capLabels.forEach(l => {
+                if (!byScope.has(l.scope)) {
+                    byScope.set(l.scope, []);
+                }
+                byScope.get(l.scope).push(l);
+            });
+
+            let html = '<div class="list">';
+            byScope.forEach((labels, scope) => {
+                labels.sort((a, b) => a.bit - b.bit);
+                const scopeType = scope.split(':')[0];
+                labels.forEach(l => {
+                    const mask = 1 << l.bit;
+                    html += `
+                        <div class="list-item">
+                            <span class="chip ${scopeType}" style="min-width: 120px;"><span class="type">${scopeType}:</span>${scope.split(':')[1]}</span>
+                            <span class="cap-badge" style="background: var(--success); color: white;">bit${l.bit}</span>
+                            <span style="font-weight: 600;">${l.label}</span>
+                            <span class="cap-badge">0x${mask.toString(16).padStart(4, '0')}</span>
+                        </div>
+                    `;
+                });
+            });
+            html += '</div>';
+            container.innerHTML = html;
         }
 
         function renderGrants() {
             const list = document.getElementById('grant-list');
-            // Filter out system _type: grants (root's admin on _type:*)
-            const orgGrants = known.grants.filter(g => !g.scope.startsWith('_type:'));
-            if (orgGrants.length === 0) {
+            const displayGrants = filterSystem(known.grants, 'scope');
+            if (displayGrants.length === 0) {
                 list.innerHTML = '<div class="empty"><div class="empty-icon">🔗</div><p>No direct grants yet</p></div>';
                 return;
             }
-            list.innerHTML = orgGrants.map(g => {
+            list.innerHTML = displayGrants.map(g => {
                 const seekerType = g.seeker.split(':')[0];
                 const scopeType = g.scope.split(':')[0];
+                const isSystem = isSystemEntity(g.scope);
+                const icon = isSystem ? '<span title="System internal" style="opacity: 0.6; margin-right: 0.25rem;">⚙</span>' : '';
+                const style = isSystem ? 'opacity: 0.7;' : '';
                 return `
-                    <div class="list-item">
-                        <span class="chip ${seekerType}"><span class="type">${seekerType}:</span>${g.seeker.split(':')[1]}</span>
+                    <div class="list-item" style="${style}">
+                        ${icon}<span class="chip ${seekerType}"><span class="type">${seekerType}:</span>${g.seeker.split(':')[1]}</span>
                         <span class="arrow">→</span>
                         <span class="relation-badge">${g.relation}</span>
                         <span class="arrow">→</span>
@@ -1392,19 +2436,35 @@
 
         function renderCapabilities() {
             const list = document.getElementById('cap-list');
-            // Filter out system _type: capabilities (bootstrap admin caps)
-            const orgCaps = known.capabilities.filter(c => !c.scope.startsWith('_type:'));
-            if (orgCaps.length === 0) {
-                list.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div><p>No capabilities yet</p></div>';
+            const displayCaps = filterSystem(known.capabilities, 'scope');
+            if (displayCaps.length === 0) {
+                list.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div><p>No grant relations defined yet</p></div>';
                 return;
             }
-            list.innerHTML = orgCaps.map(c => {
+            list.innerHTML = displayCaps.map(c => {
                 const scopeType = c.scope.split(':')[0];
+                const typeScope = `_type:${scopeType}`;
+                const isSystem = isSystemEntity(c.scope);
+                const icon = isSystem ? '<span title="System internal" style="opacity: 0.6; margin-right: 0.25rem;">⚙</span>' : '';
+                const style = isSystem ? 'opacity: 0.7;' : '';
+
+                // Get labels from TYPE level (e.g., _type:resource for resource:hq-office)
+                const typeLabels = known.capLabels.filter(l => l.scope === typeScope);
+                const bitLabels = [];
+                for (let i = 0; i < 16; i++) {
+                    if (c.cap_mask & (1 << i)) {
+                        const label = typeLabels.find(l => l.bit === i);
+                        bitLabels.push(label ? label.label : `bit${i}`);
+                    }
+                }
+                const labelStr = bitLabels.length > 0 ? bitLabels.join(' + ') : '';
+
                 return `
-                    <div class="list-item">
-                        <span class="chip ${scopeType}"><span class="type">${scopeType}:</span>${c.scope.split(':')[1]}</span>
+                    <div class="list-item" style="flex-wrap: wrap; ${style}">
+                        ${icon}<span class="chip ${scopeType}"><span class="type">${scopeType}:</span>${c.scope.split(':')[1]}</span>
                         <span class="relation-badge">${c.relation}</span>
                         <span class="cap-badge">0x${c.cap_mask.toString(16).padStart(4, '0')}</span>
+                        ${labelStr ? `<span style="font-size: 0.7rem; color: var(--text-muted); width: 100%; margin-top: 0.25rem;">= ${labelStr}</span>` : ''}
                     </div>
                 `;
             }).join('');
