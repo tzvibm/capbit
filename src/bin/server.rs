@@ -3,6 +3,7 @@
 //! Run with: cargo run --features server --bin capbit-server
 //!
 //! Endpoints:
+//!   GET  /health             - Health check
 //!   POST /bootstrap          - Bootstrap system
 //!   GET  /status             - Get system status
 //!   POST /entity             - Create entity
@@ -21,6 +22,7 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use socket2::{Domain, Socket, Type};
 use std::sync::Mutex;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -174,6 +176,10 @@ fn cap_to_string(cap: u64, scope: &str) -> String {
 // ============================================================================
 // Handlers
 // ============================================================================
+
+async fn get_health() -> &'static str {
+    "ok"
+}
 
 async fn get_status() -> Json<ApiResponse<StatusRes>> {
     let bootstrapped = is_bootstrapped().unwrap_or(false);
@@ -335,6 +341,7 @@ async fn main() {
     // Router
     let app = Router::new()
         .route("/", get(serve_demo))
+        .route("/health", get(get_health))
         .route("/status", get(get_status))
         .route("/bootstrap", post(post_bootstrap))
         .route("/entity", post(post_entity))
@@ -349,12 +356,34 @@ async fn main() {
         .layer(cors)
         .with_state(std::sync::Arc::new(state));
 
-    // Bind
-    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".into());
-    let addr = format!("0.0.0.0:{}", port);
+    // Bind with SO_REUSEADDR to handle TIME_WAIT state
+    let port: u16 = std::env::var("PORT")
+        .unwrap_or_else(|_| "3000".into())
+        .parse()
+        .expect("PORT must be a valid number");
+    let addr: std::net::SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+
+    let socket = Socket::new(Domain::IPV4, Type::STREAM, None).expect("Failed to create socket");
+    socket.set_reuse_address(true).expect("Failed to set SO_REUSEADDR");
+    socket.set_nonblocking(true).expect("Failed to set non-blocking");
+    if let Err(e) = socket.bind(&addr.into()) {
+        eprintln!("Error: Failed to bind to port {}: {}", port, e);
+        if e.kind() == std::io::ErrorKind::AddrInUse {
+            eprintln!("Hint: Another process is using port {}.", port);
+            eprintln!("      Kill it with: pkill -f capbit-server");
+            eprintln!("      Or use a different port: PORT=3001 cargo run --features server --bin capbit-server");
+        }
+        std::process::exit(1);
+    }
+    socket.listen(128).expect("Failed to listen");
+
+    let listener = tokio::net::TcpListener::from_std(socket.into()).expect("Failed to create listener");
+
     println!("Capbit server running at http://localhost:{}", port);
     println!("Open http://localhost:{} in your browser", port);
 
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    if let Err(e) = axum::serve(listener, app).await {
+        eprintln!("Server error: {}", e);
+        std::process::exit(1);
+    }
 }

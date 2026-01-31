@@ -22,7 +22,7 @@ cargo build --release                      # Build optimized
 cargo test                                 # Run all 192 tests
 cargo test -- --nocapture                  # Run with output
 cargo test demo_simulation -- --nocapture  # Interactive demo
-cargo run --bin capbit-server              # Run REST API server (demo at localhost:3000)
+cargo run --features server --bin capbit-server  # Run REST API server (localhost:3000)
 ```
 
 ## Architecture
