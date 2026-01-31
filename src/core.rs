@@ -767,3 +767,22 @@ pub fn list_all_capabilities() -> Result<Vec<(String, String, u64)>> {
         Ok(results)
     })
 }
+
+/// List all capability bit labels
+pub fn list_all_cap_labels() -> Result<Vec<(String, u64, String)>> {
+    with_read_txn(|txn, dbs| {
+        let mut results = Vec::new();
+        for item in dbs.cap_labels.iter(txn).map_err(err)? {
+            let (key, label) = item.map_err(err)?;
+            // Key format: entity/cap_bit_hex (escaped entity, 16-char hex bit)
+            if let Some(pos) = key.rfind('/') {
+                let entity = unescape(&key[..pos]).into_owned();
+                let bit_str = &key[pos + 1..];
+                if let Ok(bit) = u64::from_str_radix(bit_str, 16) {
+                    results.push((entity, bit, label.to_string()));
+                }
+            }
+        }
+        Ok(results)
+    })
+}

@@ -6,13 +6,19 @@
 //!   GET  /health             - Health check
 //!   POST /bootstrap          - Bootstrap system
 //!   GET  /status             - Get system status
+//!   POST /type               - Create type
 //!   POST /entity             - Create entity
 //!   GET  /entities           - List entities
 //!   POST /grant              - Create grant
 //!   GET  /grants             - List grants
 //!   POST /capability         - Define capability
 //!   GET  /capabilities       - List capabilities
+//!   POST /delegation         - Create delegation
+//!   POST /cap-label          - Define capability bit label
+//!   GET  /cap-labels         - List capability bit labels
 //!   POST /check              - Check access
+//!   POST /query/accessible   - List what subject can access
+//!   POST /query/subjects     - List who can access object
 //!   POST /reset              - Reset database (dev only)
 
 use axum::{
@@ -28,7 +34,8 @@ use tower_http::cors::{Any, CorsLayer};
 
 use capbit::{
     bootstrap, check_access, clear_all, get_meta, init, is_bootstrapped, protected, SystemCap,
-    list_all_entities, list_all_grants, list_all_capabilities,
+    list_all_entities, list_all_grants, list_all_capabilities, list_all_cap_labels,
+    set_cap_label, list_accessible, list_subjects,
 };
 
 // ============================================================================
@@ -46,6 +53,12 @@ struct AppState {
 #[derive(Deserialize)]
 struct BootstrapReq {
     root_id: String,
+}
+
+#[derive(Deserialize)]
+struct CreateTypeReq {
+    actor: String,
+    type_name: String,
 }
 
 #[derive(Deserialize)]
@@ -84,6 +97,23 @@ struct CheckAccessReq {
     subject: String,
     object: String,
     required: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct QueryAccessibleReq {
+    subject: String,
+}
+
+#[derive(Deserialize)]
+struct QuerySubjectsReq {
+    object: String,
+}
+
+#[derive(Deserialize)]
+struct CreateCapLabelReq {
+    scope: String,
+    bit: u64,
+    label: String,
 }
 
 #[derive(Serialize)]
@@ -139,6 +169,21 @@ struct CheckResult {
     required_string: String,
 }
 
+#[derive(Serialize)]
+struct CapLabelInfo {
+    scope: String,
+    bit: u64,
+    label: String,
+}
+
+#[derive(Serialize)]
+struct AccessEntry {
+    entity: String,
+    relation: String,
+    effective: u64,
+    effective_string: String,
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -159,6 +204,7 @@ fn syscap_to_string(cap: u64) -> String {
     if cap & SystemCap::DELEGATE_READ != 0 { parts.push("DELEGATE_READ"); }
     if cap & SystemCap::DELEGATE_WRITE != 0 { parts.push("DELEGATE_WRITE"); }
     if cap & SystemCap::DELEGATE_DELETE != 0 { parts.push("DELEGATE_DELETE"); }
+    if cap & SystemCap::SYSTEM_READ != 0 { parts.push("SYSTEM_READ"); }
     if parts.is_empty() { "NONE".into() } else { parts.join(" | ") }
 }
 
@@ -192,6 +238,15 @@ async fn post_bootstrap(
 ) -> (StatusCode, Json<ApiResponse<String>>) {
     match bootstrap(&req.root_id) {
         Ok(_) => (StatusCode::OK, Json(ApiResponse::ok(format!("user:{}", req.root_id)))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
+async fn post_type(
+    Json(req): Json<CreateTypeReq>,
+) -> (StatusCode, Json<ApiResponse<String>>) {
+    match protected::create_type(&req.actor, &req.type_name) {
+        Ok(_) => (StatusCode::OK, Json(ApiResponse::ok(format!("_type:{}", req.type_name)))),
         Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
     }
 }
@@ -304,10 +359,80 @@ async fn post_delegation(
     }
 }
 
+async fn post_query_accessible(
+    Json(req): Json<QueryAccessibleReq>,
+) -> Json<ApiResponse<Vec<AccessEntry>>> {
+    match list_accessible(&req.subject) {
+        Ok(results) => {
+            let entries: Vec<AccessEntry> = results
+                .into_iter()
+                .map(|(object, relation)| {
+                    let effective = check_access(&req.subject, &object, None).unwrap_or(0);
+                    let effective_string = cap_to_string(effective, &object);
+                    AccessEntry {
+                        entity: object,
+                        relation,
+                        effective,
+                        effective_string,
+                    }
+                })
+                .collect();
+            Json(ApiResponse::ok(entries))
+        }
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
+}
+
+async fn post_query_subjects(
+    Json(req): Json<QuerySubjectsReq>,
+) -> Json<ApiResponse<Vec<AccessEntry>>> {
+    match list_subjects(&req.object) {
+        Ok(results) => {
+            let entries: Vec<AccessEntry> = results
+                .into_iter()
+                .map(|(subject, relation)| {
+                    let effective = check_access(&subject, &req.object, None).unwrap_or(0);
+                    let effective_string = cap_to_string(effective, &req.object);
+                    AccessEntry {
+                        entity: subject,
+                        relation,
+                        effective,
+                        effective_string,
+                    }
+                })
+                .collect();
+            Json(ApiResponse::ok(entries))
+        }
+        Err(e) => Json(ApiResponse::err(e.message)),
+    }
+}
+
 async fn post_reset() -> (StatusCode, Json<ApiResponse<String>>) {
     match clear_all() {
         Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("reset".into()))),
         Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
+async fn post_cap_label(
+    Json(req): Json<CreateCapLabelReq>,
+) -> (StatusCode, Json<ApiResponse<String>>) {
+    match set_cap_label(&req.scope, req.bit, &req.label) {
+        Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("created".into()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
+async fn get_cap_labels() -> Json<ApiResponse<Vec<CapLabelInfo>>> {
+    match list_all_cap_labels() {
+        Ok(labels) => {
+            let infos: Vec<CapLabelInfo> = labels
+                .into_iter()
+                .map(|(scope, bit, label)| CapLabelInfo { scope, bit, label })
+                .collect();
+            Json(ApiResponse::ok(infos))
+        }
+        Err(e) => Json(ApiResponse::err(e.message)),
     }
 }
 
@@ -344,6 +469,7 @@ async fn main() {
         .route("/health", get(get_health))
         .route("/status", get(get_status))
         .route("/bootstrap", post(post_bootstrap))
+        .route("/type", post(post_type))
         .route("/entity", post(post_entity))
         .route("/entities", get(get_entities))
         .route("/grant", post(post_grant))
@@ -352,7 +478,11 @@ async fn main() {
         .route("/capabilities", get(get_capabilities))
         .route("/delegation", post(post_delegation))
         .route("/check", post(post_check))
+        .route("/query/accessible", post(post_query_accessible))
+        .route("/query/subjects", post(post_query_subjects))
         .route("/reset", post(post_reset))
+        .route("/cap-label", post(post_cap_label))
+        .route("/cap-labels", get(get_cap_labels))
         .layer(cors)
         .with_state(std::sync::Arc::new(state));
 

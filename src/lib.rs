@@ -113,6 +113,7 @@ pub use core::{
     list_all_entities,
     list_all_grants,
     list_all_capabilities,
+    list_all_cap_labels,
 
     // WriteBatch
     write_batch,
