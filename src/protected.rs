@@ -5,11 +5,12 @@
 use crate::caps::SystemCap;
 use crate::core::{
     self, CapbitError, Result,
-    parse_entity_id, create_entity_in, delete_entity_in, entity_exists_in_rw,
+    parse_entity, create_entity_in, delete_entity_in, entity_exists_in_rw,
     _set_relationship_in, _delete_relationship_in,
     _set_capability_in, _set_inheritance_in, _delete_inheritance_in,
     with_write_txn_pub,
 };
+use crate::entity_id::EntityId;
 
 // ============================================================================
 // Permission Checks
@@ -25,10 +26,11 @@ fn check_permission(requester: &str, scope: &str, required: u64) -> Result<()> {
     }
 
     // If scope is a typed entity (e.g., "team:sales"), also check _type:team
+    // Use EntityId for O(1) type extraction
     if !scope.starts_with("_type:") {
-        if let Ok((entity_type, _)) = parse_entity_id(scope) {
-            let type_scope = format!("_type:{}", entity_type);
-            let type_caps = core::check_access(requester, &type_scope, None)?;
+        if let Ok(eid) = parse_entity(scope) {
+            let type_scope = eid.meta_type();
+            let type_caps = core::check_access(requester, &type_scope.to_string(), None)?;
             if (type_caps & required) == required {
                 return Ok(());
             }
@@ -49,20 +51,23 @@ fn check_permission(requester: &str, scope: &str, required: u64) -> Result<()> {
 
 /// Create a new entity. Requires ENTITY_CREATE on _type:{type}.
 pub fn create_entity(requester: &str, entity_type: &str, id: &str) -> Result<u64> {
-    let type_scope = format!("_type:{}", entity_type);
-    check_permission(requester, &type_scope, SystemCap::ENTITY_CREATE)?;
+    // Build EntityId upfront - validates format and enables O(1) access
+    let eid = EntityId::new(entity_type, id)
+        .map_err(|e| CapbitError { message: e.message })?;
+    let type_scope = eid.meta_type();
+    check_permission(requester, &type_scope.to_string(), SystemCap::ENTITY_CREATE)?;
 
-    let entity_id = format!("{}:{}", entity_type, id);
     with_write_txn_pub(|txn, dbs| {
-        create_entity_in(txn, dbs, &entity_id)
+        create_entity_in(txn, dbs, &eid.to_string())
     })
 }
 
 /// Delete an entity. Requires ENTITY_DELETE on _type:{type}.
 pub fn delete_entity(requester: &str, entity_id: &str) -> Result<bool> {
-    let (entity_type, _) = parse_entity_id(entity_id)?;
-    let type_scope = format!("_type:{}", entity_type);
-    check_permission(requester, &type_scope, SystemCap::ENTITY_DELETE)?;
+    // Parse into EntityId for O(1) type extraction
+    let eid = parse_entity(entity_id)?;
+    let type_scope = eid.meta_type();
+    check_permission(requester, &type_scope.to_string(), SystemCap::ENTITY_DELETE)?;
 
     with_write_txn_pub(|txn, dbs| {
         delete_entity_in(txn, dbs, entity_id)

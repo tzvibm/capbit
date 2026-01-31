@@ -10,6 +10,8 @@ use heed::types::*;
 use heed::{Database, Env, EnvOpenOptions, RoTxn, RwTxn};
 use serde::{Deserialize, Serialize};
 
+use crate::entity_id::EntityId;
+
 // ============================================================================
 // Database Setup
 // ============================================================================
@@ -252,10 +254,20 @@ pub(crate) fn set_cap_label_in(txn: &mut RwTxn, dbs: &Databases, entity: &str, c
 // ============================================================================
 
 /// Parse entity ID into (type, id). E.g., "user:john" -> ("user", "john")
+///
+/// Note: For performance-critical code, prefer `parse_entity` which returns
+/// an `EntityId` with O(1) type/id extraction.
 pub fn parse_entity_id(entity_id: &str) -> Result<(&str, &str)> {
     entity_id.split_once(':').ok_or_else(|| CapbitError {
         message: format!("Invalid entity ID '{}': must be 'type:id' format", entity_id),
     })
+}
+
+/// Parse entity ID string into compact EntityId representation.
+///
+/// Returns an EntityId with O(1) type/id extraction (no colon scanning).
+pub fn parse_entity(entity_id: &str) -> Result<EntityId> {
+    EntityId::parse(entity_id).map_err(|e| CapbitError { message: e.message })
 }
 
 pub(crate) fn create_type_in(txn: &mut RwTxn, dbs: &Databases, type_name: &str) -> Result<u64> {
@@ -272,20 +284,28 @@ pub(crate) fn type_exists_in_rw(txn: &RwTxn, dbs: &Databases, type_name: &str) -
 }
 
 pub(crate) fn create_entity_in(txn: &mut RwTxn, dbs: &Databases, entity_id: &str) -> Result<u64> {
-    let (type_name, _) = parse_entity_id(entity_id)?;
+    // Parse into EntityId for O(1) type extraction
+    let eid = parse_entity(entity_id)?;
+    create_entity_in_eid(txn, dbs, &eid)
+}
+
+/// Create entity using pre-parsed EntityId (avoids re-parsing)
+pub(crate) fn create_entity_in_eid(txn: &mut RwTxn, dbs: &Databases, eid: &EntityId) -> Result<u64> {
+    let type_name = eid.entity_type();
+    let entity_id = eid.to_string();
 
     // Check type exists (except for _type: entities during bootstrap)
-    if !type_name.starts_with('_') {
+    if !eid.is_internal_type() {
         if !type_exists_in_rw(txn, dbs, type_name)? {
             return Err(CapbitError { message: format!("Type '{}' does not exist", type_name) });
         }
     }
 
     let epoch = current_epoch();
-    if dbs.entities.get(txn, entity_id).map_err(err)?.is_some() {
+    if dbs.entities.get(txn, &entity_id).map_err(err)?.is_some() {
         return Err(CapbitError { message: format!("Entity '{}' already exists", entity_id) });
     }
-    dbs.entities.put(txn, entity_id, &epoch).map_err(err)?;
+    dbs.entities.put(txn, &entity_id, &epoch).map_err(err)?;
     Ok(epoch)
 }
 
@@ -480,8 +500,9 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
 
         // Check if object is a typed entity (e.g., "team:engineering") and get type scope
         // Skip if object is already a type entity (starts with "_type:")
+        // Use EntityId for O(1) type extraction instead of split_once
         let type_scope = if !object.starts_with("_type:") {
-            object.split_once(':').map(|(t, _)| format!("_type:{}", t))
+            EntityId::parse(object).ok().map(|eid| eid.meta_type().to_string())
         } else {
             None
         };

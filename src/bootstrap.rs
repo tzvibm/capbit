@@ -9,6 +9,7 @@ use crate::core::{
     _set_capability_in, _set_relationship_in,
     with_write_txn_pub,
 };
+use crate::entity_id::EntityId;
 
 /// Core entity types created at bootstrap
 const CORE_TYPES: &[&str] = &["user", "team", "app", "resource"];
@@ -48,34 +49,46 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
         }
 
         // 3. Create type entities (for permission control)
-        create_entity_in(txn, dbs, "_type:_type")?;
+        // Use EntityId for consistent entity construction
+        let meta_type = EntityId::new("_type", "_type")
+            .map_err(|e| CapbitError { message: e.message })?;
+        create_entity_in(txn, dbs, &meta_type.to_string())?;
+
         for t in CORE_TYPES {
-            create_entity_in(txn, dbs, &format!("_type:{}", t))?;
+            let type_eid = EntityId::new("_type", t)
+                .map_err(|e| CapbitError { message: e.message })?;
+            create_entity_in(txn, dbs, &type_eid.to_string())?;
         }
 
         // 4. Define capabilities on type entities
         // Admin on _type:_type can create/delete types
-        _set_capability_in(txn, dbs, "_type:_type", "admin", SystemCap::TYPE_ADMIN)?;
+        _set_capability_in(txn, dbs, &meta_type.to_string(), "admin", SystemCap::TYPE_ADMIN)?;
 
         // Admin on _type:{type} can create/delete entities of that type
         // _type:user admin also gets PASSWORD_ADMIN for credential management
         for t in CORE_TYPES {
+            let type_eid = EntityId::new("_type", t)
+                .map_err(|e| CapbitError { message: e.message })?;
             let caps = if *t == "user" {
                 SystemCap::ENTITY_ADMIN | SystemCap::PASSWORD_ADMIN
             } else {
                 SystemCap::ENTITY_ADMIN
             };
-            _set_capability_in(txn, dbs, &format!("_type:{}", t), "admin", caps)?;
+            _set_capability_in(txn, dbs, &type_eid.to_string(), "admin", caps)?;
         }
 
         // 5. Create root user entity
-        let root_entity = format!("user:{}", root_id);
+        let root_eid = EntityId::new("user", root_id)
+            .map_err(|e| CapbitError { message: e.message })?;
+        let root_entity = root_eid.to_string();
         create_entity_in(txn, dbs, &root_entity)?;
 
         // 6. Grant root admin on all type entities
-        _set_relationship_in(txn, dbs, &root_entity, "admin", "_type:_type")?;
+        _set_relationship_in(txn, dbs, &root_entity, "admin", &meta_type.to_string())?;
         for t in CORE_TYPES {
-            _set_relationship_in(txn, dbs, &root_entity, "admin", &format!("_type:{}", t))?;
+            let type_eid = EntityId::new("_type", t)
+                .map_err(|e| CapbitError { message: e.message })?;
+            _set_relationship_in(txn, dbs, &root_entity, "admin", &type_eid.to_string())?;
         }
 
         // 7. Define SystemCap bit labels on _type:_type
