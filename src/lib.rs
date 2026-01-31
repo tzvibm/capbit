@@ -72,8 +72,7 @@ pub use core::{
     close,
 
     // v2: Entity helpers
-    parse_entity_id,  // Legacy: returns (&str, &str)
-    parse_entity,     // v3: returns EntityId with O(1) type extraction
+    parse_entity_id,  // returns (&str, &str)
     entity_exists,
     type_exists,
     get_meta,
@@ -127,6 +126,6 @@ pub use core::check_access as get_effective_capabilities;
 // Test utilities (also available for integration tests)
 pub use core::{clear_all, test_lock};
 
-// v3: Compact entity ID representation
-pub mod entity_id;
-pub use entity_id::{EntityId, EntityIdError};
+// v3: Length-prefixed keys (no delimiters, no escaping)
+pub mod keys;
+pub use keys::{build_key, build_prefix, parse_key, get_part, entity_key, entity_to_str, entity_from_str};

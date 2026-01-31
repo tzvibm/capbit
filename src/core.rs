@@ -2,15 +2,14 @@
 //!
 //! High-performance access control with string-based relationships and bitmask capabilities.
 
-use std::borrow::Cow;
 use std::path::Path;
 use std::sync::OnceLock;
 
-use heed::types::*;
+use heed::types::{Bytes, Str, U64};
 use heed::{Database, Env, EnvOpenOptions, RoTxn, RwTxn};
 use serde::{Deserialize, Serialize};
 
-use crate::entity_id::EntityId;
+use crate::keys::{build_key, build_prefix, parse_key};
 
 // ============================================================================
 // Database Setup
@@ -22,21 +21,22 @@ use std::sync::Mutex;
 static TEST_LOCK: Mutex<()> = Mutex::new(());
 
 pub(crate) struct Databases {
-    pub relationships: Database<Str, U64<byteorder::BigEndian>>,
-    pub relationships_rev: Database<Str, U64<byteorder::BigEndian>>,
-    pub capabilities: Database<Str, U64<byteorder::BigEndian>>,
-    pub inheritance: Database<Str, U64<byteorder::BigEndian>>,
-    pub inheritance_by_source: Database<Str, U64<byteorder::BigEndian>>,
-    pub inheritance_by_object: Database<Str, U64<byteorder::BigEndian>>,
-    pub cap_labels: Database<Str, Str>,
-    // v2: types and entities registry
+    // Composite keys use Bytes (length-prefixed binary format)
+    pub relationships: Database<Bytes, U64<byteorder::BigEndian>>,
+    pub relationships_rev: Database<Bytes, U64<byteorder::BigEndian>>,
+    pub capabilities: Database<Bytes, U64<byteorder::BigEndian>>,
+    pub inheritance: Database<Bytes, U64<byteorder::BigEndian>>,
+    pub inheritance_by_source: Database<Bytes, U64<byteorder::BigEndian>>,
+    pub inheritance_by_object: Database<Bytes, U64<byteorder::BigEndian>>,
+    pub cap_labels: Database<Bytes, Str>,
+    // Single-key databases stay as Str
     pub types: Database<Str, U64<byteorder::BigEndian>>,
     pub entities: Database<Str, U64<byteorder::BigEndian>>,
     pub meta: Database<Str, Str>,
-    // v3: sessions (token_hash → entity_id|created_at|expires_at)
+    // v3: sessions (single entity key, stay as Str)
     pub sessions: Database<Str, Str>,
-    pub sessions_by_entity: Database<Str, Str>, // entity_id/token_hash → expires_at
-    // v3: credentials (entity_id → salt|hash)
+    pub sessions_by_entity: Database<Str, Str>,
+    // v3: credentials
     pub credentials: Database<Str, Str>,
 }
 
@@ -106,21 +106,7 @@ fn current_epoch() -> u64 {
         .as_millis() as u64
 }
 
-fn escape(s: &str) -> Cow<'_, str> {
-    if s.contains('/') || s.contains('\\') {
-        Cow::Owned(s.replace('\\', "\\\\").replace('/', "\\/"))
-    } else {
-        Cow::Borrowed(s)
-    }
-}
-
-fn unescape(s: &str) -> Cow<'_, str> {
-    if s.contains('\\') {
-        Cow::Owned(s.replace("\\/", "/").replace("\\\\", "\\"))
-    } else {
-        Cow::Borrowed(s)
-    }
-}
+// No validation needed - length-prefixed keys allow any bytes
 
 // ============================================================================
 // Initialization
@@ -202,49 +188,52 @@ pub fn test_lock() -> std::sync::MutexGuard<'static, ()> {
 
 pub(crate) fn set_relationship_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, rel_type: &str, object: &str) -> Result<u64> {
     let epoch = current_epoch();
-    let (s, r, o) = (escape(subject), escape(rel_type), escape(object));
-
-    dbs.relationships.put(txn, &format!("{}/{}/{}", s, r, o), &epoch).map_err(err)?;
-    dbs.relationships_rev.put(txn, &format!("{}/{}/{}", o, r, s), &epoch).map_err(err)?;
+    let key = build_key(&[subject, rel_type, object]);
+    let key_rev = build_key(&[object, rel_type, subject]);
+    dbs.relationships.put(txn, &key, &epoch).map_err(err)?;
+    dbs.relationships_rev.put(txn, &key_rev, &epoch).map_err(err)?;
     Ok(epoch)
 }
 
 pub(crate) fn delete_relationship_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, rel_type: &str, object: &str) -> Result<bool> {
-    let (s, r, o) = (escape(subject), escape(rel_type), escape(object));
-
-    let deleted = dbs.relationships.delete(txn, &format!("{}/{}/{}", s, r, o)).map_err(err)?;
-    dbs.relationships_rev.delete(txn, &format!("{}/{}/{}", o, r, s)).map_err(err)?;
+    let key = build_key(&[subject, rel_type, object]);
+    let key_rev = build_key(&[object, rel_type, subject]);
+    let deleted = dbs.relationships.delete(txn, &key).map_err(err)?;
+    dbs.relationships_rev.delete(txn, &key_rev).map_err(err)?;
     Ok(deleted)
 }
 
 pub(crate) fn set_capability_in(txn: &mut RwTxn, dbs: &Databases, entity: &str, rel_type: &str, cap_mask: u64) -> Result<u64> {
     let epoch = current_epoch();
-    let key = format!("{}/{}", escape(entity), escape(rel_type));
+    let key = build_key(&[entity, rel_type]);
     dbs.capabilities.put(txn, &key, &cap_mask).map_err(err)?;
     Ok(epoch)
 }
 
 pub(crate) fn set_inheritance_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, object: &str, source: &str) -> Result<u64> {
     let epoch = current_epoch();
-    let (subj, obj, src) = (escape(subject), escape(object), escape(source));
-
-    dbs.inheritance.put(txn, &format!("{}/{}/{}", subj, obj, src), &epoch).map_err(err)?;
-    dbs.inheritance_by_source.put(txn, &format!("{}/{}/{}", src, obj, subj), &epoch).map_err(err)?;
-    dbs.inheritance_by_object.put(txn, &format!("{}/{}/{}", obj, src, subj), &epoch).map_err(err)?;
+    let key1 = build_key(&[subject, object, source]);
+    let key2 = build_key(&[source, object, subject]);
+    let key3 = build_key(&[object, source, subject]);
+    dbs.inheritance.put(txn, &key1, &epoch).map_err(err)?;
+    dbs.inheritance_by_source.put(txn, &key2, &epoch).map_err(err)?;
+    dbs.inheritance_by_object.put(txn, &key3, &epoch).map_err(err)?;
     Ok(epoch)
 }
 
 pub(crate) fn delete_inheritance_in(txn: &mut RwTxn, dbs: &Databases, subject: &str, object: &str, source: &str) -> Result<bool> {
-    let (subj, obj, src) = (escape(subject), escape(object), escape(source));
-
-    let deleted = dbs.inheritance.delete(txn, &format!("{}/{}/{}", subj, obj, src)).map_err(err)?;
-    dbs.inheritance_by_source.delete(txn, &format!("{}/{}/{}", src, obj, subj)).map_err(err)?;
-    dbs.inheritance_by_object.delete(txn, &format!("{}/{}/{}", obj, src, subj)).map_err(err)?;
+    let key1 = build_key(&[subject, object, source]);
+    let key2 = build_key(&[source, object, subject]);
+    let key3 = build_key(&[object, source, subject]);
+    let deleted = dbs.inheritance.delete(txn, &key1).map_err(err)?;
+    dbs.inheritance_by_source.delete(txn, &key2).map_err(err)?;
+    dbs.inheritance_by_object.delete(txn, &key3).map_err(err)?;
     Ok(deleted)
 }
 
 pub(crate) fn set_cap_label_in(txn: &mut RwTxn, dbs: &Databases, entity: &str, cap_bit: u64, label: &str) -> Result<()> {
-    let key = format!("{}/{:016x}", escape(entity), cap_bit);
+    let bit_str = format!("{:016x}", cap_bit);
+    let key = build_key(&[entity, &bit_str]);
     dbs.cap_labels.put(txn, &key, label).map_err(err)?;
     Ok(())
 }
@@ -253,21 +242,11 @@ pub(crate) fn set_cap_label_in(txn: &mut RwTxn, dbs: &Databases, entity: &str, c
 // Internal Operations - Types & Entities (v2)
 // ============================================================================
 
-/// Parse entity ID into (type, id). E.g., "user:john" -> ("user", "john")
-///
-/// Note: For performance-critical code, prefer `parse_entity` which returns
-/// an `EntityId` with O(1) type/id extraction.
+/// Parse entity ID string "type:id" into (type, id)
 pub fn parse_entity_id(entity_id: &str) -> Result<(&str, &str)> {
     entity_id.split_once(':').ok_or_else(|| CapbitError {
         message: format!("Invalid entity ID '{}': must be 'type:id' format", entity_id),
     })
-}
-
-/// Parse entity ID string into compact EntityId representation.
-///
-/// Returns an EntityId with O(1) type/id extraction (no colon scanning).
-pub fn parse_entity(entity_id: &str) -> Result<EntityId> {
-    EntityId::parse(entity_id).map_err(|e| CapbitError { message: e.message })
 }
 
 pub(crate) fn create_type_in(txn: &mut RwTxn, dbs: &Databases, type_name: &str) -> Result<u64> {
@@ -283,29 +262,22 @@ pub(crate) fn type_exists_in_rw(txn: &RwTxn, dbs: &Databases, type_name: &str) -
     Ok(dbs.types.get(txn, type_name).map_err(err)?.is_some())
 }
 
+/// Create entity from "type:id" string
 pub(crate) fn create_entity_in(txn: &mut RwTxn, dbs: &Databases, entity_id: &str) -> Result<u64> {
-    // Parse into EntityId for O(1) type extraction
-    let eid = parse_entity(entity_id)?;
-    create_entity_in_eid(txn, dbs, &eid)
-}
-
-/// Create entity using pre-parsed EntityId (avoids re-parsing)
-pub(crate) fn create_entity_in_eid(txn: &mut RwTxn, dbs: &Databases, eid: &EntityId) -> Result<u64> {
-    let type_name = eid.entity_type();
-    let entity_id = eid.to_string();
+    let (type_name, _id) = parse_entity_id(entity_id)?;
 
     // Check type exists (except for _type: entities during bootstrap)
-    if !eid.is_internal_type() {
+    if !type_name.starts_with('_') {
         if !type_exists_in_rw(txn, dbs, type_name)? {
             return Err(CapbitError { message: format!("Type '{}' does not exist", type_name) });
         }
     }
 
     let epoch = current_epoch();
-    if dbs.entities.get(txn, &entity_id).map_err(err)?.is_some() {
+    if dbs.entities.get(txn, entity_id).map_err(err)?.is_some() {
         return Err(CapbitError { message: format!("Entity '{}' already exists", entity_id) });
     }
-    dbs.entities.put(txn, &entity_id, &epoch).map_err(err)?;
+    dbs.entities.put(txn, entity_id, &epoch).map_err(err)?;
     Ok(epoch)
 }
 
@@ -381,15 +353,14 @@ pub fn set_relationship(subject: &str, rel_type: &str, object: &str) -> Result<u
 
 pub fn get_relationships(subject: &str, object: &str) -> Result<Vec<String>> {
     with_read_txn(|txn, dbs| {
-        let prefix = format!("{}/", escape(subject));
-        let suffix = format!("/{}", escape(object));
+        let prefix = build_prefix(&[subject]);
         let mut results = Vec::new();
 
         for item in dbs.relationships.prefix_iter(txn, &prefix).map_err(err)? {
             let (key, _) = item.map_err(err)?;
-            if key.ends_with(&suffix) {
-                let rel = &key[prefix.len()..key.len() - suffix.len()];
-                results.push(unescape(rel).into_owned());
+            let parts = parse_key(key);
+            if parts.len() == 3 && parts[2] == object {
+                results.push(parts[1].to_string());
             }
         }
         Ok(results)
@@ -410,7 +381,7 @@ pub fn set_capability(entity: &str, rel_type: &str, cap_mask: u64) -> Result<u64
 
 pub fn get_capability(entity: &str, rel_type: &str) -> Result<Option<u64>> {
     with_read_txn(|txn, dbs| {
-        let key = format!("{}/{}", escape(entity), escape(rel_type));
+        let key = build_key(&[entity, rel_type]);
         Ok(dbs.capabilities.get(txn, &key).map_err(err)?)
     })
 }
@@ -425,12 +396,15 @@ pub fn set_inheritance(subject: &str, object: &str, source: &str) -> Result<u64>
 
 pub fn get_inheritance(subject: &str, object: &str) -> Result<Vec<String>> {
     with_read_txn(|txn, dbs| {
-        let prefix = format!("{}/{}/", escape(subject), escape(object));
+        let prefix = build_prefix(&[subject, object]);
         let mut results = Vec::new();
 
         for item in dbs.inheritance.prefix_iter(txn, &prefix).map_err(err)? {
             let (key, _) = item.map_err(err)?;
-            results.push(unescape(&key[prefix.len()..]).into_owned());
+            let parts = parse_key(key);
+            if parts.len() == 3 {
+                results.push(parts[2].to_string());
+            }
         }
         Ok(results)
     })
@@ -442,12 +416,15 @@ pub fn delete_inheritance(subject: &str, object: &str, source: &str) -> Result<b
 
 pub fn get_inheritors_from_source(source: &str, object: &str) -> Result<Vec<String>> {
     with_read_txn(|txn, dbs| {
-        let prefix = format!("{}/{}/", escape(source), escape(object));
+        let prefix = build_prefix(&[source, object]);
         let mut results = Vec::new();
 
         for item in dbs.inheritance_by_source.prefix_iter(txn, &prefix).map_err(err)? {
             let (key, _) = item.map_err(err)?;
-            results.push(unescape(&key[prefix.len()..]).into_owned());
+            let parts = parse_key(key);
+            if parts.len() == 3 {
+                results.push(parts[2].to_string());
+            }
         }
         Ok(results)
     })
@@ -455,16 +432,14 @@ pub fn get_inheritors_from_source(source: &str, object: &str) -> Result<Vec<Stri
 
 pub fn get_inheritance_for_object(object: &str) -> Result<Vec<(String, String)>> {
     with_read_txn(|txn, dbs| {
-        let prefix = format!("{}/", escape(object));
+        let prefix = build_prefix(&[object]);
         let mut results = Vec::new();
 
         for item in dbs.inheritance_by_object.prefix_iter(txn, &prefix).map_err(err)? {
             let (key, _) = item.map_err(err)?;
-            let rest = &key[prefix.len()..];
-            if let Some(pos) = rest.find('/') {
-                let source = unescape(&rest[..pos]).into_owned();
-                let subject = unescape(&rest[pos + 1..]).into_owned();
-                results.push((source, subject));
+            let parts = parse_key(key);
+            if parts.len() == 3 {
+                results.push((parts[1].to_string(), parts[2].to_string()));
             }
         }
         Ok(results)
@@ -481,7 +456,8 @@ pub fn set_cap_label(entity: &str, cap_bit: u64, label: &str) -> Result<()> {
 
 pub fn get_cap_label(entity: &str, cap_bit: u64) -> Result<Option<String>> {
     with_read_txn(|txn, dbs| {
-        let key = format!("{}/{:016x}", escape(entity), cap_bit);
+        let bit_str = format!("{:016x}", cap_bit);
+        let key = build_key(&[entity, &bit_str]);
         Ok(dbs.cap_labels.get(txn, &key).map_err(err)?.map(|s| s.to_string()))
     })
 }
@@ -496,17 +472,14 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
         let mut effective_cap: u64 = 0;
         let mut visited = std::collections::HashSet::new();
         let mut stack = vec![(subject.to_string(), 0usize)];
-        let obj_esc = escape(object);
 
         // Check if object is a typed entity (e.g., "team:engineering") and get type scope
         // Skip if object is already a type entity (starts with "_type:")
-        // Use EntityId for O(1) type extraction instead of split_once
         let type_scope = if !object.starts_with("_type:") {
-            EntityId::parse(object).ok().map(|eid| eid.meta_type().to_string())
+            object.split_once(':').map(|(t, _)| format!("_type:{}", t))
         } else {
             None
         };
-        let type_scope_esc = type_scope.as_ref().map(|s| escape(s).into_owned());
 
         while let Some((current, depth)) = stack.pop() {
             let visit_key = format!("{}:{}", current, object);
@@ -514,16 +487,15 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
                 continue;
             }
 
-            let subj_esc = escape(&current);
-            let prefix = format!("{}/", subj_esc);
-            let suffix = format!("/{}", obj_esc);
+            let prefix = build_prefix(&[&current]);
 
             // Get direct relationships to the object
             for item in dbs.relationships.prefix_iter(txn, &prefix).map_err(err)? {
                 let (key, _) = item.map_err(err)?;
-                if key.ends_with(&suffix) {
-                    let rel_esc = &key[prefix.len()..key.len() - suffix.len()];
-                    let cap_key = format!("{}/{}", obj_esc, rel_esc);
+                let parts = parse_key(key);
+                if parts.len() == 3 && parts[2] == object {
+                    let rel = parts[1];
+                    let cap_key = build_key(&[object, rel]);
                     if let Some(cap) = dbs.capabilities.get(txn, &cap_key).map_err(err)? {
                         effective_cap |= cap;
                     }
@@ -531,14 +503,13 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
             }
 
             // Also check type-level relationships (e.g., grants on _type:team apply to all teams)
-            if let Some(ref type_esc) = type_scope_esc {
-                let type_suffix = format!("/{}", type_esc);
+            if let Some(ref type_scope_str) = type_scope {
                 for item in dbs.relationships.prefix_iter(txn, &prefix).map_err(err)? {
                     let (key, _) = item.map_err(err)?;
-                    if key.ends_with(&type_suffix) {
-                        let rel_esc = &key[prefix.len()..key.len() - type_suffix.len()];
-                        // Look up capability on the type scope
-                        let cap_key = format!("{}/{}", type_esc, rel_esc);
+                    let parts = parse_key(key);
+                    if parts.len() == 3 && parts[2] == type_scope_str {
+                        let rel = parts[1];
+                        let cap_key = build_key(&[type_scope_str, rel]);
                         if let Some(cap) = dbs.capabilities.get(txn, &cap_key).map_err(err)? {
                             effective_cap |= cap;
                         }
@@ -548,11 +519,13 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
 
             // Get inheritance sources
             if depth < depth_limit {
-                let inherit_prefix = format!("{}/{}/", subj_esc, obj_esc);
+                let inherit_prefix = build_prefix(&[&current, object]);
                 for item in dbs.inheritance.prefix_iter(txn, &inherit_prefix).map_err(err)? {
                     let (key, _) = item.map_err(err)?;
-                    let source = unescape(&key[inherit_prefix.len()..]).into_owned();
-                    stack.push((source, depth + 1));
+                    let parts = parse_key(key);
+                    if parts.len() == 3 {
+                        stack.push((parts[2].to_string(), depth + 1));
+                    }
                 }
             }
         }
@@ -602,16 +575,14 @@ pub fn batch_set_inheritance(entries: &[(String, String, String)]) -> Result<u64
 
 pub fn list_accessible(subject: &str) -> Result<Vec<(String, String)>> {
     with_read_txn(|txn, dbs| {
-        let prefix = format!("{}/", escape(subject));
+        let prefix = build_prefix(&[subject]);
         let mut results = Vec::new();
 
         for item in dbs.relationships.prefix_iter(txn, &prefix).map_err(err)? {
             let (key, _) = item.map_err(err)?;
-            let rest = &key[prefix.len()..];
-            if let Some(pos) = rest.rfind('/') {
-                let rel_type = unescape(&rest[..pos]).into_owned();
-                let object = unescape(&rest[pos + 1..]).into_owned();
-                results.push((object, rel_type));
+            let parts = parse_key(key);
+            if parts.len() == 3 {
+                results.push((parts[2].to_string(), parts[1].to_string()));
             }
         }
         Ok(results)
@@ -620,16 +591,14 @@ pub fn list_accessible(subject: &str) -> Result<Vec<(String, String)>> {
 
 pub fn list_subjects(object: &str) -> Result<Vec<(String, String)>> {
     with_read_txn(|txn, dbs| {
-        let prefix = format!("{}/", escape(object));
+        let prefix = build_prefix(&[object]);
         let mut results = Vec::new();
 
         for item in dbs.relationships_rev.prefix_iter(txn, &prefix).map_err(err)? {
             let (key, _) = item.map_err(err)?;
-            let rest = &key[prefix.len()..];
-            if let Some(pos) = rest.rfind('/') {
-                let rel_type = unescape(&rest[..pos]).into_owned();
-                let subject = unescape(&rest[pos + 1..]).into_owned();
-                results.push((subject, rel_type));
+            let parts = parse_key(key);
+            if parts.len() == 3 {
+                results.push((parts[2].to_string(), parts[1].to_string()));
             }
         }
         Ok(results)
@@ -769,13 +738,9 @@ pub fn list_all_grants() -> Result<Vec<(String, String, String)>> {
         let mut results = Vec::new();
         for item in dbs.relationships.iter(txn).map_err(err)? {
             let (key, _) = item.map_err(err)?;
-            // Key format: subject/rel_type/object (escaped)
-            let parts: Vec<&str> = key.splitn(3, '/').collect();
+            let parts = parse_key(key);
             if parts.len() == 3 {
-                let subject = unescape(parts[0]).into_owned();
-                let rel_type = unescape(parts[1]).into_owned();
-                let object = unescape(parts[2]).into_owned();
-                results.push((subject, rel_type, object));
+                results.push((parts[0].to_string(), parts[1].to_string(), parts[2].to_string()));
             }
         }
         Ok(results)
@@ -788,11 +753,9 @@ pub fn list_all_capabilities() -> Result<Vec<(String, String, u64)>> {
         let mut results = Vec::new();
         for item in dbs.capabilities.iter(txn).map_err(err)? {
             let (key, cap_mask) = item.map_err(err)?;
-            // Key format: entity/rel_type (escaped)
-            if let Some(pos) = key.rfind('/') {
-                let entity = unescape(&key[..pos]).into_owned();
-                let rel_type = unescape(&key[pos + 1..]).into_owned();
-                results.push((entity, rel_type, cap_mask));
+            let parts = parse_key(key);
+            if parts.len() == 2 {
+                results.push((parts[0].to_string(), parts[1].to_string(), cap_mask));
             }
         }
         Ok(results)
@@ -805,12 +768,10 @@ pub fn list_all_cap_labels() -> Result<Vec<(String, u64, String)>> {
         let mut results = Vec::new();
         for item in dbs.cap_labels.iter(txn).map_err(err)? {
             let (key, label) = item.map_err(err)?;
-            // Key format: entity/cap_bit_hex (escaped entity, 16-char hex bit)
-            if let Some(pos) = key.rfind('/') {
-                let entity = unescape(&key[..pos]).into_owned();
-                let bit_str = &key[pos + 1..];
-                if let Ok(bit) = u64::from_str_radix(bit_str, 16) {
-                    results.push((entity, bit, label.to_string()));
+            let parts = parse_key(key);
+            if parts.len() == 2 {
+                if let Ok(bit) = u64::from_str_radix(parts[1], 16) {
+                    results.push((parts[0].to_string(), bit, label.to_string()));
                 }
             }
         }

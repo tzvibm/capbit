@@ -667,6 +667,16 @@ For commercial licensing, contact: https://github.com/tzvibm
 
 ## Changelog
 
+### v3.1.0
+- **Length-prefixed binary keys** - Complete rewrite of key encoding
+  - All composite keys now use `[len][bytes][len][bytes]...` format instead of `/` delimiters
+  - Removed 805-line `entity_id.rs` module, replaced with 269-line `keys.rs`
+  - **Any UTF-8 character now allowed** in entity types, IDs, and relation names (including `/`, `\`, special chars)
+  - No escaping or validation overhead - any bytes work
+  - **Case sensitive**: `user:Alice` and `user:alice` are different entities
+  - Net reduction of ~330 lines of code
+  - All 224 tests pass
+
 ### v3.0.0
 - **Password-based authentication**
   - New `src/auth.rs` module with secure password hashing (sha2/getrandom)
