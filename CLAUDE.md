@@ -170,11 +170,13 @@ E.g., querying user:root on team:engineering includes root's grants on _type:tea
 | DELEGATE_READ | 0x0400 | View delegations |
 | DELEGATE_WRITE | 0x0800 | Create delegations |
 | DELEGATE_DELETE | 0x1000 | Remove delegations |
+| SYSTEM_READ | 0x2000 | View system internals (_type:* entities) |
 
 Composites:
 - `ENTITY_ADMIN` = 0x1ffc (full entity management)
 - `GRANT_ADMIN` = 0x0070 (full grant control)
-- `TYPE_ADMIN` = 0x1fff (everything)
+- `TYPE_ADMIN` = 0x3fff (everything including SYSTEM_READ)
+- `ALL` = 0x3fff (all capability bits)
 
 ### Org-Defined Capabilities (Layer 2)
 

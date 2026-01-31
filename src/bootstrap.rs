@@ -72,7 +72,28 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
             _set_relationship_in(txn, dbs, &root_entity, "admin", &format!("_type:{}", t))?;
         }
 
-        // 7. Mark as bootstrapped
+        // 7. Define SystemCap bit labels on _type:_type
+        let syscap_labels = [
+            (0, "type-create"),
+            (1, "type-delete"),
+            (2, "entity-create"),
+            (3, "entity-delete"),
+            (4, "grant-read"),
+            (5, "grant-write"),
+            (6, "grant-delete"),
+            (7, "cap-read"),
+            (8, "cap-write"),
+            (9, "cap-delete"),
+            (10, "delegate-read"),
+            (11, "delegate-write"),
+            (12, "delegate-delete"),
+            (13, "system-read"),
+        ];
+        for (bit, label) in syscap_labels {
+            core::set_cap_label_in(txn, dbs, "_type:_type", bit, label)?;
+        }
+
+        // 8. Mark as bootstrapped
         let epoch = core::current_epoch_pub();
         set_meta_in(txn, dbs, "bootstrapped", "true")?;
         set_meta_in(txn, dbs, "bootstrap_epoch", &epoch.to_string())?;
