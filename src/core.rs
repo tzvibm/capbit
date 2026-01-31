@@ -302,12 +302,6 @@ pub(crate) fn get_meta_in(txn: &RoTxn, dbs: &Databases, key: &str) -> Result<Opt
     Ok(dbs.meta.get(txn, key).map_err(err)?.map(|s| s.to_string()))
 }
 
-// Aliases for backward compat in other modules
-pub(crate) use set_relationship_in as _set_relationship_in;
-pub(crate) use set_capability_in as _set_capability_in;
-pub(crate) use delete_relationship_in as _delete_relationship_in;
-pub(crate) use set_inheritance_in as _set_inheritance_in;
-pub(crate) use delete_inheritance_in as _delete_inheritance_in;
 
 // Public helpers
 pub fn entity_exists(entity_id: &str) -> Result<bool> {
@@ -489,26 +483,25 @@ pub fn check_access(subject: &str, object: &str, max_depth: Option<usize>) -> Re
 
             let prefix = build_prefix(&[&current]);
 
-            // Get direct relationships to the object
+            // Get relationships - check both direct object and type-level in one pass
             for item in dbs.relationships.prefix_iter(txn, &prefix).map_err(err)? {
                 let (key, _) = item.map_err(err)?;
                 let parts = parse_key(key);
-                if parts.len() == 3 && parts[2] == object {
-                    let rel = parts[1];
+                if parts.len() != 3 { continue; }
+
+                let rel = parts[1];
+                let target = parts[2];
+
+                // Direct match to object
+                if target == object {
                     let cap_key = build_key(&[object, rel]);
                     if let Some(cap) = dbs.capabilities.get(txn, &cap_key).map_err(err)? {
                         effective_cap |= cap;
                     }
                 }
-            }
-
-            // Also check type-level relationships (e.g., grants on _type:team apply to all teams)
-            if let Some(ref type_scope_str) = type_scope {
-                for item in dbs.relationships.prefix_iter(txn, &prefix).map_err(err)? {
-                    let (key, _) = item.map_err(err)?;
-                    let parts = parse_key(key);
-                    if parts.len() == 3 && parts[2] == type_scope_str {
-                        let rel = parts[1];
+                // Type-level match (e.g., grants on _type:team apply to all teams)
+                else if let Some(ref type_scope_str) = type_scope {
+                    if target == type_scope_str {
                         let cap_key = build_key(&[type_scope_str, rel]);
                         if let Some(cap) = dbs.capabilities.get(txn, &cap_key).map_err(err)? {
                             effective_cap |= cap;

@@ -6,8 +6,8 @@ use crate::caps::SystemCap;
 use crate::core::{
     self, CapbitError, Result,
     parse_entity_id, create_entity_in, delete_entity_in, entity_exists_in_rw,
-    _set_relationship_in, _delete_relationship_in,
-    _set_capability_in, _set_inheritance_in, _delete_inheritance_in,
+    set_relationship_in, delete_relationship_in,
+    set_capability_in, set_inheritance_in, delete_inheritance_in,
     with_write_txn_pub,
 };
 
@@ -84,7 +84,7 @@ pub fn set_grant(requester: &str, seeker: &str, relation: &str, scope: &str) -> 
                 message: format!("Scope '{}' does not exist", scope),
             });
         }
-        _set_relationship_in(txn, dbs, seeker, relation, scope)
+        set_relationship_in(txn, dbs, seeker, relation, scope)
     })
 }
 
@@ -93,7 +93,7 @@ pub fn delete_grant(requester: &str, seeker: &str, relation: &str, scope: &str) 
     check_permission(requester, scope, SystemCap::GRANT_DELETE)?;
 
     with_write_txn_pub(|txn, dbs| {
-        _delete_relationship_in(txn, dbs, seeker, relation, scope)
+        delete_relationship_in(txn, dbs, seeker, relation, scope)
     })
 }
 
@@ -106,7 +106,7 @@ pub fn set_capability(requester: &str, scope: &str, relation: &str, cap_mask: u6
     check_permission(requester, scope, SystemCap::CAP_WRITE)?;
 
     with_write_txn_pub(|txn, dbs| {
-        _set_capability_in(txn, dbs, scope, relation, cap_mask)
+        set_capability_in(txn, dbs, scope, relation, cap_mask)
     })
 }
 
@@ -119,7 +119,7 @@ pub fn set_delegation(requester: &str, seeker: &str, scope: &str, delegate: &str
     check_permission(requester, scope, SystemCap::DELEGATE_WRITE)?;
 
     with_write_txn_pub(|txn, dbs| {
-        _set_inheritance_in(txn, dbs, seeker, scope, delegate)
+        set_inheritance_in(txn, dbs, seeker, scope, delegate)
     })
 }
 
@@ -128,7 +128,7 @@ pub fn delete_delegation(requester: &str, seeker: &str, scope: &str, delegate: &
     check_permission(requester, scope, SystemCap::DELEGATE_DELETE)?;
 
     with_write_txn_pub(|txn, dbs| {
-        _delete_inheritance_in(txn, dbs, seeker, scope, delegate)
+        delete_inheritance_in(txn, dbs, seeker, scope, delegate)
     })
 }
 
@@ -149,10 +149,10 @@ pub fn create_type(requester: &str, type_name: &str) -> Result<u64> {
         create_entity_in(txn, dbs, &type_entity)?;
 
         // Define default admin capability on the type
-        _set_capability_in(txn, dbs, &type_entity, "admin", SystemCap::ENTITY_ADMIN)?;
+        set_capability_in(txn, dbs, &type_entity, "admin", SystemCap::ENTITY_ADMIN)?;
 
         // Grant requester admin on the new type
-        _set_relationship_in(txn, dbs, requester, "admin", &type_entity)?;
+        set_relationship_in(txn, dbs, requester, "admin", &type_entity)?;
 
         Ok(crate::core::current_epoch_pub())
     })

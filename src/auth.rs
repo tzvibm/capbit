@@ -62,6 +62,25 @@ mod hex {
     }
 }
 
+/// Encode session: reuse keys.rs length-prefix format
+fn encode_session(entity_id: &str, created_at: u64, expires_at: u64) -> String {
+    let key = crate::keys::build_key(&[entity_id, &created_at.to_string(), &expires_at.to_string()]);
+    unsafe { String::from_utf8_unchecked(key) }
+}
+
+/// Decode session
+fn decode_session(data: &str) -> Option<(String, u64, u64)> {
+    let parts = crate::keys::parse_key(data.as_bytes());
+    if parts.len() != 3 { return None; }
+    Some((parts[0].to_string(), parts[1].parse().ok()?, parts[2].parse().ok()?))
+}
+
+/// Build session index key
+fn session_idx_key(entity_id: &str, hash: &str) -> String {
+    let key = crate::keys::build_key(&[entity_id, hash]);
+    unsafe { String::from_utf8_unchecked(key) }
+}
+
 /// Create a session, returns token
 pub fn create_session(entity_id: &str, ttl_secs: Option<u64>) -> Result<String> {
     let token = generate_token();
@@ -70,12 +89,13 @@ pub fn create_session(entity_id: &str, ttl_secs: Option<u64>) -> Result<String> 
     let expires = ttl_secs.map(|t| now + t * 1000).unwrap_or(0);
 
     with_write_txn_pub(|txn, dbs| {
-        // Store: hash → entity_id|created_at|expires_at
-        let value = format!("{}|{}|{}", entity_id, now, expires);
-        dbs.sessions.put(txn, &hash, &value).map_err(|e| CapbitError { message: e.to_string() })?;
+        // Store: hash → length-prefixed session data
+        let value = encode_session(entity_id, now, expires);
+        dbs.sessions.put(txn, &hash, &value)
+            .map_err(|e| CapbitError { message: e.to_string() })?;
 
-        // Index: entity_id/hash → expires_at
-        let idx_key = format!("{}/{}", entity_id, hash);
+        // Index: length-prefixed key
+        let idx_key = session_idx_key(entity_id, &hash);
         dbs.sessions_by_entity.put(txn, &idx_key, &expires.to_string())
             .map_err(|e| CapbitError { message: e.to_string() })?;
 
@@ -94,20 +114,15 @@ pub fn validate_session(token: &str) -> Result<String> {
             .map_err(|e| CapbitError { message: e.to_string() })?
             .ok_or_else(|| CapbitError { message: "Invalid token".into() })?;
 
-        let parts: Vec<&str> = value.split('|').collect();
-        if parts.len() != 3 {
-            return Err(CapbitError { message: "Corrupted session".into() });
-        }
-
-        let entity_id = parts[0];
-        let expires: u64 = parts[2].parse().unwrap_or(0);
+        let (entity_id, _, expires) = decode_session(value)
+            .ok_or_else(|| CapbitError { message: "Corrupted session".into() })?;
 
         // Check expiry (0 = never expires)
         if expires > 0 && expires < current_epoch_pub() {
             return Err(CapbitError { message: "Token expired".into() });
         }
 
-        Ok(entity_id.to_string())
+        Ok(entity_id)
     })
 }
 
@@ -122,13 +137,13 @@ pub fn revoke_session(token: &str) -> Result<bool> {
             None => return Ok(false),
         };
 
-        let entity_id = value.split('|').next().unwrap_or("");
+        let (entity_id, _, _) = decode_session(&value).unwrap_or_default();
 
         // Delete main entry
         dbs.sessions.delete(txn, &hash).map_err(|e| CapbitError { message: e.to_string() })?;
 
         // Delete index
-        let idx_key = format!("{}/{}", entity_id, hash);
+        let idx_key = session_idx_key(&entity_id, &hash);
         dbs.sessions_by_entity.delete(txn, &idx_key).map_err(|e| CapbitError { message: e.to_string() })?;
 
         Ok(true)
@@ -137,27 +152,28 @@ pub fn revoke_session(token: &str) -> Result<bool> {
 
 /// List all sessions for an entity
 pub fn list_sessions(entity_id: &str) -> Result<Vec<SessionInfo>> {
-    let prefix = format!("{}/", entity_id);
+    let prefix = crate::keys::build_prefix(&[entity_id]);
     let now = current_epoch_pub();
 
     with_read_txn_pub(|txn, dbs| {
         let mut results = Vec::new();
+        let prefix_str = unsafe { std::str::from_utf8_unchecked(&prefix) };
 
-        for item in dbs.sessions_by_entity.prefix_iter(txn, &prefix)
+        for item in dbs.sessions_by_entity.prefix_iter(txn, prefix_str)
             .map_err(|e| CapbitError { message: e.to_string() })?
         {
             let (key, _) = item.map_err(|e| CapbitError { message: e.to_string() })?;
-            let hash = &key[prefix.len()..];
+            let parts = crate::keys::parse_key(key.as_bytes());
+            if parts.len() != 2 { continue; }
+            let hash = parts[1];
 
             if let Some(value) = dbs.sessions.get(txn, hash).map_err(|e| CapbitError { message: e.to_string() })? {
-                let parts: Vec<&str> = value.split('|').collect();
-                if parts.len() == 3 {
-                    let expires: u64 = parts[2].parse().unwrap_or(0);
+                if let Some((eid, created, expires)) = decode_session(value) {
                     // Skip expired (unless never expires)
                     if expires == 0 || expires >= now {
                         results.push(SessionInfo {
-                            entity_id: parts[0].to_string(),
-                            created_at: parts[1].parse().unwrap_or(0),
+                            entity_id: eid,
+                            created_at: created,
                             expires_at: expires,
                         });
                     }
@@ -171,17 +187,21 @@ pub fn list_sessions(entity_id: &str) -> Result<Vec<SessionInfo>> {
 
 /// Revoke all sessions for an entity
 pub fn revoke_all_sessions(entity_id: &str) -> Result<u64> {
-    let prefix = format!("{}/", entity_id);
+    let prefix = crate::keys::build_prefix(&[entity_id]);
 
     with_write_txn_pub(|txn, dbs| {
         let mut hashes = Vec::new();
+        let prefix_str = unsafe { std::str::from_utf8_unchecked(&prefix) };
 
         // Collect hashes first
-        for item in dbs.sessions_by_entity.prefix_iter(txn, &prefix)
+        for item in dbs.sessions_by_entity.prefix_iter(txn, prefix_str)
             .map_err(|e| CapbitError { message: e.to_string() })?
         {
             let (key, _) = item.map_err(|e| CapbitError { message: e.to_string() })?;
-            hashes.push(key[prefix.len()..].to_string());
+            let parts = crate::keys::parse_key(key.as_bytes());
+            if parts.len() == 2 {
+                hashes.push(parts[1].to_string());
+            }
         }
 
         let count = hashes.len() as u64;
@@ -189,7 +209,7 @@ pub fn revoke_all_sessions(entity_id: &str) -> Result<u64> {
         // Delete sessions and indexes
         for hash in hashes {
             dbs.sessions.delete(txn, &hash).map_err(|e| CapbitError { message: e.to_string() })?;
-            let idx_key = format!("{}/{}", entity_id, hash);
+            let idx_key = session_idx_key(entity_id, &hash);
             dbs.sessions_by_entity.delete(txn, &idx_key).map_err(|e| CapbitError { message: e.to_string() })?;
         }
 

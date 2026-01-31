@@ -6,7 +6,7 @@ use crate::caps::SystemCap;
 use crate::core::{
     self, CapbitError, Result,
     create_type_in, create_entity_in, set_meta_in,
-    _set_capability_in, _set_relationship_in,
+    set_capability_in, set_relationship_in,
     with_write_txn_pub,
 };
 
@@ -58,7 +58,7 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
 
         // 4. Define capabilities on type entities
         // Admin on _type:_type can create/delete types
-        _set_capability_in(txn, dbs, meta_type, "admin", SystemCap::TYPE_ADMIN)?;
+        set_capability_in(txn, dbs, meta_type, "admin", SystemCap::TYPE_ADMIN)?;
 
         // Admin on _type:{type} can create/delete entities of that type
         // _type:user admin also gets PASSWORD_ADMIN for credential management
@@ -69,7 +69,7 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
             } else {
                 SystemCap::ENTITY_ADMIN
             };
-            _set_capability_in(txn, dbs, &type_entity, "admin", caps)?;
+            set_capability_in(txn, dbs, &type_entity, "admin", caps)?;
         }
 
         // 5. Create root user entity
@@ -77,10 +77,10 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
         create_entity_in(txn, dbs, &root_entity)?;
 
         // 6. Grant root admin on all type entities
-        _set_relationship_in(txn, dbs, &root_entity, "admin", meta_type)?;
+        set_relationship_in(txn, dbs, &root_entity, "admin", meta_type)?;
         for t in CORE_TYPES {
             let type_entity = format!("_type:{}", t);
-            _set_relationship_in(txn, dbs, &root_entity, "admin", &type_entity)?;
+            set_relationship_in(txn, dbs, &root_entity, "admin", &type_entity)?;
         }
 
         // 7. Define SystemCap bit labels on _type:_type
