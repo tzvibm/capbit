@@ -4,6 +4,8 @@
 [![License: Non-Commercial](https://img.shields.io/badge/License-Non--Commercial-red.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-192%20passing-brightgreen.svg)](#testing)
 
+> **Note:** v2 is deprecated. Use v3 which adds password-based authentication. See [Changelog](#changelog).
+
 **High-performance access control library for Rust** with typed entities, protected mutations, and bitmask capabilities.
 
 ```
@@ -665,7 +667,18 @@ For commercial licensing, contact: https://github.com/tzvibm
 
 ## Changelog
 
-### v2.2.0
+### v3.0.0
+- **Password-based authentication**
+  - New `src/auth.rs` module with secure password hashing (sha2/getrandom)
+  - Server endpoints for authentication
+  - Comprehensive auth test suite
+- **Demo refactor**
+  - Extracted CSS to `demo/styles.css`
+  - Extracted JS to `demo/app.js`
+  - Cleaner, more maintainable structure
+- **v2 deprecated** - upgrade to v3 for authentication support
+
+### v2.2.0 (deprecated)
 - **Clarified conceptual model**
   - Entities = things (user:alice, resource:office)
   - Capabilities = what relation names mean on an entity (bitmasks)
