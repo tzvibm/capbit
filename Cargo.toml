@@ -24,6 +24,8 @@ server = ["axum", "tokio", "tower-http", "serde_json", "socket2"]
 heed = "0.20"
 serde = { version = "1.0", features = ["derive"] }
 byteorder = "1.5"
+getrandom = "0.2"
+sha2 = "0.10"
 
 # Server dependencies (optional)
 axum = { version = "0.7", optional = true }

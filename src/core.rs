@@ -31,6 +31,11 @@ pub(crate) struct Databases {
     pub types: Database<Str, U64<byteorder::BigEndian>>,
     pub entities: Database<Str, U64<byteorder::BigEndian>>,
     pub meta: Database<Str, Str>,
+    // v3: sessions (token_hash → entity_id|created_at|expires_at)
+    pub sessions: Database<Str, Str>,
+    pub sessions_by_entity: Database<Str, Str>, // entity_id/token_hash → expires_at
+    // v3: credentials (entity_id → salt|hash)
+    pub credentials: Database<Str, Str>,
 }
 
 static DBS: OnceLock<Databases> = OnceLock::new();
@@ -130,7 +135,7 @@ pub fn init(db_path: &str) -> Result<()> {
     let env = unsafe {
         EnvOpenOptions::new()
             .map_size(10 * 1024 * 1024 * 1024)
-            .max_dbs(15)
+            .max_dbs(20)
             .open(path)
             .map_err(err)?
     };
@@ -148,6 +153,9 @@ pub fn init(db_path: &str) -> Result<()> {
         types: env.create_database(&mut wtxn, Some("types")).map_err(err)?,
         entities: env.create_database(&mut wtxn, Some("entities")).map_err(err)?,
         meta: env.create_database(&mut wtxn, Some("meta")).map_err(err)?,
+        sessions: env.create_database(&mut wtxn, Some("sessions")).map_err(err)?,
+        sessions_by_entity: env.create_database(&mut wtxn, Some("sessions_by_entity")).map_err(err)?,
+        credentials: env.create_database(&mut wtxn, Some("credentials")).map_err(err)?,
     };
 
     wtxn.commit().map_err(err)?;
@@ -171,6 +179,9 @@ pub fn clear_all() -> Result<()> {
         dbs.types.clear(txn).map_err(err)?;
         dbs.entities.clear(txn).map_err(err)?;
         dbs.meta.clear(txn).map_err(err)?;
+        dbs.sessions.clear(txn).map_err(err)?;
+        dbs.sessions_by_entity.clear(txn).map_err(err)?;
+        dbs.credentials.clear(txn).map_err(err)?;
         Ok(())
     })
 }
@@ -329,7 +340,6 @@ where
     with_write_txn(f)
 }
 
-#[allow(dead_code)]  // Reserved for future protected read operations
 pub(crate) fn with_read_txn_pub<T, F>(f: F) -> Result<T>
 where
     F: FnOnce(&RoTxn, &Databases) -> Result<T>,

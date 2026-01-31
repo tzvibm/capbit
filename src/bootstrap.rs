@@ -58,8 +58,14 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
         _set_capability_in(txn, dbs, "_type:_type", "admin", SystemCap::TYPE_ADMIN)?;
 
         // Admin on _type:{type} can create/delete entities of that type
+        // _type:user admin also gets PASSWORD_ADMIN for credential management
         for t in CORE_TYPES {
-            _set_capability_in(txn, dbs, &format!("_type:{}", t), "admin", SystemCap::ENTITY_ADMIN)?;
+            let caps = if *t == "user" {
+                SystemCap::ENTITY_ADMIN | SystemCap::PASSWORD_ADMIN
+            } else {
+                SystemCap::ENTITY_ADMIN
+            };
+            _set_capability_in(txn, dbs, &format!("_type:{}", t), "admin", caps)?;
         }
 
         // 5. Create root user entity
@@ -88,6 +94,7 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
             (11, "delegate-write"),
             (12, "delegate-delete"),
             (13, "system-read"),
+            (14, "password-admin"),
         ];
         for (bit, label) in syscap_labels {
             core::set_cap_label_in(txn, dbs, "_type:_type", bit, label)?;

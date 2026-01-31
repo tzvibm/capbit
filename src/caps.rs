@@ -29,6 +29,9 @@ pub mod SystemCap {
     // System visibility (can view _type:* entities, grants, caps)
     pub const SYSTEM_READ: u64 = 0x2000;
 
+    // Password/credential management (on _type:{type} scopes)
+    pub const PASSWORD_ADMIN: u64 = 0x4000;
+
     // Composites (low-level)
     pub const GRANT_ADMIN: u64 = GRANT_READ | GRANT_WRITE | GRANT_DELETE;
     pub const CAP_ADMIN: u64 = CAP_READ | CAP_WRITE | CAP_DELETE;
@@ -38,8 +41,8 @@ pub mod SystemCap {
     // Composites (high-level admin roles)
     // ENTITY_ADMIN: full control over entities of a type (create, delete, grant, caps, delegate)
     pub const ENTITY_ADMIN: u64 = ENTITY_CREATE | ENTITY_DELETE | CAP_ADMIN | GRANT_ADMIN | DELEGATE_ADMIN;
-    // TYPE_ADMIN: full control over types (create, delete types) plus entity admin plus system visibility
-    pub const TYPE_ADMIN: u64 = TYPE_CREATE | TYPE_DELETE | ENTITY_ADMIN | SYSTEM_READ;
+    // TYPE_ADMIN: full control over types (create, delete types) plus entity admin plus system visibility plus password admin
+    pub const TYPE_ADMIN: u64 = TYPE_CREATE | TYPE_DELETE | ENTITY_ADMIN | SYSTEM_READ | PASSWORD_ADMIN;
     // ALL: every capability bit
-    pub const ALL: u64 = 0x3FFF;
+    pub const ALL: u64 = 0x7FFF;
 }

@@ -157,3 +157,42 @@ pub fn create_type(requester: &str, type_name: &str) -> Result<u64> {
         Ok(crate::core::current_epoch_pub())
     })
 }
+
+// ============================================================================
+// Protected Reads
+// ============================================================================
+
+/// List entities visible to requester.
+/// - SYSTEM_READ on _type:_type → see all entities
+/// - Otherwise, see entities you have any access to (including _type:* if you have grants there)
+pub fn list_entities(requester: &str) -> Result<Vec<String>> {
+    let all = core::list_all_entities()?;
+    let has_system = (core::check_access(requester, "_type:_type", None)? & SystemCap::SYSTEM_READ) != 0;
+    if has_system { return Ok(all); }
+    // Check access to each entity - includes _type:* entities user has direct grants on
+    Ok(all.into_iter().filter(|e| core::check_access(requester, e, None).unwrap_or(0) > 0).collect())
+}
+
+/// List grants visible to requester. Requires GRANT_READ on scope.
+pub fn list_grants(requester: &str) -> Result<Vec<(String, String, String)>> {
+    let all = core::list_all_grants()?;
+    Ok(all.into_iter().filter(|(_, _, scope)| {
+        (core::check_access(requester, scope, None).unwrap_or(0) & SystemCap::GRANT_READ) != 0
+    }).collect())
+}
+
+/// List capabilities visible to requester. Requires CAP_READ on scope.
+pub fn list_capabilities(requester: &str) -> Result<Vec<(String, String, u64)>> {
+    let all = core::list_all_capabilities()?;
+    Ok(all.into_iter().filter(|(scope, _, _)| {
+        (core::check_access(requester, scope, None).unwrap_or(0) & SystemCap::CAP_READ) != 0
+    }).collect())
+}
+
+/// List cap labels visible to requester. Requires CAP_READ on scope.
+pub fn list_cap_labels(requester: &str) -> Result<Vec<(String, u64, String)>> {
+    let all = core::list_all_cap_labels()?;
+    Ok(all.into_iter().filter(|(scope, _, _)| {
+        (core::check_access(requester, scope, None).unwrap_or(0) & SystemCap::CAP_READ) != 0
+    }).collect())
+}

@@ -51,6 +51,7 @@ mod core;
 pub mod caps;
 pub mod bootstrap;
 pub mod protected;
+pub mod auth;
 
 // Re-export SystemCap for convenience
 pub use caps::SystemCap;
