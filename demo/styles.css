@@ -481,3 +481,29 @@ select:focus, input:focus {
     padding: 0.75rem 0 0.25rem 0;
 }
 .menu-group-label:first-child { padding-top: 0; }
+
+/* ============================================================================
+   Utility Classes (Phase 4: Replace inline styles)
+   ============================================================================ */
+
+/* Text utilities */
+.text-muted { color: var(--text-muted); }
+.text-success { color: var(--success); }
+.text-danger { color: var(--danger); }
+.text-sm { font-size: 0.8rem; }
+
+/* Spacing utilities */
+.mb-1 { margin-bottom: 0.25rem; }
+.mt-1 { margin-top: 0.5rem; }
+
+/* System entity styling */
+.system-item { opacity: 0.7; }
+.system-icon { opacity: 0.6; margin-right: 0.25rem; }
+
+/* Delegation item */
+.delegation-item { background: rgba(245, 158, 11, 0.1); }
+
+/* Capability item */
+.cap-item { flex-wrap: wrap; }
+.cap-labels { font-size: 0.7rem; color: var(--text-muted); width: 100%; margin-top: 0.25rem; }
+.cap-badge-success { background: var(--success); color: white; }

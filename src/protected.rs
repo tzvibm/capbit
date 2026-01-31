@@ -5,10 +5,10 @@
 use crate::caps::SystemCap;
 use crate::core::{
     self, CapbitError, Result,
-    parse_entity_id, create_entity_in, delete_entity_in, entity_exists_in_rw,
+    parse_entity_id, create_entity_in, delete_entity_in, entity_exists_in,
     set_relationship_in, delete_relationship_in,
     set_capability_in, set_inheritance_in, delete_inheritance_in,
-    with_write_txn_pub,
+    with_write_txn, current_epoch,
 };
 
 // ============================================================================
@@ -53,7 +53,7 @@ pub fn create_entity(requester: &str, entity_type: &str, id: &str) -> Result<u64
     check_permission(requester, &type_scope, SystemCap::ENTITY_CREATE)?;
 
     let entity_id = format!("{}:{}", entity_type, id);
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         create_entity_in(txn, dbs, &entity_id)
     })
 }
@@ -64,7 +64,7 @@ pub fn delete_entity(requester: &str, entity_id: &str) -> Result<bool> {
     let type_scope = format!("_type:{}", entity_type);
     check_permission(requester, &type_scope, SystemCap::ENTITY_DELETE)?;
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         delete_entity_in(txn, dbs, entity_id)
     })
 }
@@ -77,9 +77,9 @@ pub fn delete_entity(requester: &str, entity_id: &str) -> Result<bool> {
 pub fn set_grant(requester: &str, seeker: &str, relation: &str, scope: &str) -> Result<u64> {
     check_permission(requester, scope, SystemCap::GRANT_WRITE)?;
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         // Validate scope exists (seeker can be external identity)
-        if !scope.starts_with("_type:") && !entity_exists_in_rw(txn, dbs, scope)? {
+        if !scope.starts_with("_type:") && !entity_exists_in(txn, dbs, scope)? {
             return Err(CapbitError {
                 message: format!("Scope '{}' does not exist", scope),
             });
@@ -92,7 +92,7 @@ pub fn set_grant(requester: &str, seeker: &str, relation: &str, scope: &str) -> 
 pub fn delete_grant(requester: &str, seeker: &str, relation: &str, scope: &str) -> Result<bool> {
     check_permission(requester, scope, SystemCap::GRANT_DELETE)?;
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         delete_relationship_in(txn, dbs, seeker, relation, scope)
     })
 }
@@ -105,7 +105,7 @@ pub fn delete_grant(requester: &str, seeker: &str, relation: &str, scope: &str) 
 pub fn set_capability(requester: &str, scope: &str, relation: &str, cap_mask: u64) -> Result<u64> {
     check_permission(requester, scope, SystemCap::CAP_WRITE)?;
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         set_capability_in(txn, dbs, scope, relation, cap_mask)
     })
 }
@@ -118,7 +118,7 @@ pub fn set_capability(requester: &str, scope: &str, relation: &str, cap_mask: u6
 pub fn set_delegation(requester: &str, seeker: &str, scope: &str, delegate: &str) -> Result<u64> {
     check_permission(requester, scope, SystemCap::DELEGATE_WRITE)?;
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         set_inheritance_in(txn, dbs, seeker, scope, delegate)
     })
 }
@@ -127,7 +127,7 @@ pub fn set_delegation(requester: &str, seeker: &str, scope: &str, delegate: &str
 pub fn delete_delegation(requester: &str, seeker: &str, scope: &str, delegate: &str) -> Result<bool> {
     check_permission(requester, scope, SystemCap::DELEGATE_DELETE)?;
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         delete_inheritance_in(txn, dbs, seeker, scope, delegate)
     })
 }
@@ -140,7 +140,7 @@ pub fn delete_delegation(requester: &str, seeker: &str, scope: &str, delegate: &
 pub fn create_type(requester: &str, type_name: &str) -> Result<u64> {
     check_permission(requester, "_type:_type", SystemCap::TYPE_CREATE)?;
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         // Create the type
         crate::core::create_type_in(txn, dbs, type_name)?;
 
@@ -154,7 +154,7 @@ pub fn create_type(requester: &str, type_name: &str) -> Result<u64> {
         // Grant requester admin on the new type
         set_relationship_in(txn, dbs, requester, "admin", &type_entity)?;
 
-        Ok(crate::core::current_epoch_pub())
+        Ok(current_epoch())
     })
 }
 

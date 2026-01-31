@@ -3,7 +3,7 @@
 //! Provides token-based session management.
 
 use sha2::{Sha256, Digest};
-use crate::core::{CapbitError, Result, with_write_txn_pub, with_read_txn_pub, current_epoch_pub};
+use crate::core::{CapbitError, Result, with_write_txn, with_read_txn, current_epoch};
 use crate::bootstrap;
 
 /// Session info returned by list_sessions
@@ -85,10 +85,10 @@ fn session_idx_key(entity_id: &str, hash: &str) -> String {
 pub fn create_session(entity_id: &str, ttl_secs: Option<u64>) -> Result<String> {
     let token = generate_token();
     let hash = hash_token(&token);
-    let now = current_epoch_pub();
+    let now = current_epoch();
     let expires = ttl_secs.map(|t| now + t * 1000).unwrap_or(0);
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         // Store: hash → length-prefixed session data
         let value = encode_session(entity_id, now, expires);
         dbs.sessions.put(txn, &hash, &value)
@@ -109,7 +109,7 @@ pub fn create_session(entity_id: &str, ttl_secs: Option<u64>) -> Result<String> 
 pub fn validate_session(token: &str) -> Result<String> {
     let hash = hash_token(token);
 
-    with_read_txn_pub(|txn, dbs| {
+    with_read_txn(|txn, dbs| {
         let value = dbs.sessions.get(txn, &hash)
             .map_err(|e| CapbitError { message: e.to_string() })?
             .ok_or_else(|| CapbitError { message: "Invalid token".into() })?;
@@ -118,7 +118,7 @@ pub fn validate_session(token: &str) -> Result<String> {
             .ok_or_else(|| CapbitError { message: "Corrupted session".into() })?;
 
         // Check expiry (0 = never expires)
-        if expires > 0 && expires < current_epoch_pub() {
+        if expires > 0 && expires < current_epoch() {
             return Err(CapbitError { message: "Token expired".into() });
         }
 
@@ -130,7 +130,7 @@ pub fn validate_session(token: &str) -> Result<String> {
 pub fn revoke_session(token: &str) -> Result<bool> {
     let hash = hash_token(token);
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         // Get entity_id first for index cleanup
         let value = match dbs.sessions.get(txn, &hash).map_err(|e| CapbitError { message: e.to_string() })? {
             Some(v) => v.to_string(),
@@ -153,9 +153,9 @@ pub fn revoke_session(token: &str) -> Result<bool> {
 /// List all sessions for an entity
 pub fn list_sessions(entity_id: &str) -> Result<Vec<SessionInfo>> {
     let prefix = crate::keys::build_prefix(&[entity_id]);
-    let now = current_epoch_pub();
+    let now = current_epoch();
 
-    with_read_txn_pub(|txn, dbs| {
+    with_read_txn(|txn, dbs| {
         let mut results = Vec::new();
         let prefix_str = unsafe { std::str::from_utf8_unchecked(&prefix) };
 
@@ -189,7 +189,7 @@ pub fn list_sessions(entity_id: &str) -> Result<Vec<SessionInfo>> {
 pub fn revoke_all_sessions(entity_id: &str) -> Result<u64> {
     let prefix = crate::keys::build_prefix(&[entity_id]);
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         let mut hashes = Vec::new();
         let prefix_str = unsafe { std::str::from_utf8_unchecked(&prefix) };
 
@@ -251,7 +251,7 @@ pub fn set_password(entity_id: &str, password: &str) -> Result<()> {
     let hash = hash_password(&salt, password);
     let value = format!("{}|{}", salt, hash);
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
         dbs.credentials.put(txn, entity_id, &value)
             .map_err(|e| CapbitError { message: e.to_string() })?;
         Ok(())
@@ -260,7 +260,7 @@ pub fn set_password(entity_id: &str, password: &str) -> Result<()> {
 
 /// Verify password for an entity
 pub fn verify_password(entity_id: &str, password: &str) -> Result<bool> {
-    with_read_txn_pub(|txn, dbs| {
+    with_read_txn(|txn, dbs| {
         let value = match dbs.credentials.get(txn, entity_id)
             .map_err(|e| CapbitError { message: e.to_string() })? {
             Some(v) => v.to_string(),

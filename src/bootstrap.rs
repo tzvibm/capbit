@@ -7,7 +7,7 @@ use crate::core::{
     self, CapbitError, Result,
     create_type_in, create_entity_in, set_meta_in,
     set_capability_in, set_relationship_in,
-    with_write_txn_pub,
+    with_write_txn, current_epoch,
 };
 
 /// Core entity types created at bootstrap
@@ -37,7 +37,7 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
         return Err(CapbitError { message: "System already bootstrapped".into() });
     }
 
-    with_write_txn_pub(|txn, dbs| {
+    with_write_txn(|txn, dbs| {
 
         // 1. Create the meta-type (type of types)
         create_type_in(txn, dbs, "_type")?;
@@ -106,7 +106,7 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
         }
 
         // 8. Mark as bootstrapped
-        let epoch = core::current_epoch_pub();
+        let epoch = current_epoch();
         set_meta_in(txn, dbs, "bootstrapped", "true")?;
         set_meta_in(txn, dbs, "bootstrap_epoch", &epoch.to_string())?;
         set_meta_in(txn, dbs, "root_entity", &root_entity)?;

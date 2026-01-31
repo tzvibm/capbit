@@ -77,7 +77,7 @@ fn get_dbs() -> Result<&'static Databases> {
     DBS.get().ok_or_else(|| CapbitError { message: "Database not initialized".into() })
 }
 
-fn with_read_txn<T, F>(f: F) -> Result<T>
+pub(crate) fn with_read_txn<T, F>(f: F) -> Result<T>
 where
     F: FnOnce(&RoTxn, &Databases) -> Result<T>,
 {
@@ -87,7 +87,7 @@ where
     f(&txn, dbs)
 }
 
-fn with_write_txn<T, F>(f: F) -> Result<T>
+pub(crate) fn with_write_txn<T, F>(f: F) -> Result<T>
 where
     F: FnOnce(&mut RwTxn, &Databases) -> Result<T>,
 {
@@ -99,7 +99,7 @@ where
     Ok(result)
 }
 
-fn current_epoch() -> u64 {
+pub(crate) fn current_epoch() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -258,7 +258,7 @@ pub(crate) fn create_type_in(txn: &mut RwTxn, dbs: &Databases, type_name: &str) 
     Ok(epoch)
 }
 
-pub(crate) fn type_exists_in_rw(txn: &RwTxn, dbs: &Databases, type_name: &str) -> Result<bool> {
+fn type_exists_in(txn: &RoTxn, dbs: &Databases, type_name: &str) -> Result<bool> {
     Ok(dbs.types.get(txn, type_name).map_err(err)?.is_some())
 }
 
@@ -268,7 +268,7 @@ pub(crate) fn create_entity_in(txn: &mut RwTxn, dbs: &Databases, entity_id: &str
 
     // Check type exists (except for _type: entities during bootstrap)
     if !type_name.starts_with('_') {
-        if !type_exists_in_rw(txn, dbs, type_name)? {
+        if !type_exists_in(txn, dbs, type_name)? {
             return Err(CapbitError { message: format!("Type '{}' does not exist", type_name) });
         }
     }
@@ -286,10 +286,6 @@ pub(crate) fn delete_entity_in(txn: &mut RwTxn, dbs: &Databases, entity_id: &str
 }
 
 pub(crate) fn entity_exists_in(txn: &RoTxn, dbs: &Databases, entity_id: &str) -> Result<bool> {
-    Ok(dbs.entities.get(txn, entity_id).map_err(err)?.is_some())
-}
-
-pub(crate) fn entity_exists_in_rw(txn: &RwTxn, dbs: &Databases, entity_id: &str) -> Result<bool> {
     Ok(dbs.entities.get(txn, entity_id).map_err(err)?.is_some())
 }
 
@@ -318,24 +314,6 @@ pub fn get_meta(key: &str) -> Result<Option<String>> {
     with_read_txn(|txn, dbs| get_meta_in(txn, dbs, key))
 }
 
-// Expose transaction helpers for other modules
-pub(crate) fn with_write_txn_pub<T, F>(f: F) -> Result<T>
-where
-    F: FnOnce(&mut RwTxn, &Databases) -> Result<T>,
-{
-    with_write_txn(f)
-}
-
-pub(crate) fn with_read_txn_pub<T, F>(f: F) -> Result<T>
-where
-    F: FnOnce(&RoTxn, &Databases) -> Result<T>,
-{
-    with_read_txn(f)
-}
-
-pub(crate) fn current_epoch_pub() -> u64 {
-    current_epoch()
-}
 
 // ============================================================================
 // Public API - Relationships
@@ -566,36 +544,29 @@ pub fn batch_set_inheritance(entries: &[(String, String, String)]) -> Result<u64
 // Public API - Query Operations
 // ============================================================================
 
-pub fn list_accessible(subject: &str) -> Result<Vec<(String, String)>> {
-    with_read_txn(|txn, dbs| {
-        let prefix = build_prefix(&[subject]);
-        let mut results = Vec::new();
-
-        for item in dbs.relationships.prefix_iter(txn, &prefix).map_err(err)? {
-            let (key, _) = item.map_err(err)?;
-            let parts = parse_key(key);
-            if parts.len() == 3 {
-                results.push((parts[2].to_string(), parts[1].to_string()));
-            }
+fn list_relations_by_prefix(
+    txn: &RoTxn,
+    db: &Database<Bytes, U64<byteorder::BigEndian>>,
+    prefix_key: &str,
+) -> Result<Vec<(String, String)>> {
+    let prefix = build_prefix(&[prefix_key]);
+    let mut results = Vec::new();
+    for item in db.prefix_iter(txn, &prefix).map_err(err)? {
+        let (key, _) = item.map_err(err)?;
+        let parts = parse_key(key);
+        if parts.len() == 3 {
+            results.push((parts[2].to_string(), parts[1].to_string()));
         }
-        Ok(results)
-    })
+    }
+    Ok(results)
+}
+
+pub fn list_accessible(subject: &str) -> Result<Vec<(String, String)>> {
+    with_read_txn(|txn, dbs| list_relations_by_prefix(txn, &dbs.relationships, subject))
 }
 
 pub fn list_subjects(object: &str) -> Result<Vec<(String, String)>> {
-    with_read_txn(|txn, dbs| {
-        let prefix = build_prefix(&[object]);
-        let mut results = Vec::new();
-
-        for item in dbs.relationships_rev.prefix_iter(txn, &prefix).map_err(err)? {
-            let (key, _) = item.map_err(err)?;
-            let parts = parse_key(key);
-            if parts.len() == 3 {
-                results.push((parts[2].to_string(), parts[1].to_string()));
-            }
-        }
-        Ok(results)
-    })
+    with_read_txn(|txn, dbs| list_relations_by_prefix(txn, &dbs.relationships_rev, object))
 }
 
 // ============================================================================

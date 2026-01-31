@@ -1,4 +1,15 @@
 // ============================================================================
+// Constants
+// ============================================================================
+
+const CONFIG = {
+    LOG_MAX_ENTRIES: 100,
+    CAP_BITS_COUNT: 16,
+    SYSTEM_READ_SCOPE: '_type:_type',
+    SYSTEM_READ_BIT: 0x2000,
+};
+
+// ============================================================================
 // State
 // ============================================================================
 
@@ -10,15 +21,45 @@ let viewerCanSeeSystem = false;
 let modalBits = 0;
 let selectedBits = 0;
 
-const SYSTEM_READ_SCOPE = '_type:_type';
-const SYSTEM_READ_BIT = 0x2000;
-
 const known = {
     entities: [],
     grants: [],
     capabilities: [],
     delegations: [],
     capLabels: []
+};
+
+// ============================================================================
+// DOM Helpers
+// ============================================================================
+
+const $ = (id) => document.getElementById(id);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+const setHtml = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
+const setValue = (id, val) => { const el = $(id); if (el) el.value = val; };
+const getValue = (id, trim = true) => { const el = $(id); return el ? (trim ? el.value.trim() : el.value) : ''; };
+
+const entitySelectHtml = (placeholder = '-- Select entity --') =>
+    `<option value="">${placeholder}</option>` +
+    known.entities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
+
+const setEntitySelects = (...ids) => {
+    const html = entitySelectHtml();
+    ids.forEach(id => setHtml(id, html));
+};
+
+const showError = (msg) => {
+    log(`Error: ${msg}`, 'error');
+    alert(msg);
+};
+
+const renderListOrEmpty = (containerId, items, emptyIcon, emptyMsg, itemRenderer) => {
+    if (!items.length) {
+        setHtml(containerId, `<div class="empty"><div class="empty-icon">${emptyIcon}</div><p>${emptyMsg}</p></div>`);
+        return;
+    }
+    setHtml(containerId, items.map(itemRenderer).join(''));
 };
 
 // ============================================================================
@@ -38,7 +79,7 @@ const badge = (text, className = 'relation-badge') =>
 const capBadge = (mask) =>
     `<span class="cap-badge">0x${mask.toString(16).padStart(4, '0')}</span>`;
 
-const systemIcon = () => '<span title="System internal" style="opacity: 0.6; margin-right: 0.25rem;">⚙</span>';
+const systemIcon = () => '<span title="System internal" class="system-icon">⚙</span>';
 
 // ============================================================================
 // Template Data (Declarative)
@@ -185,13 +226,13 @@ const TEMPLATES = {
 // ============================================================================
 
 function log(msg, type = '') {
-    const logDiv = document.getElementById('log');
+    const logDiv = $('log');
     const time = new Date().toLocaleTimeString();
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
     entry.innerHTML = `<span class="time">${time}</span>${msg}`;
     logDiv.insertBefore(entry, logDiv.firstChild);
-    while (logDiv.children.length > 100) {
+    while (logDiv.children.length > CONFIG.LOG_MAX_ENTRIES) {
         logDiv.removeChild(logDiv.lastChild);
     }
 }
@@ -207,19 +248,16 @@ function logResponse(success, data) {
 }
 
 function clearLog() {
-    document.getElementById('log').innerHTML = '';
+    setHtml('log', '');
     log('Log cleared', 'info');
 }
 
 function copyLogs() {
-    const logDiv = document.getElementById('log');
-    const entries = [...logDiv.querySelectorAll('.log-entry')].reverse();
+    const entries = [...$$('#log .log-entry')].reverse();
     const text = entries.map(e => e.textContent).join('\n');
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(() => log('Logs copied!', 'success')).catch(() => fallbackCopy(text));
-    } else {
-        fallbackCopy(text);
-    }
+    navigator.clipboard?.writeText(text)
+        .then(() => log('Logs copied!', 'success'))
+        .catch(() => fallbackCopy(text)) || fallbackCopy(text);
 }
 
 function fallbackCopy(text) {
@@ -266,10 +304,11 @@ async function checkConnection() {
     apiUrl = '';
     log(`Connecting to ${window.location.origin}...`, 'info');
     const result = await api('GET', '/status');
+    const dot = $('status-dot');
     if (result.ok) {
         connected = true;
-        document.getElementById('status-dot').classList.add('connected');
-        document.getElementById('status-dot').title = result.data.bootstrapped
+        dot.classList.add('connected');
+        dot.title = result.data.bootstrapped
             ? `Connected (root: ${result.data.root_entity})`
             : 'Connected (not bootstrapped)';
         updateBootstrapUI(result.data.bootstrapped, result.data.root_entity);
@@ -277,13 +316,13 @@ async function checkConnection() {
         await loadData();
     } else {
         connected = false;
-        document.getElementById('status-dot').classList.remove('connected');
+        dot.classList.remove('connected');
     }
 }
 
 function updateBootstrapUI(bootstrapped, rootEntity) {
-    const form = document.getElementById('bootstrap-form');
-    const status = document.getElementById('bootstrap-status');
+    const form = $('bootstrap-form');
+    const status = $('bootstrap-status');
     if (bootstrapped) {
         form.style.display = 'none';
         status.innerHTML = `System bootstrapped. Root: <strong>${rootEntity}</strong>`;
@@ -309,11 +348,11 @@ async function checkAuth() {
 }
 
 function updateAuthUI(loggedIn, entity) {
-    const authStatus = document.getElementById('auth-status');
-    const logoutBtn = document.getElementById('logout-btn');
-    const loggedOutDiv = document.getElementById('auth-logged-out');
-    const loggedInDiv = document.getElementById('auth-logged-in');
-    const setPasswordCard = document.getElementById('set-password-card');
+    const authStatus = $('auth-status');
+    const logoutBtn = $('logout-btn');
+    const loggedOutDiv = $('auth-logged-out');
+    const loggedInDiv = $('auth-logged-in');
+    const setPasswordCard = $('set-password-card');
 
     if (loggedIn) {
         authStatus.textContent = entity;
@@ -322,8 +361,8 @@ function updateAuthUI(loggedIn, entity) {
         loggedOutDiv.style.display = 'none';
         loggedInDiv.style.display = 'block';
         setPasswordCard.style.display = 'block';
-        document.getElementById('logged-in-entity').textContent = entity;
-        document.getElementById('current-token').textContent = authToken.substring(0, 20) + '...';
+        $('logged-in-entity').textContent = entity;
+        $('current-token').textContent = authToken.substring(0, 20) + '...';
     } else {
         authStatus.textContent = 'Not logged in';
         authStatus.style.color = 'var(--text-muted)';
@@ -335,8 +374,8 @@ function updateAuthUI(loggedIn, entity) {
 }
 
 async function doLogin() {
-    const token = document.getElementById('login-token').value.trim();
-    if (!token) return alert('Enter a token');
+    const token = getValue('login-token');
+    if (!token) return showError('Enter a token');
     authToken = token;
     const result = await api('GET', '/me');
     if (result.ok) {
@@ -345,19 +384,18 @@ async function doLogin() {
         currentViewer = result.data.entity;
         updateAuthUI(true, result.data.entity);
         log(`Logged in as ${result.data.entity}`, 'success');
-        document.getElementById('login-token').value = '';
+        setValue('login-token', '');
         await loadData();
     } else {
         authToken = null;
-        alert('Invalid token');
+        showError('Invalid token');
     }
 }
 
 async function doPasswordLogin() {
-    let entityId = document.getElementById('login-entity').value.trim();
-    const password = document.getElementById('login-password').value;
-    if (!entityId) return alert('Enter your username');
-    // Auto-prepend "user:" if not a full entity ID
+    let entityId = getValue('login-entity');
+    const password = getValue('login-password', false);
+    if (!entityId) return showError('Enter your username');
     if (!entityId.includes(':')) entityId = `user:${entityId}`;
     const result = await api('POST', '/login', { entity_id: entityId, password });
     if (result.ok) {
@@ -367,27 +405,26 @@ async function doPasswordLogin() {
         currentViewer = result.data.root_entity;
         updateAuthUI(true, result.data.root_entity);
         log(`Logged in as ${result.data.root_entity}`, 'success');
-        document.getElementById('login-entity').value = '';
-        document.getElementById('login-password').value = '';
+        setValue('login-entity', '');
+        setValue('login-password', '');
         await loadData();
     } else {
-        alert('Login failed: ' + (result.error || 'Invalid credentials'));
+        showError('Login failed: ' + (result.error || 'Invalid credentials'));
     }
 }
 
 async function doSetPassword() {
-    let entityId = document.getElementById('set-password-entity').value.trim();
-    const password = document.getElementById('set-password-value').value;
-    if (!entityId || !password) return alert('Enter username and password');
-    // Auto-prepend "user:" if not a full entity ID
+    let entityId = getValue('set-password-entity');
+    const password = getValue('set-password-value', false);
+    if (!entityId || !password) return showError('Enter username and password');
     if (!entityId.includes(':')) entityId = `user:${entityId}`;
     const result = await api('POST', '/password', { entity_id: entityId, password });
     if (result.ok) {
         log(`Password set for ${entityId}`, 'success');
-        document.getElementById('set-password-entity').value = '';
-        document.getElementById('set-password-value').value = '';
+        setValue('set-password-entity', '');
+        setValue('set-password-value', '');
     } else {
-        alert('Failed: ' + (result.error || 'Unknown error'));
+        showError('Failed: ' + (result.error || 'Unknown error'));
     }
 }
 
@@ -673,75 +710,61 @@ function showForm(name) {
 }
 
 function populateRelationEntityDropdown() {
-    const select = document.getElementById('m-cap-scope');
-    select.innerHTML = '<option value="">-- Select entity --</option>' +
-        known.entities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
-    document.getElementById('m-cap-relation').innerHTML = '<option value="">-- Select entity first --</option>';
-    document.getElementById('m-cap-new-relation-group').classList.add('hidden');
-    document.getElementById('m-cap-new-relation').value = '';
+    setHtml('m-cap-scope', entitySelectHtml());
+    setHtml('m-cap-relation', '<option value="">-- Select entity first --</option>');
+    $('m-cap-new-relation-group').classList.add('hidden');
+    setValue('m-cap-new-relation', '');
     modalBits = 0;
-    document.getElementById('m-cap-value').textContent = '0x0000';
-    document.getElementById('m-cap-labels').innerHTML =
-        '<span style="color: var(--text-muted); font-size: 0.8rem;">Select an entity to see available capability bits</span>';
+    $('m-cap-value').textContent = '0x0000';
+    setHtml('m-cap-labels', '<span class="text-muted text-sm">Select an entity to see available capability bits</span>');
 }
 
 function updateRelationDropdown() {
-    const scope = document.getElementById('m-cap-scope').value;
-    const select = document.getElementById('m-cap-relation');
+    const scope = getValue('m-cap-scope');
     if (!scope) {
-        select.innerHTML = '<option value="">-- Select entity first --</option>';
-        document.getElementById('m-cap-new-relation-group').classList.add('hidden');
+        setHtml('m-cap-relation', '<option value="">-- Select entity first --</option>');
+        $('m-cap-new-relation-group').classList.add('hidden');
         return;
     }
     const existingRelations = [...new Set(known.capabilities.filter(c => c.scope === scope).map(c => c.relation))];
-    select.innerHTML = '<option value="">-- Select or add new --</option>' +
+    setHtml('m-cap-relation',
+        '<option value="">-- Select or add new --</option>' +
         existingRelations.map(r => `<option value="${r}">${r}</option>`).join('') +
-        '<option value="__new__">+ Add new relation...</option>';
-    document.getElementById('m-cap-new-relation-group').classList.add('hidden');
+        '<option value="__new__">+ Add new relation...</option>');
+    $('m-cap-new-relation-group').classList.add('hidden');
 }
 
 function handleRelationSelect() {
-    const select = document.getElementById('m-cap-relation');
-    const newGroup = document.getElementById('m-cap-new-relation-group');
-    if (select.value === '__new__') {
+    const val = getValue('m-cap-relation');
+    const newGroup = $('m-cap-new-relation-group');
+    if (val === '__new__') {
         newGroup.classList.remove('hidden');
-        document.getElementById('m-cap-new-relation').focus();
+        $('m-cap-new-relation').focus();
     } else {
         newGroup.classList.add('hidden');
-        document.getElementById('m-cap-new-relation').value = '';
+        setValue('m-cap-new-relation', '');
     }
 }
 
 function populateGrantFormDropdowns() {
-    const entityOptions = '<option value="">-- Select entity --</option>' +
-        known.entities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
-    document.getElementById('m-grant-seeker').innerHTML = entityOptions;
-    document.getElementById('m-grant-scope').innerHTML = entityOptions;
-    document.getElementById('m-grant-relation').innerHTML = '<option value="">-- Select scope first --</option>';
+    setEntitySelects('m-grant-seeker', 'm-grant-scope');
+    setHtml('m-grant-relation', '<option value="">-- Select scope first --</option>');
 }
 
 function updateGrantRelationDropdown() {
-    const scope = document.getElementById('m-grant-scope').value;
-    const select = document.getElementById('m-grant-relation');
+    const scope = getValue('m-grant-scope');
     if (!scope) {
-        select.innerHTML = '<option value="">-- Select scope first --</option>';
+        setHtml('m-grant-relation', '<option value="">-- Select scope first --</option>');
         return;
     }
     const relations = [...new Set(known.capabilities.filter(c => c.scope === scope).map(c => c.relation))];
-    if (relations.length === 0) {
-        select.innerHTML = '<option value="">-- No relations defined --</option>';
-    } else {
-        select.innerHTML = '<option value="">-- Select relation --</option>' +
-            relations.map(r => `<option value="${r}">${r}</option>`).join('');
-    }
+    setHtml('m-grant-relation', relations.length === 0
+        ? '<option value="">-- No relations defined --</option>'
+        : '<option value="">-- Select relation --</option>' + relations.map(r => `<option value="${r}">${r}</option>`).join(''));
 }
 
 function populateDelegateFormDropdowns() {
-    const entityOptions = '<option value="">-- Select entity --</option>' +
-        known.entities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
-    document.getElementById('m-deleg-seeker').innerHTML = entityOptions;
-    document.getElementById('m-deleg-scope').innerHTML = entityOptions;
-    document.getElementById('m-deleg-source').innerHTML = entityOptions;
+    setEntitySelects('m-deleg-seeker', 'm-deleg-scope', 'm-deleg-source');
 }
 
 function toggleCapLabel(bit) {
@@ -788,82 +811,78 @@ function updateCapBitLabels() {
 }
 
 function updateBitStatus() {
-    const scope = document.getElementById('m-label-scope').value;
-    const container = document.getElementById('bit-status');
+    const scope = getValue('m-label-scope');
     const usedBits = known.capLabels.filter(l => l.scope === scope).map(l => ({ bit: l.bit, label: l.label })).sort((a, b) => a.bit - b.bit);
     if (usedBits.length === 0) {
-        container.innerHTML = '<span style="color: var(--success);">All bits (0-15) available</span>';
+        setHtml('bit-status', '<span class="text-success">All bits (0-15) available</span>');
     } else {
-        const usedList = usedBits.map(b => `<span style="color: var(--danger);">${b.bit}:${b.label}</span>`).join(', ');
-        const availableBits = [];
-        for (let i = 0; i < 16; i++) {
-            if (!usedBits.find(b => b.bit === i)) availableBits.push(i);
-        }
-        container.innerHTML = `
-            <div style="margin-bottom: 0.25rem;"><strong>Used:</strong> ${usedList}</div>
-            <div><strong>Available:</strong> <span style="color: var(--success);">${availableBits.join(', ')}</span></div>
-        `;
-        if (availableBits.length > 0) document.getElementById('m-label-bit').value = availableBits[0];
+        const usedList = usedBits.map(b => `<span class="text-danger">${b.bit}:${b.label}</span>`).join(', ');
+        const availableBits = Array.from({ length: CONFIG.CAP_BITS_COUNT }, (_, i) => i).filter(i => !usedBits.find(b => b.bit === i));
+        setHtml('bit-status', `
+            <div class="mb-1"><strong>Used:</strong> ${usedList}</div>
+            <div><strong>Available:</strong> <span class="text-success">${availableBits.join(', ')}</span></div>
+        `);
+        if (availableBits.length > 0) setValue('m-label-bit', availableBits[0]);
     }
 }
 
 // Modal form handlers
 async function doCreateTypeModal() {
-    const typeName = document.getElementById('m-type-name').value.trim();
-    if (!typeName) return alert('Enter type name');
+    const typeName = getValue('m-type-name');
+    if (!typeName) return showError('Enter type name');
     const result = await api('POST', '/type', { type_name: typeName });
     if (result.ok) {
         known.entities.push({ id: `_type:${typeName}`, type: '_type' });
-        document.getElementById('m-type-name').value = '';
+        setValue('m-type-name', '');
         renderAll();
         closeModal();
     }
 }
 
 async function doCreateEntityModal() {
-    const entityType = document.getElementById('m-entity-type').value;
-    const id = document.getElementById('m-entity-id').value.trim();
-    if (!id) return alert('Enter entity ID');
+    const entityType = getValue('m-entity-type');
+    const id = getValue('m-entity-id');
+    if (!id) return showError('Enter entity ID');
     const result = await api('POST', '/entity', { entity_type: entityType, id });
     if (result.ok) {
         known.entities.push({ id: `${entityType}:${id}`, type: entityType });
-        document.getElementById('m-entity-id').value = '';
+        setValue('m-entity-id', '');
         renderAll();
         closeModal();
     }
 }
 
 async function doDefineCapLabelModal() {
-    const scope = document.getElementById('m-label-scope').value;
-    const bit = parseInt(document.getElementById('m-label-bit').value);
-    const label = document.getElementById('m-label-name').value.trim();
-    if (!label) return alert('Enter a label');
+    const scope = getValue('m-label-scope');
+    const bit = parseInt(getValue('m-label-bit'));
+    const label = getValue('m-label-name');
+    if (!label) return showError('Enter a label');
     const result = await api('POST', '/cap-label', { scope, bit, label });
     if (result.ok) {
         const existing = known.capLabels.findIndex(l => l.scope === scope && l.bit === bit);
         if (existing >= 0) known.capLabels[existing].label = label;
         else known.capLabels.push({ scope, bit, label });
-        document.getElementById('m-label-name').value = '';
+        setValue('m-label-name', '');
         renderAll();
         closeModal();
     }
 }
 
 async function doCreateCapabilityModal() {
-    const scope = document.getElementById('m-cap-scope').value;
-    const relationSelect = document.getElementById('m-cap-relation').value;
-    const relation = relationSelect === '__new__' ? document.getElementById('m-cap-new-relation').value.trim() : relationSelect;
-    if (!scope || !relation) return alert('Fill all fields');
-    if (modalBits === 0) return alert('Select at least one capability bit');
+    const scope = getValue('m-cap-scope');
+    const relationSelect = getValue('m-cap-relation');
+    const relation = relationSelect === '__new__' ? getValue('m-cap-new-relation') : relationSelect;
+    if (!scope || !relation) return showError('Fill all fields');
+    if (modalBits === 0) return showError('Select at least one capability bit');
     const result = await api('POST', '/capability', { scope, relation, cap_mask: modalBits });
     if (result.ok) {
         const existing = known.capabilities.findIndex(c => c.scope === scope && c.relation === relation);
         if (existing >= 0) known.capabilities[existing].cap_mask = modalBits;
         else known.capabilities.push({ scope, relation, cap_mask: modalBits });
-        document.getElementById('m-cap-scope').value = '';
-        document.getElementById('m-cap-relation').value = '';
-        document.getElementById('m-cap-new-relation').value = '';
-        document.getElementById('m-cap-new-relation-group').classList.add('hidden');
+        setValue('m-cap-scope', '');
+        setValue('m-cap-relation', '');
+        setValue('m-cap-new-relation', '');
+        $('m-cap-new-relation-group').classList.add('hidden');
         modalBits = 0;
         renderAll();
         closeModal();
@@ -871,32 +890,32 @@ async function doCreateCapabilityModal() {
 }
 
 async function doCreateGrantModal() {
-    const seeker = document.getElementById('m-grant-seeker').value;
-    const scope = document.getElementById('m-grant-scope').value;
-    const relation = document.getElementById('m-grant-relation').value;
-    if (!seeker || !relation || !scope) return alert('Fill all fields');
+    const seeker = getValue('m-grant-seeker');
+    const scope = getValue('m-grant-scope');
+    const relation = getValue('m-grant-relation');
+    if (!seeker || !relation || !scope) return showError('Fill all fields');
     const result = await api('POST', '/grant', { seeker, relation, scope });
     if (result.ok) {
         known.grants.push({ seeker, relation, scope });
-        document.getElementById('m-grant-seeker').value = '';
-        document.getElementById('m-grant-scope').value = '';
-        document.getElementById('m-grant-relation').innerHTML = '<option value="">-- Select scope first --</option>';
+        setValue('m-grant-seeker', '');
+        setValue('m-grant-scope', '');
+        setHtml('m-grant-relation', '<option value="">-- Select scope first --</option>');
         renderAll();
         closeModal();
     }
 }
 
 async function doCreateDelegationModal() {
-    const seeker = document.getElementById('m-deleg-seeker').value;
-    const scope = document.getElementById('m-deleg-scope').value;
-    const delegate = document.getElementById('m-deleg-source').value;
-    if (!seeker || !scope || !delegate) return alert('Fill all fields');
+    const seeker = getValue('m-deleg-seeker');
+    const scope = getValue('m-deleg-scope');
+    const delegate = getValue('m-deleg-source');
+    if (!seeker || !scope || !delegate) return showError('Fill all fields');
     const result = await api('POST', '/delegation', { seeker, scope, delegate });
     if (result.ok) {
         known.delegations.push({ seeker, scope, delegate });
-        document.getElementById('m-deleg-seeker').value = '';
-        document.getElementById('m-deleg-scope').value = '';
-        document.getElementById('m-deleg-source').value = '';
+        setValue('m-deleg-seeker', '');
+        setValue('m-deleg-scope', '');
+        setValue('m-deleg-source', '');
         renderAll();
         closeModal();
     }
@@ -907,16 +926,14 @@ async function doCreateDelegationModal() {
 // ============================================================================
 
 function showTab(name) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    const tabContent = document.getElementById(`tab-${name}`);
-    if (tabContent) tabContent.classList.add('active');
-    const tabBtn = document.querySelector(`.tab[onclick="showTab('${name}')"]`);
-    if (tabBtn) tabBtn.classList.add('active');
+    $$('.tab').forEach(t => t.classList.remove('active'));
+    $$('.tab-content').forEach(t => t.classList.remove('active'));
+    $(`tab-${name}`)?.classList.add('active');
+    document.querySelector(`.tab[onclick="showTab('${name}')"]`)?.classList.add('active');
 }
 
 function toggleAccordion(section) {
-    const content = document.getElementById(`section-${section}`);
+    const content = $(`section-${section}`);
     const arrow = document.querySelector(`.accordion[data-section="${section}"] .accordion-arrow`);
     const isOpen = content.classList.contains('open');
     content.classList.toggle('open');
@@ -936,9 +953,7 @@ function filterSystem(items, scopeField = 'id') {
     });
 }
 
-function isSystemEntity(id) {
-    return id.startsWith('_type:') || id.startsWith('_system:');
-}
+const isSystemEntity = (id) => id.startsWith('_type:') || id.startsWith('_system:');
 
 function renderAll() {
     renderEntities();
@@ -954,50 +969,37 @@ function updateCounts() {
     const displayEntities = filterSystem(known.entities, 'id');
     const displayCaps = filterSystem(known.capabilities, 'scope');
     const displayGrants = filterSystem(known.grants, 'scope');
-    document.getElementById('count-entities').textContent = displayEntities.length;
-    document.getElementById('count-capbits').textContent = known.capLabels.length;
-    document.getElementById('count-relations').textContent = displayCaps.length;
-    document.getElementById('count-grants').textContent = displayGrants.length;
-    document.getElementById('count-delegations').textContent = known.delegations.length;
+    $('count-entities').textContent = displayEntities.length;
+    $('count-capbits').textContent = known.capLabels.length;
+    $('count-relations').textContent = displayCaps.length;
+    $('count-grants').textContent = displayGrants.length;
+    $('count-delegations').textContent = known.delegations.length;
     const total = displayEntities.length + known.capLabels.length + displayCaps.length + displayGrants.length + known.delegations.length;
-    const homeBtn = document.getElementById('tab-btn-home');
+    const homeBtn = $('tab-btn-home');
     if (homeBtn) homeBtn.textContent = total > 0 ? `Home (${total})` : 'Home';
 }
 
 function renderTestSelects() {
     const displayEntities = filterSystem(known.entities, 'id');
-    const entityOptions = displayEntities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
-    const placeholder = '<option value="">-- Select entity --</option>';
-    ['check-subject', 'check-object', 'query-subject', 'query-object'].forEach(id => {
-        document.getElementById(id).innerHTML = placeholder + entityOptions;
-    });
+    const opts = '<option value="">-- Select entity --</option>' + displayEntities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
+    ['check-subject', 'check-object', 'query-subject', 'query-object'].forEach(id => setHtml(id, opts));
+
     const displayCaps = filterSystem(known.capabilities, 'scope');
     const sortedCaps = [...displayCaps].sort((a, b) => a.scope !== b.scope ? a.scope.localeCompare(b.scope) : a.cap_mask - b.cap_mask);
-    let capOptions = '<option value="0">0x0000 (ANY)</option>';
-    sortedCaps.forEach(c => {
-        const hex = '0x' + c.cap_mask.toString(16).padStart(4, '0').toUpperCase();
-        capOptions += `<option value="${c.cap_mask}">${c.scope} → ${c.relation} (${hex})</option>`;
-    });
-    document.getElementById('check-cap').innerHTML = capOptions;
+    const capOpts = '<option value="0">0x0000 (ANY)</option>' +
+        sortedCaps.map(c => `<option value="${c.cap_mask}">${c.scope} → ${c.relation} (0x${c.cap_mask.toString(16).padStart(4, '0').toUpperCase()})</option>`).join('');
+    setHtml('check-cap', capOpts);
 }
 
 function renderEntities() {
-    const list = document.getElementById('entity-list');
     const displayEntities = filterSystem(known.entities, 'id');
-    if (displayEntities.length === 0) {
-        list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>No entities yet</p></div>';
-        return;
-    }
-    list.innerHTML = displayEntities.map(e => {
-        const isSys = isSystemEntity(e.id);
-        return `<div class="list-item"${isSys ? ' style="opacity: 0.7;"' : ''}>${isSys ? systemIcon() : ''}${chip(e.id)}</div>`;
-    }).join('');
+    renderListOrEmpty('entity-list', displayEntities, '📋', 'No entities yet',
+        e => `<div class="list-item${isSystemEntity(e.id) ? ' system-item' : ''}">${isSystemEntity(e.id) ? systemIcon() : ''}${chip(e.id)}</div>`);
 }
 
 function renderPrimitiveCapabilities() {
-    const container = document.getElementById('primitive-cap-list');
     if (known.capLabels.length === 0) {
-        container.innerHTML = '<div class="empty"><div class="empty-icon">🔹</div><p>No primitive capabilities defined yet</p></div>';
+        setHtml('primitive-cap-list', '<div class="empty"><div class="empty-icon">🔹</div><p>No primitive capabilities defined yet</p></div>');
         return;
     }
     const byScope = new Map();
@@ -1010,65 +1012,47 @@ function renderPrimitiveCapabilities() {
         labels.sort((a, b) => a.bit - b.bit);
         labels.forEach(l => {
             const mask = 1 << l.bit;
-            html += `<div class="list-item">${chip(scope)} <span class="cap-badge" style="background: var(--success); color: white;">bit${l.bit}</span> <span style="font-weight: 600;">${l.label}</span> ${capBadge(mask)}</div>`;
+            html += `<div class="list-item">${chip(scope)} <span class="cap-badge cap-badge-success">bit${l.bit}</span> <strong>${l.label}</strong> ${capBadge(mask)}</div>`;
         });
     });
-    container.innerHTML = html + '</div>';
+    setHtml('primitive-cap-list', html + '</div>');
 }
 
 function renderGrants() {
-    const list = document.getElementById('grant-list');
     const displayGrants = filterSystem(known.grants, 'scope');
-    if (displayGrants.length === 0) {
-        list.innerHTML = '<div class="empty"><div class="empty-icon">🔗</div><p>No direct grants yet</p></div>';
-        return;
-    }
-    list.innerHTML = displayGrants.map(g => {
-        const isSys = isSystemEntity(g.scope);
-        return `<div class="list-item"${isSys ? ' style="opacity: 0.7;"' : ''}>${isSys ? systemIcon() : ''}${chip(g.seeker)} ${arrow()} ${badge(g.relation)} ${arrow()} ${chip(g.scope)}</div>`;
-    }).join('');
+    renderListOrEmpty('grant-list', displayGrants, '🔗', 'No direct grants yet',
+        g => `<div class="list-item${isSystemEntity(g.scope) ? ' system-item' : ''}">${isSystemEntity(g.scope) ? systemIcon() : ''}${chip(g.seeker)} ${arrow()} ${badge(g.relation)} ${arrow()} ${chip(g.scope)}</div>`);
 }
 
 function renderDelegations() {
-    const list = document.getElementById('delegation-list');
-    if (known.delegations.length === 0) {
-        list.innerHTML = '<div class="empty"><div class="empty-icon">↗️</div><p>No delegations yet</p></div>';
-        return;
-    }
-    list.innerHTML = known.delegations.map(d => `
-        <div class="list-item" style="background: rgba(245, 158, 11, 0.1);">
-            ${chip(d.seeker)} ${arrow('inherits from')} ${chip(d.delegate)} ${arrow('on')} ${chip(d.scope)}
-        </div>
-    `).join('');
+    renderListOrEmpty('delegation-list', known.delegations, '↗️', 'No delegations yet',
+        d => `<div class="list-item delegation-item">${chip(d.seeker)} ${arrow('inherits from')} ${chip(d.delegate)} ${arrow('on')} ${chip(d.scope)}</div>`);
 }
 
 function renderCapabilities() {
-    const list = document.getElementById('cap-list');
     const displayCaps = filterSystem(known.capabilities, 'scope');
     if (displayCaps.length === 0) {
-        list.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div><p>No grant relations defined yet</p></div>';
+        setHtml('cap-list', '<div class="empty"><div class="empty-icon">⚡</div><p>No grant relations defined yet</p></div>');
         return;
     }
-    list.innerHTML = displayCaps.map(c => {
-        const scopeType = c.scope.split(':')[0];
-        const typeScope = `_type:${scopeType}`;
+    setHtml('cap-list', displayCaps.map(c => {
+        const typeScope = `_type:${c.scope.split(':')[0]}`;
         const isSys = isSystemEntity(c.scope);
         const typeLabels = known.capLabels.filter(l => l.scope === typeScope);
         const bitLabels = [];
-        for (let i = 0; i < 16; i++) {
+        for (let i = 0; i < CONFIG.CAP_BITS_COUNT; i++) {
             if (c.cap_mask & (1 << i)) {
                 const label = typeLabels.find(l => l.bit === i);
                 bitLabels.push(label ? label.label : `bit${i}`);
             }
         }
-        const labelStr = bitLabels.length > 0 ? bitLabels.join(' + ') : '';
+        const labelStr = bitLabels.join(' + ');
         return `
-            <div class="list-item" style="flex-wrap: wrap;${isSys ? ' opacity: 0.7;' : ''}">
+            <div class="list-item cap-item${isSys ? ' system-item' : ''}">
                 ${isSys ? systemIcon() : ''}${chip(c.scope)} ${badge(c.relation)} ${capBadge(c.cap_mask)}
-                ${labelStr ? `<span style="font-size: 0.7rem; color: var(--text-muted); width: 100%; margin-top: 0.25rem;">= ${labelStr}</span>` : ''}
-            </div>
-        `;
-    }).join('');
+                ${labelStr ? `<span class="cap-labels">= ${labelStr}</span>` : ''}
+            </div>`;
+    }).join(''));
 }
 
 // ============================================================================
@@ -1076,7 +1060,7 @@ function renderCapabilities() {
 // ============================================================================
 
 function initBitSelector() {
-    const container = document.getElementById('bit-selector');
+    const container = $('bit-selector');
     if (!container) return;
     container.innerHTML = '';
     for (let i = 0; i < 16; i++) {
