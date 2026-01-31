@@ -22,8 +22,22 @@ cargo build --release                      # Build optimized
 cargo test                                 # Run all 192 tests
 cargo test -- --nocapture                  # Run with output
 cargo test demo_simulation -- --nocapture  # Interactive demo
-cargo run --features server --bin capbit-server  # Run REST API server (localhost:3000)
 ```
+
+### Running the Server
+
+**IMPORTANT for Claude CLI:** Use the management script to run the server:
+
+```bash
+./scripts/server.sh start    # Start server (background, port 3000)
+./scripts/server.sh stop     # Stop server
+./scripts/server.sh status   # Check if running
+./scripts/server.sh logs     # View server logs
+PORT=3001 ./scripts/server.sh start  # Use different port
+```
+
+Do NOT use `cargo run` directly - it won't work properly in Claude CLI's environment.
+The script handles process detachment and logging correctly for Termux.
 
 ## Architecture
 
