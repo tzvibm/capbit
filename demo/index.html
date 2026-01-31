@@ -120,127 +120,346 @@
             </div>
         </div>
 
-        <!-- Home Tab -->
+        <!-- Home Tab - Dashboard -->
         <div id="tab-home" class="tab-content active">
-            <div class="home-list">
-                <div class="home-card" onclick="toggleMini('types')">
-                    <span class="hc-icon">📁</span>
-                    <span class="hc-name">Types</span>
-                    <span class="hc-count" id="count-types">0</span>
+            <!-- Hero -->
+            <div class="hero">
+                <div class="hero-icon">🔐</div>
+                <div class="hero-text">
+                    <div class="hero-title">Fine-Grained Access Control</div>
+                    <div class="hero-sub">Entity-relative roles and capabilities. Bit-level granularity with O(1) evaluation. Bounded inheritance. Full observability.</div>
                 </div>
-                <div class="expand-section hidden" id="section-types"><div id="type-list"></div></div>
+            </div>
 
-                <div class="home-card" onclick="toggleMini('entities')">
-                    <span class="hc-icon">👤</span>
-                    <span class="hc-name">Entities</span>
-                    <span class="hc-count" id="count-entities">0</span>
+            <!-- Stats Grid -->
+            <div class="dash-grid">
+                <div class="dash-stat" onclick="toggleDash('types')">
+                    <span class="dash-icon">📁</span>
+                    <span class="dash-num" id="count-types">0</span>
+                    <span class="dash-label">Types</span>
                 </div>
-                <div class="expand-section hidden" id="section-entities"><div id="entity-list"></div></div>
+                <div class="dash-stat" onclick="toggleDash('entities')">
+                    <span class="dash-icon">👤</span>
+                    <span class="dash-num" id="count-entities">0</span>
+                    <span class="dash-label">Entities</span>
+                </div>
+                <div class="dash-stat" onclick="toggleDash('capbits')">
+                    <span class="dash-icon">⚡</span>
+                    <span class="dash-num" id="count-capbits">0</span>
+                    <span class="dash-label">Actions</span>
+                </div>
+                <div class="dash-stat" onclick="toggleDash('relations')">
+                    <span class="dash-icon">🎭</span>
+                    <span class="dash-num" id="count-relations">0</span>
+                    <span class="dash-label">Roles</span>
+                </div>
+                <div class="dash-stat" onclick="toggleDash('grants')">
+                    <span class="dash-icon">🔑</span>
+                    <span class="dash-num" id="count-grants">0</span>
+                    <span class="dash-label">Members</span>
+                </div>
+                <div class="dash-stat" onclick="toggleDash('delegations')">
+                    <span class="dash-icon">🔗</span>
+                    <span class="dash-num" id="count-delegations">0</span>
+                    <span class="dash-label">Inheritance</span>
+                </div>
+            </div>
 
-                <div class="home-card" onclick="toggleMini('capbits')">
-                    <span class="hc-icon">⚡</span>
-                    <span class="hc-name">Actions</span>
-                    <span class="hc-count" id="count-capbits">0</span>
-                </div>
-                <div class="expand-section hidden" id="section-capbits"><div id="primitive-cap-list"></div></div>
+            <!-- Quick Start hint -->
+            <div class="hint" id="empty-hint">
+                <p>👆 Tap <strong>Setup</strong> → run a template to see it in action</p>
+            </div>
 
-                <div class="home-card" onclick="toggleMini('relations')">
-                    <span class="hc-icon">👥</span>
-                    <span class="hc-name">Groups</span>
-                    <span class="hc-count" id="count-relations">0</span>
-                </div>
-                <div class="expand-section hidden" id="section-relations"><div id="cap-list"></div></div>
+            <!-- Collapsible sections -->
+            <div class="dash-section hidden" id="dash-types">
+                <div class="dash-header">📁 Types</div>
+                <div id="type-list" class="dash-list"></div>
+            </div>
 
-                <div class="home-card" onclick="toggleMini('grants')">
-                    <span class="hc-icon">🔑</span>
-                    <span class="hc-name">Members</span>
-                    <span class="hc-count" id="count-grants">0</span>
-                </div>
-                <div class="expand-section hidden" id="section-grants"><div id="grant-list"></div></div>
+            <div class="dash-section hidden" id="dash-entities">
+                <div class="dash-header">👤 Entities</div>
+                <div id="entity-list" class="dash-list"></div>
+            </div>
 
-                <div class="home-card" onclick="toggleMini('delegations')">
-                    <span class="hc-icon">🔗</span>
-                    <span class="hc-name">Sharing</span>
-                    <span class="hc-count" id="count-delegations">0</span>
-                </div>
-                <div class="expand-section hidden" id="section-delegations"><div id="delegation-list"></div></div>
+            <div class="dash-section hidden" id="dash-capbits">
+                <div class="dash-header">⚡ Actions</div>
+                <div id="primitive-cap-list" class="dash-list"></div>
+            </div>
+
+            <div class="dash-section hidden" id="dash-relations">
+                <div class="dash-header">🎭 Roles</div>
+                <div id="cap-list" class="dash-list"></div>
+            </div>
+
+            <div class="dash-section hidden" id="dash-grants">
+                <div class="dash-header">🔑 Members</div>
+                <div id="grant-list" class="dash-list"></div>
+            </div>
+
+            <div class="dash-section hidden" id="dash-delegations">
+                <div class="dash-header">🔗 Inheritance</div>
+                <div id="delegation-list" class="dash-list"></div>
             </div>
         </div>
 
         <!-- Query Tab -->
         <div id="tab-query" class="tab-content">
             <div class="home-list">
-                <div class="home-card" onclick="showQuery('check')">
-                    <span class="hc-icon">🔐</span>
-                    <span class="hc-name">Check Access</span>
+                <!-- 1. Types -->
+                <div class="home-card" onclick="showQuery('types')">
+                    <span class="hc-icon">📁</span>
+                    <span class="hc-name">Types</span>
                 </div>
-                <div class="expand-section hidden" id="qf-check">
-                    <div class="form-row stack">
-                        <div class="input-group">
-                            <label>Who?</label>
-                            <select id="check-subject"><option value="">-- Select --</option></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Accessing what?</label>
-                            <select id="check-object"><option value="">-- Select --</option></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Required</label>
-                            <select id="check-cap"><option value="0">Any (0x0000)</option></select>
-                        </div>
-                    </div>
-                    <button class="btn success full mt-1" onclick="doCheckAccess()">Check</button>
-                    <div id="check-result"></div>
-                </div>
-
-                <div class="home-card" onclick="showQuery('outbound')">
-                    <span class="hc-icon">📤</span>
-                    <span class="hc-name">What Can They Access?</span>
-                </div>
-                <div class="expand-section hidden" id="qf-outbound">
+                <div class="expand-section hidden" id="qf-types">
                     <div class="input-group">
-                        <label>Who?</label>
-                        <select id="query-subject"><option value="">-- Select --</option></select>
+                        <label>Type</label>
+                        <select id="q-type" onchange="qType()"><option value="">Select...</option></select>
                     </div>
-                    <button class="btn success full mt-1" onclick="doQueryAccessible()">Show</button>
-                    <div id="accessible-result"></div>
+                    <div id="q-types-result"></div>
                 </div>
 
-                <div class="home-card" onclick="showQuery('inbound')">
-                    <span class="hc-icon">📥</span>
-                    <span class="hc-name">Who Has Access?</span>
+                <!-- 2. Entities -->
+                <div class="home-card" onclick="showQuery('entities')">
+                    <span class="hc-icon">👤</span>
+                    <span class="hc-name">Entities</span>
                 </div>
-                <div class="expand-section hidden" id="qf-inbound">
+                <div class="expand-section hidden" id="qf-entities">
                     <div class="input-group">
-                        <label>To what?</label>
-                        <select id="query-object"><option value="">-- Select --</option></select>
+                        <label>Entity</label>
+                        <select id="q-entity" onchange="qEntity()"><option value="">Select...</option></select>
                     </div>
-                    <button class="btn success full mt-1" onclick="doQuerySubjects()">Show</button>
-                    <div id="subjects-result"></div>
+                    <div id="q-entities-result"></div>
                 </div>
 
-                <div class="home-card" onclick="showQuery('delegation')">
+                <!-- 3. Actions by Type -->
+                <div class="home-card" onclick="showQuery('actions')">
+                    <span class="hc-icon">⚡</span>
+                    <span class="hc-name">Actions by Type</span>
+                </div>
+                <div class="expand-section hidden" id="qf-actions">
+                    <div class="input-group">
+                        <label>Type</label>
+                        <select id="q-act-type" onchange="qActionsByType()"><option value="">Select...</option></select>
+                    </div>
+                    <div id="q-actions-result"></div>
+                </div>
+
+                <!-- 4. Groups by Entity -->
+                <div class="home-card" onclick="showQuery('groups-ent')">
+                    <span class="hc-icon">👥</span>
+                    <span class="hc-name">Groups by Entity</span>
+                </div>
+                <div class="expand-section hidden" id="qf-groups-ent">
+                    <div class="input-group">
+                        <label>Entity</label>
+                        <select id="q-grp-ent" onchange="qGroupsByEntity()"><option value="">Select...</option></select>
+                    </div>
+                    <div id="q-groups-ent-result"></div>
+                </div>
+
+                <!-- 5. Groups by Role -->
+                <div class="home-card" onclick="showQuery('groups-role')">
+                    <span class="hc-icon">🎭</span>
+                    <span class="hc-name">Groups by Role</span>
+                </div>
+                <div class="expand-section hidden" id="qf-groups-role">
+                    <div class="input-group">
+                        <label>Role name</label>
+                        <select id="q-grp-role" onchange="qGroupsByRole()"><option value="">Select...</option></select>
+                    </div>
+                    <div id="q-groups-role-result"></div>
+                </div>
+
+                <!-- 6. Members: By Who -->
+                <div class="home-card" onclick="showQuery('mem-who')">
+                    <span class="hc-icon">→</span>
+                    <span class="hc-name">Members: By Who</span>
+                </div>
+                <div class="expand-section hidden" id="qf-mem-who">
+                    <div class="input-group">
+                        <label>Who</label>
+                        <select id="q-mem-who" onchange="qMembersByWho()"><option value="">Select...</option></select>
+                    </div>
+                    <div id="q-mem-who-result"></div>
+                </div>
+
+                <!-- 7. Members: By What -->
+                <div class="home-card" onclick="showQuery('mem-what')">
+                    <span class="hc-icon">←</span>
+                    <span class="hc-name">Members: By What</span>
+                </div>
+                <div class="expand-section hidden" id="qf-mem-what">
+                    <div class="input-group">
+                        <label>What</label>
+                        <select id="q-mem-what" onchange="qMembersByWhat()"><option value="">Select...</option></select>
+                    </div>
+                    <div id="q-mem-what-result"></div>
+                </div>
+
+                <!-- 8. Members: By Role -->
+                <div class="home-card" onclick="showQuery('mem-role')">
+                    <span class="hc-icon">🏷️</span>
+                    <span class="hc-name">Members: By Role</span>
+                </div>
+                <div class="expand-section hidden" id="qf-mem-role">
+                    <div class="input-group">
+                        <label>Role</label>
+                        <select id="q-mem-role" onchange="qMembersByRole()"><option value="">Select...</option></select>
+                    </div>
+                    <div id="q-mem-role-result"></div>
+                </div>
+
+                <!-- 9. Members: Who + What → Roles -->
+                <div class="home-card" onclick="showQuery('mem-ww')">
+                    <span class="hc-icon">→</span>
+                    <span class="hc-name">Members: Who + What → Roles</span>
+                </div>
+                <div class="expand-section hidden" id="qf-mem-ww">
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Who</label>
+                            <select id="q-mem-ww-who" onchange="qMemWhoWhat()"><option value="">Select...</option></select>
+                        </div>
+                        <div class="input-group">
+                            <label>What</label>
+                            <select id="q-mem-ww-what" onchange="qMemWhoWhat()"><option value="">Select...</option></select>
+                        </div>
+                    </div>
+                    <div id="q-mem-ww-result"></div>
+                </div>
+
+                <!-- 10. Members: Who + Role → What -->
+                <div class="home-card" onclick="showQuery('mem-wr')">
+                    <span class="hc-icon">→</span>
+                    <span class="hc-name">Members: Who + Role → What</span>
+                </div>
+                <div class="expand-section hidden" id="qf-mem-wr">
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Who</label>
+                            <select id="q-mem-wr-who" onchange="qMemWhoRole()"><option value="">Select...</option></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Role</label>
+                            <select id="q-mem-wr-role" onchange="qMemWhoRole()"><option value="">Select...</option></select>
+                        </div>
+                    </div>
+                    <div id="q-mem-wr-result"></div>
+                </div>
+
+                <!-- 11. Members: What + Role → Who -->
+                <div class="home-card" onclick="showQuery('mem-xr')">
+                    <span class="hc-icon">←</span>
+                    <span class="hc-name">Members: What + Role → Who</span>
+                </div>
+                <div class="expand-section hidden" id="qf-mem-xr">
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>What</label>
+                            <select id="q-mem-xr-what" onchange="qMemWhatRole()"><option value="">Select...</option></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Role</label>
+                            <select id="q-mem-xr-role" onchange="qMemWhatRole()"><option value="">Select...</option></select>
+                        </div>
+                    </div>
+                    <div id="q-mem-xr-result"></div>
+                </div>
+
+                <!-- 12. Sharing: By Receiver -->
+                <div class="home-card" onclick="showQuery('sh-recv')">
                     <span class="hc-icon">🔗</span>
-                    <span class="hc-name">Sharing Chain</span>
+                    <span class="hc-name">Sharing: By Receiver</span>
                 </div>
-                <div class="expand-section hidden" id="qf-delegation">
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">Fill any combination to search</p>
-                    <div class="form-row stack">
+                <div class="expand-section hidden" id="qf-sh-recv">
+                    <div class="input-group">
+                        <label>Receiver</label>
+                        <select id="q-sh-recv" onchange="qSharingByRecv()"><option value="">Select...</option></select>
+                    </div>
+                    <div id="q-sh-recv-result"></div>
+                </div>
+
+                <!-- 13. Sharing: By Giver -->
+                <div class="home-card" onclick="showQuery('sh-giver')">
+                    <span class="hc-icon">🔗</span>
+                    <span class="hc-name">Sharing: By Giver</span>
+                </div>
+                <div class="expand-section hidden" id="qf-sh-giver">
+                    <div class="input-group">
+                        <label>Giver</label>
+                        <select id="q-sh-giver" onchange="qSharingByGiver()"><option value="">Select...</option></select>
+                    </div>
+                    <div id="q-sh-giver-result"></div>
+                </div>
+
+                <!-- 14. Sharing: By Resource -->
+                <div class="home-card" onclick="showQuery('sh-res')">
+                    <span class="hc-icon">🔗</span>
+                    <span class="hc-name">Sharing: By Resource</span>
+                </div>
+                <div class="expand-section hidden" id="qf-sh-res">
+                    <div class="input-group">
+                        <label>Resource</label>
+                        <select id="q-sh-res" onchange="qSharingByRes()"><option value="">Select...</option></select>
+                    </div>
+                    <div id="q-sh-res-result"></div>
+                </div>
+
+                <!-- 15. Sharing: Receiver + Resource → Givers -->
+                <div class="home-card" onclick="showQuery('sh-rr')">
+                    <span class="hc-icon">🔗</span>
+                    <span class="hc-name">Sharing: Recv + Res → Givers</span>
+                </div>
+                <div class="expand-section hidden" id="qf-sh-rr">
+                    <div class="form-row">
                         <div class="input-group">
-                            <label>Who received?</label>
-                            <select id="deleg-receiver"><option value="">Any</option></select>
+                            <label>Receiver</label>
+                            <select id="q-sh-rr-recv" onchange="qShRecvRes()"><option value="">Select...</option></select>
                         </div>
                         <div class="input-group">
-                            <label>On what?</label>
-                            <select id="deleg-resource"><option value="">Any</option></select>
-                        </div>
-                        <div class="input-group">
-                            <label>From who?</label>
-                            <select id="deleg-source"><option value="">Any</option></select>
+                            <label>Resource</label>
+                            <select id="q-sh-rr-res" onchange="qShRecvRes()"><option value="">Select...</option></select>
                         </div>
                     </div>
-                    <button class="btn success full mt-1" onclick="doQueryDelegation()">Search</button>
-                    <div id="delegation-result"></div>
+                    <div id="q-sh-rr-result"></div>
+                </div>
+
+                <!-- 16. Sharing: Receiver + Giver → Resources -->
+                <div class="home-card" onclick="showQuery('sh-rg')">
+                    <span class="hc-icon">🔗</span>
+                    <span class="hc-name">Sharing: Recv + Giver → Res</span>
+                </div>
+                <div class="expand-section hidden" id="qf-sh-rg">
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Receiver</label>
+                            <select id="q-sh-rg-recv" onchange="qShRecvGiver()"><option value="">Select...</option></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Giver</label>
+                            <select id="q-sh-rg-giver" onchange="qShRecvGiver()"><option value="">Select...</option></select>
+                        </div>
+                    </div>
+                    <div id="q-sh-rg-result"></div>
+                </div>
+
+                <!-- 17. Sharing: Resource + Giver → Receivers -->
+                <div class="home-card" onclick="showQuery('sh-xg')">
+                    <span class="hc-icon">🔗</span>
+                    <span class="hc-name">Sharing: Res + Giver → Recv</span>
+                </div>
+                <div class="expand-section hidden" id="qf-sh-xg">
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Resource</label>
+                            <select id="q-sh-xg-res" onchange="qShResGiver()"><option value="">Select...</option></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Giver</label>
+                            <select id="q-sh-xg-giver" onchange="qShResGiver()"><option value="">Select...</option></select>
+                        </div>
+                    </div>
+                    <div id="q-sh-xg-result"></div>
                 </div>
             </div>
         </div>
@@ -288,16 +507,16 @@
                         <div><strong>Action</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Define what can be done</span></div>
                     </button>
                     <button class="action-item" onclick="showForm('relation')">
-                        <span class="action-icon cap">👥</span>
-                        <div><strong>Group</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Bundle actions together</span></div>
+                        <span class="action-icon cap">🎭</span>
+                        <div><strong>Role</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Bundle actions together</span></div>
                     </button>
                     <button class="action-item" onclick="showForm('grant')">
                         <span class="action-icon grant">🔑</span>
-                        <div><strong>Member</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Add someone to a group</span></div>
+                        <div><strong>Member</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Add someone to a role</span></div>
                     </button>
                     <button class="action-item" onclick="showForm('delegate')">
                         <span class="action-icon delegate">🔗</span>
-                        <div><strong>Sharing</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Inherit from another</span></div>
+                        <div><strong>Inheritance</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Inherit from another</span></div>
                     </button>
                 </div>
 
@@ -389,7 +608,7 @@
                             <button class="btn sm outline" type="button" onclick="showForm('cap-bit')">+ Define New Bit</button>
                         </div>
                     </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateCapabilityModal()">Create Group</button>
+                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateCapabilityModal()">Create Role</button>
                 </div>
 
                 <!-- Grant Form -->

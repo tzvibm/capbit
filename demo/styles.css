@@ -509,7 +509,143 @@ select:focus, input:focus {
 .cap-badge-success { background: var(--success); color: white; }
 
 /* ============================================================================
-   Home Tab - Simple List
+   Home Tab - Dashboard
+   ============================================================================ */
+
+/* Hero section */
+.hero {
+    background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 100%);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.hero-icon {
+    font-size: 2.5rem;
+    background: rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 0.75rem;
+}
+
+.hero-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+}
+
+.hero-sub {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.8);
+    margin-top: 0.25rem;
+}
+
+.hint {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    border: 1px dashed var(--border);
+}
+
+.hint.hidden { display: none; }
+
+.dash-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.dash-stat {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dash-stat:hover {
+    background: var(--bg-input);
+}
+
+.dash-stat.active {
+    background: var(--bg-input);
+}
+
+.dash-icon {
+    display: block;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.dash-section.hidden {
+    display: none;
+}
+
+.dash-num {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary);
+    line-height: 1;
+}
+
+.dash-num.zero {
+    color: var(--text-muted);
+    opacity: 0.4;
+}
+
+.dash-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+.dash-section {
+    background: var(--bg-card);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.dash-header {
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    font-size: 1rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+}
+
+.dash-list {
+    padding: 1rem;
+}
+
+.dash-list .list-item {
+    background: var(--bg-input);
+    margin-bottom: 0.75rem;
+    padding: 0.875rem;
+}
+
+.dash-list .list-item:last-child {
+    margin-bottom: 0;
+}
+
+.dash-list .empty {
+    padding: 2rem;
+    text-align: center;
+}
+
+/* ============================================================================
+   Query Tab - Simple List (reuse for query)
    ============================================================================ */
 
 .home-list {
@@ -543,17 +679,6 @@ select:focus, input:focus {
     font-size: 0.9rem;
 }
 
-.hc-count {
-    background: var(--bg-input);
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.25rem 0.5rem;
-    border-radius: 6px;
-    min-width: 2rem;
-    text-align: center;
-}
-
 .expand-section {
     background: var(--bg-card);
     border-radius: 10px;
@@ -574,9 +699,5 @@ select:focus, input:focus {
 
 .expand-section .list-item:last-child {
     margin-bottom: 0;
-}
-
-.expand-section .empty {
-    padding: 1.5rem;
 }
 

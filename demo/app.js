@@ -512,32 +512,246 @@ async function doReset() {
     }
 }
 
-async function doCheckAccess() {
-    const subject = document.getElementById('check-subject').value.trim();
-    const object = document.getElementById('check-object').value.trim();
-    const required = parseInt(document.getElementById('check-cap').value);
-    if (!subject || !object) return alert('Fill subject and object');
-    const result = await api('POST', '/check', { subject, object, required });
-    const resultDiv = document.getElementById('check-result');
-    if (result.ok) {
-        const { allowed, effective, effective_string, required_string } = result.data;
-        resultDiv.className = `result ${allowed ? 'allowed' : 'denied'}`;
-        resultDiv.innerHTML = `
-            <div class="result-icon">${allowed ? '✓' : '✗'}</div>
-            <div class="result-text">${allowed ? 'ACCESS ALLOWED' : 'ACCESS DENIED'}</div>
-            <div class="result-detail">
-                Required: 0x${required.toString(16).padStart(4, '0')} (${required_string})<br>
-                Effective: 0x${effective.toString(16).padStart(4, '0')} (${effective_string})
-            </div>
-        `;
-    } else {
-        resultDiv.className = 'result denied';
-        resultDiv.innerHTML = `<div class="result-icon">⚠</div><div class="result-text">ERROR</div><div class="result-detail">${result.error}</div>`;
+// ============================================================================
+// Query Functions (11 items)
+// ============================================================================
+
+// 1. Types - show entities of type
+function qType() {
+    const type = getValue('q-type');
+    const div = $('q-types-result');
+    if (!type) { div.innerHTML = ''; return; }
+    const entities = known.entities.filter(e => e.type === type);
+    if (entities.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No entities of this type</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${entities.map(e => `<div class="list-item">${chip(e.id)}</div>`).join('')}</div>`;
+}
+
+// 2. Entities - show details
+function qEntity() {
+    const entity = getValue('q-entity');
+    const div = $('q-entities-result');
+    if (!entity) { div.innerHTML = ''; return; }
+
+    // Get memberships, groups, sharing for this entity
+    const memberships = known.grants.filter(g => g.seeker === entity);
+    const groups = known.capabilities.filter(c => c.scope === entity);
+    const sharesRecv = known.delegations.filter(d => d.seeker === entity);
+    const sharesGiven = known.delegations.filter(d => d.delegate === entity);
+
+    let html = '<div class="mt-1">';
+    if (memberships.length > 0) {
+        html += `<p class="text-muted text-sm">Members of:</p><div class="list">${memberships.map(g =>
+            `<div class="list-item">${badge(g.relation)} on ${chip(g.scope)}</div>`).join('')}</div>`;
     }
+    if (groups.length > 0) {
+        html += `<p class="text-muted text-sm mt-1">Groups defined:</p><div class="list">${groups.map(g =>
+            `<div class="list-item">${badge(g.relation)} ${capBadge(g.cap_mask)}</div>`).join('')}</div>`;
+    }
+    if (sharesRecv.length > 0) {
+        html += `<p class="text-muted text-sm mt-1">Shares received:</p><div class="list">${sharesRecv.map(d =>
+            `<div class="list-item delegation-item">from ${chip(d.delegate)} on ${chip(d.scope)}</div>`).join('')}</div>`;
+    }
+    if (sharesGiven.length > 0) {
+        html += `<p class="text-muted text-sm mt-1">Shares given:</p><div class="list">${sharesGiven.map(d =>
+            `<div class="list-item delegation-item">to ${chip(d.seeker)} on ${chip(d.scope)}</div>`).join('')}</div>`;
+    }
+    if (memberships.length === 0 && groups.length === 0 && sharesRecv.length === 0 && sharesGiven.length === 0) {
+        html += '<p class="text-muted">No data for this entity</p>';
+    }
+    html += '</div>';
+    div.innerHTML = html;
+}
+
+// 3. Actions by Type
+function qActionsByType() {
+    const scope = getValue('q-act-type');
+    const div = $('q-actions-result');
+    if (!scope) { div.innerHTML = ''; return; }
+    const actions = known.capLabels.filter(l => l.scope === scope).sort((a, b) => a.bit - b.bit);
+    if (actions.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No actions defined</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${actions.map(a =>
+        `<div class="list-item"><span class="cap-badge cap-badge-success">bit${a.bit}</span> <strong>${a.label}</strong> ${capBadge(1 << a.bit)}</div>`
+    ).join('')}</div>`;
+}
+
+// 4. Groups by Entity
+function qGroupsByEntity() {
+    const entity = getValue('q-grp-ent');
+    const div = $('q-groups-ent-result');
+    if (!entity) { div.innerHTML = ''; return; }
+    const groups = known.capabilities.filter(c => c.scope === entity);
+    if (groups.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No groups defined</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${groups.map(g =>
+        `<div class="list-item">${badge(g.relation)} ${capBadge(g.cap_mask)}</div>`
+    ).join('')}</div>`;
+}
+
+// 5. Groups by Role
+function qGroupsByRole() {
+    const role = getValue('q-grp-role');
+    const div = $('q-groups-role-result');
+    if (!role) { div.innerHTML = ''; return; }
+    const groups = known.capabilities.filter(c => c.relation === role);
+    if (groups.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No entities with this role</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${groups.map(g =>
+        `<div class="list-item">${chip(g.scope)} ${capBadge(g.cap_mask)}</div>`
+    ).join('')}</div>`;
+}
+
+// 6. Members: By Who
+function qMembersByWho() {
+    const who = getValue('q-mem-who');
+    const div = $('q-mem-who-result');
+    if (!who) { div.innerHTML = ''; return; }
+    const members = known.grants.filter(g => g.seeker === who);
+    if (members.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No memberships</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${members.map(g =>
+        `<div class="list-item">${badge(g.relation)} ${arrow()} ${chip(g.scope)}</div>`
+    ).join('')}</div>`;
+}
+
+// 7. Members: By What
+function qMembersByWhat() {
+    const what = getValue('q-mem-what');
+    const div = $('q-mem-what-result');
+    if (!what) { div.innerHTML = ''; return; }
+    const members = known.grants.filter(g => g.scope === what);
+    if (members.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No members</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${members.map(g =>
+        `<div class="list-item">${chip(g.seeker)} ${arrow()} ${badge(g.relation)}</div>`
+    ).join('')}</div>`;
+}
+
+// 8. Members: By Role
+function qMembersByRole() {
+    const role = getValue('q-mem-role');
+    const div = $('q-mem-role-result');
+    if (!role) { div.innerHTML = ''; return; }
+    const members = known.grants.filter(g => g.relation === role);
+    if (members.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No grants with this role</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${members.map(g =>
+        `<div class="list-item">${chip(g.seeker)} ${arrow()} ${chip(g.scope)}</div>`
+    ).join('')}</div>`;
+}
+
+// 9. Sharing: By Receiver
+function qSharingByRecv() {
+    const recv = getValue('q-sh-recv');
+    const div = $('q-sh-recv-result');
+    if (!recv) { div.innerHTML = ''; return; }
+    const shares = known.delegations.filter(d => d.seeker === recv);
+    if (shares.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No shares received</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${shares.map(d =>
+        `<div class="list-item delegation-item">${chip(d.delegate)} ${arrow()} ${chip(d.scope)}</div>`
+    ).join('')}</div>`;
+}
+
+// 10. Sharing: By Giver
+function qSharingByGiver() {
+    const giver = getValue('q-sh-giver');
+    const div = $('q-sh-giver-result');
+    if (!giver) { div.innerHTML = ''; return; }
+    const shares = known.delegations.filter(d => d.delegate === giver);
+    if (shares.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No shares given</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${shares.map(d =>
+        `<div class="list-item delegation-item">${chip(d.seeker)} ${arrow('on')} ${chip(d.scope)}</div>`
+    ).join('')}</div>`;
+}
+
+// 11. Sharing: By Resource
+function qSharingByRes() {
+    const res = getValue('q-sh-res');
+    const div = $('q-sh-res-result');
+    if (!res) { div.innerHTML = ''; return; }
+    const shares = known.delegations.filter(d => d.scope === res);
+    if (shares.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No shares on this resource</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${shares.map(d =>
+        `<div class="list-item delegation-item">${chip(d.delegate)} ${arrow()} ${chip(d.seeker)}</div>`
+    ).join('')}</div>`;
+}
+
+// 12. Members: Who + What → Roles
+function qMemWhoWhat() {
+    const who = getValue('q-mem-ww-who');
+    const what = getValue('q-mem-ww-what');
+    const div = $('q-mem-ww-result');
+    if (!who || !what) { div.innerHTML = ''; return; }
+    const roles = known.grants.filter(g => g.seeker === who && g.scope === what);
+    if (roles.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No roles (relationship exists but empty)</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${roles.map(g =>
+        `<div class="list-item">${badge(g.relation)}</div>`
+    ).join('')}</div>`;
+}
+
+// 13. Members: Who + Role → What
+function qMemWhoRole() {
+    const who = getValue('q-mem-wr-who');
+    const role = getValue('q-mem-wr-role');
+    const div = $('q-mem-wr-result');
+    if (!who || !role) { div.innerHTML = ''; return; }
+    const whats = known.grants.filter(g => g.seeker === who && g.relation === role);
+    if (whats.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No resources with this role</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${whats.map(g =>
+        `<div class="list-item">${chip(g.scope)}</div>`
+    ).join('')}</div>`;
+}
+
+// 14. Members: What + Role → Who
+function qMemWhatRole() {
+    const what = getValue('q-mem-xr-what');
+    const role = getValue('q-mem-xr-role');
+    const div = $('q-mem-xr-result');
+    if (!what || !role) { div.innerHTML = ''; return; }
+    const whos = known.grants.filter(g => g.scope === what && g.relation === role);
+    if (whos.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No one has this role</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${whos.map(g =>
+        `<div class="list-item">${chip(g.seeker)}</div>`
+    ).join('')}</div>`;
+}
+
+// 15. Sharing: Receiver + Resource → Givers
+function qShRecvRes() {
+    const recv = getValue('q-sh-rr-recv');
+    const res = getValue('q-sh-rr-res');
+    const div = $('q-sh-rr-result');
+    if (!recv || !res) { div.innerHTML = ''; return; }
+    const givers = known.delegations.filter(d => d.seeker === recv && d.scope === res);
+    if (givers.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No givers found</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${givers.map(d =>
+        `<div class="list-item delegation-item">${chip(d.delegate)}</div>`
+    ).join('')}</div>`;
+}
+
+// 16. Sharing: Receiver + Giver → Resources
+function qShRecvGiver() {
+    const recv = getValue('q-sh-rg-recv');
+    const giver = getValue('q-sh-rg-giver');
+    const div = $('q-sh-rg-result');
+    if (!recv || !giver) { div.innerHTML = ''; return; }
+    const resources = known.delegations.filter(d => d.seeker === recv && d.delegate === giver);
+    if (resources.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No resources shared</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${resources.map(d =>
+        `<div class="list-item delegation-item">${chip(d.scope)}</div>`
+    ).join('')}</div>`;
+}
+
+// 17. Sharing: Resource + Giver → Receivers
+function qShResGiver() {
+    const res = getValue('q-sh-xg-res');
+    const giver = getValue('q-sh-xg-giver');
+    const div = $('q-sh-xg-result');
+    if (!res || !giver) { div.innerHTML = ''; return; }
+    const receivers = known.delegations.filter(d => d.scope === res && d.delegate === giver);
+    if (receivers.length === 0) { div.innerHTML = '<p class="text-muted mt-1">No receivers found</p>'; return; }
+    div.innerHTML = `<div class="list mt-1">${receivers.map(d =>
+        `<div class="list-item delegation-item">${chip(d.seeker)}</div>`
+    ).join('')}</div>`;
 }
 
 function showQuery(type) {
-    const queries = ['check', 'outbound', 'inbound', 'delegation'];
+    const queries = ['types', 'entities', 'actions', 'groups-ent', 'groups-role',
+        'mem-who', 'mem-what', 'mem-role', 'mem-ww', 'mem-wr', 'mem-xr',
+        'sh-recv', 'sh-giver', 'sh-res', 'sh-rr', 'sh-rg', 'sh-xg'];
     const content = $(`qf-${type}`);
     const isHidden = content.classList.contains('hidden');
 
@@ -554,57 +768,6 @@ function showQuery(type) {
 }
 
 
-async function doQueryAccessible() {
-    const subject = document.getElementById('query-subject').value;
-    if (!subject) return alert('Select a user or entity');
-    const result = await api('POST', '/query/accessible', { subject });
-    renderQueryResult('accessible-result', result, 'No access found', e =>
-        `<div class="list-item">${chip(e.entity)} ${badge(e.relation)} ${capBadge(e.effective)}</div>`);
-}
-
-async function doQuerySubjects() {
-    const object = document.getElementById('query-object').value;
-    if (!object) return alert('Select a resource');
-    const result = await api('POST', '/query/subjects', { object });
-    renderQueryResult('subjects-result', result, 'No one has access', e =>
-        `<div class="list-item">${chip(e.entity)} ${badge(e.relation)} ${capBadge(e.effective)}</div>`);
-}
-
-async function doQueryDelegation() {
-    const receiver = getValue('deleg-receiver');
-    const resource = getValue('deleg-resource');
-    const source = getValue('deleg-source');
-
-    // Filter from known delegations based on filled fields
-    let results = known.delegations.filter(d => {
-        if (receiver && d.seeker !== receiver) return false;
-        if (resource && d.scope !== resource) return false;
-        if (source && d.delegate !== source) return false;
-        return true;
-    });
-
-    const div = $('delegation-result');
-    if (results.length === 0) {
-        div.innerHTML = `<div class="empty mt-1"><p>No sharing found</p></div>`;
-        return;
-    }
-    div.innerHTML = `<div class="list mt-1">${results.map(d =>
-        `<div class="list-item delegation-item">${chip(d.delegate)} <span class="arrow">→</span> ${chip(d.seeker)} <span class="text-muted text-sm">on</span> ${chip(d.scope)}</div>`
-    ).join('')}</div>`;
-}
-
-function renderQueryResult(containerId, result, emptyMsg, itemRenderer) {
-    const div = document.getElementById(containerId);
-    if (!result.ok) {
-        div.innerHTML = `<div class="result denied mt-1"><div class="result-detail">${result.error}</div></div>`;
-        return;
-    }
-    if (result.data.length === 0) {
-        div.innerHTML = `<div class="empty mt-1"><p>${emptyMsg}</p></div>`;
-        return;
-    }
-    div.innerHTML = `<div class="list mt-1">${result.data.map(itemRenderer).join('')}</div>`;
-}
 
 // ============================================================================
 // Templates (Declarative Runner)
@@ -737,9 +900,9 @@ function showForm(name) {
         'type': 'Create Type',
         'entity': 'Create Entity',
         'cap-bit': 'Define Action',
-        'relation': 'Create Group',
+        'relation': 'Create Role',
         'grant': 'Add Member',
-        'delegate': 'Share'
+        'delegate': 'Add Inheritance'
     };
     document.getElementById('modal-title').textContent = titles[name] || 'Create';
     document.getElementById('modal-menu').classList.add('hidden');
@@ -972,31 +1135,31 @@ function showTab(name) {
     $$('.tab-content').forEach(t => t.classList.remove('active'));
     $(`tab-${name}`)?.classList.add('active');
     document.querySelector(`.tab[onclick="showTab('${name}')"]`)?.classList.add('active');
-
-    // Close home tab expanded sections only
-    const homeSections = ['types', 'entities', 'capbits', 'relations', 'grants', 'delegations'];
-    homeSections.forEach(s => {
-        const el = $(`section-${s}`);
-        if (el) el.classList.add('hidden');
-    });
+    // Close all dash sections when switching tabs
+    $$('.dash-section').forEach(el => el.classList.add('hidden'));
 }
 
-function toggleMini(section) {
+function toggleDash(section) {
     const sections = ['types', 'entities', 'capbits', 'relations', 'grants', 'delegations'];
-    const content = $(`section-${section}`);
-    const isHidden = content.classList.contains('hidden');
+    const el = $(`dash-${section}`);
+    const isHidden = el.classList.contains('hidden');
 
-    // Close all sections first
+    // Close all and remove active
     sections.forEach(s => {
-        const el = $(`section-${s}`);
-        if (el) el.classList.add('hidden');
+        $(`dash-${s}`)?.classList.add('hidden');
     });
+    $$('.dash-stat').forEach(s => s.classList.remove('active'));
 
-    // Open clicked one if it was closed
+    // Open clicked if it was hidden
     if (isHidden) {
-        content.classList.remove('hidden');
+        el.classList.remove('hidden');
+        // Mark stat as active
+        event.currentTarget.classList.add('active');
+        // Scroll section into view
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
     }
 }
+
 
 async function updateViewerPermission() {
     viewerCanSeeSystem = !!authToken;
@@ -1028,30 +1191,57 @@ function updateCounts() {
     const displayEntities = filterSystem(known.entities, 'id');
     const displayCaps = filterSystem(known.capabilities, 'scope');
     const displayGrants = filterSystem(known.grants, 'scope');
-    $('count-types').textContent = known.types.length;
-    $('count-entities').textContent = displayEntities.length;
-    $('count-capbits').textContent = known.capLabels.length;
-    $('count-relations').textContent = displayCaps.length;
-    $('count-grants').textContent = displayGrants.length;
-    $('count-delegations').textContent = known.delegations.length;
-    const total = known.types.length + displayEntities.length + known.capLabels.length + displayCaps.length + displayGrants.length + known.delegations.length;
-    const homeBtn = $('tab-btn-home');
-    if (homeBtn) homeBtn.textContent = total > 0 ? `Home (${total})` : 'Home';
+
+    const counts = {
+        'count-types': known.types.length,
+        'count-entities': displayEntities.length,
+        'count-capbits': known.capLabels.length,
+        'count-relations': displayCaps.length,
+        'count-grants': displayGrants.length,
+        'count-delegations': known.delegations.length
+    };
+
+    let total = 0;
+    Object.entries(counts).forEach(([id, val]) => {
+        const el = $(id);
+        if (el) {
+            el.textContent = val;
+            el.classList.toggle('zero', val === 0);
+        }
+        total += val;
+    });
+
+    // Show/hide empty hint
+    const hint = $('empty-hint');
+    if (hint) hint.classList.toggle('hidden', total > 0);
 }
 
 function renderTestSelects() {
     const displayEntities = filterSystem(known.entities, 'id');
-    const opts = '<option value="">-- Select --</option>' + displayEntities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
-    const optsAny = '<option value="">Any</option>' + displayEntities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
-    // Query tab selects
-    ['check-subject', 'check-object', 'query-subject', 'query-object'].forEach(id => setHtml(id, opts));
-    ['deleg-receiver', 'deleg-resource', 'deleg-source'].forEach(id => setHtml(id, optsAny));
+    const entOpts = '<option value="">Select...</option>' + displayEntities.map(e => `<option value="${e.id}">${e.id}</option>`).join('');
 
-    const displayCaps = filterSystem(known.capabilities, 'scope');
-    const sortedCaps = [...displayCaps].sort((a, b) => a.scope !== b.scope ? a.scope.localeCompare(b.scope) : a.cap_mask - b.cap_mask);
-    const capOpts = '<option value="0">Any (0x0000)</option>' +
-        sortedCaps.map(c => `<option value="${c.cap_mask}">${c.scope} → ${c.relation} (0x${c.cap_mask.toString(16).padStart(4, '0').toUpperCase()})</option>`).join('');
-    setHtml('check-cap', capOpts);
+    // Type selects
+    const typeOpts = '<option value="">Select...</option>' + known.types.map(t => `<option value="${t}">${t}</option>`).join('');
+    const typeOptsScope = '<option value="">Select...</option>' + known.types.map(t => `<option value="_type:${t}">${t}</option>`).join('');
+    setHtml('q-type', typeOpts);
+    setHtml('q-act-type', typeOptsScope);
+
+    // Entity select
+    setHtml('q-entity', entOpts);
+
+    // Role selects (unique relation names from grants too)
+    const roles = [...new Set([...known.capabilities.map(c => c.relation), ...known.grants.map(g => g.relation)])].sort();
+    const roleOpts = '<option value="">Select...</option>' + roles.map(r => `<option value="${r}">${r}</option>`).join('');
+    setHtml('q-grp-role', roleOpts);
+    setHtml('q-mem-role', roleOpts);
+    setHtml('q-mem-wr-role', roleOpts);
+    setHtml('q-mem-xr-role', roleOpts);
+
+    // Entity selects for queries
+    ['q-grp-ent', 'q-mem-who', 'q-mem-what', 'q-sh-recv', 'q-sh-giver', 'q-sh-res',
+     'q-mem-ww-who', 'q-mem-ww-what', 'q-mem-wr-who', 'q-mem-xr-what',
+     'q-sh-rr-recv', 'q-sh-rr-res', 'q-sh-rg-recv', 'q-sh-rg-giver', 'q-sh-xg-res', 'q-sh-xg-giver'
+    ].forEach(id => setHtml(id, entOpts));
 }
 
 function renderTypes() {
