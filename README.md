@@ -2,121 +2,130 @@
 
 Minimal capability-based access control. ~280 lines of Rust.
 
-## Features
+## Why Capbit?
 
-- **u64 IDs** — Subjects and objects are simple integers
-- **64-bit masks** — 2^64 permission combinations per role
-- **O(1) checks** — Single bitmask AND operation
-- **Unlimited roles** — Any u64 as role ID, defined per object
-- **Inheritance** — DAG with cycle prevention
-- **Instant updates** — No cache invalidation
-- **Zero ops** — Embedded LMDB, single file
+Most authorization systems (including Google's Zanzibar) use **boolean relations**: "alice IS a viewer". Each relation is one bit of information. Adding permission types requires schema changes.
+
+Capbit uses **64-bit masks**: each grant carries 2^64 possible permission combinations. Define new permission types at runtime. No schema.
+
+| | Traditional (Zanzibar-style) | Capbit |
+|---|---|---|
+| Permissions per grant | 1 (boolean) | 64 bits |
+| Roles per object | Fixed by schema | Unlimited (any u64) |
+| New permission type | Schema migration | Runtime, instant |
+| Permission check | Graph traversal | Single AND operation |
+| Entity model | Typed namespaces | Unified u64 IDs |
+
+### Unified Entity Model
+
+Subject and object are the same concept—just u64 IDs. This means inheritance works in any direction:
+
+```rust
+// User inherits from group (traditional)
+set_inherit(doc, alice, engineering)?;
+
+// Object inherits from object (folder hierarchy)
+set_inherit(policy, doc, folder)?;
+set_inherit(policy, folder, workspace)?;
+
+// Any entity inherits from any entity
+// No artificial type system limits your model
+```
+
+### Cheap Restructuring
+
+One inheritance change restructures entire subtrees instantly:
+
+```rust
+// Move entire engineering org under new VP
+set_inherit(company, engineering, new_vp)?;
+// Done. Thousands of users inherit through new_vp.
+```
+
+No tuple updates. No cache invalidation. Computed at read time.
+
+### No Derived State
+
+Permissions are stored directly as bitmasks. No "computed" permissions that could be stale. Every check reads current data.
+
+See [COMPARISON.md](COMPARISON.md) for detailed analysis vs Zanzibar.
+
+---
 
 ## Usage
 
 ```rust
 use capbit::*;
 
-// Initialize
 init("/path/to/db")?;
 
-// Grant permissions
 grant(alice, doc, READ | WRITE)?;
 
-// Check access
 if check(alice, doc, READ)? {
     // allowed
 }
-
-// Revoke
-revoke(alice, doc)?;
 ```
 
 ## API
 
-### Core Operations
+### Core
 
 ```rust
-grant(subject, object, mask)?;      // Add permissions (OR with existing)
+grant(subject, object, mask)?;      // Add permissions (OR)
 grant_set(subject, object, mask)?;  // Set exact permissions
-revoke(subject, object)?;           // Remove all permissions
-check(subject, object, required)?;  // Check if (mask & required) == required
-get_mask(subject, object)?;         // Get current permission mask
+revoke(subject, object)?;           // Remove all
+check(subject, object, required)?;  // (mask & required) == required
+get_mask(subject, object)?;         // Get current mask
 ```
 
-### Roles (Indirection)
+### Roles
 
 ```rust
-set_role(object, role_id, mask)?;   // Define role -> mask mapping
-grant(subject, object, role_id)?;   // Assign role (resolved at check time)
-get_role(object, role_id)?;         // Get role's mask
+set_role(object, role_id, mask)?;   // Define role -> mask
+grant(subject, object, role_id)?;   // Assign role
+get_role(object, role_id)?;
 ```
 
 ### Inheritance
 
 ```rust
-set_inherit(object, child, parent)?;    // Child inherits parent's permissions
-remove_inherit(object, child)?;         // Remove inheritance link
-get_inherit(object, child)?;            // Get parent ID
+set_inherit(object, child, parent)?;
+remove_inherit(object, child)?;
+get_inherit(object, child)?;
 ```
 
-### Entities (Optional CRUD)
-
-```rust
-create_entity(name)?;               // Auto-increment ID with label
-rename_entity(id, new_name)?;
-delete_entity(id)?;
-set_label(id, name)?;               // Label any ID
-get_label(id)?;
-get_id_by_label(name)?;
-```
-
-### Batch Operations
+### Batch
 
 ```rust
 transact(|tx| {
     tx.grant(a, b, READ)?;
-    tx.grant(c, d, WRITE)?;
-    tx.set_role(d, EDITOR, READ | WRITE)?;
+    tx.set_role(b, EDITOR, READ | WRITE)?;
     tx.create_entity("alice")?;
     Ok(())
 })?;
-
-batch_grant(&[(a, b, READ), (c, d, WRITE)])?;
-batch_revoke(&[(a, b), (c, d)])?;
 ```
 
 ### Query
 
 ```rust
-list_for_subject(subject)?;     // Vec<(object, mask)>
-list_for_object(object)?;       // Vec<(subject, mask)>
-count_for_subject(subject)?;    // Count without iteration
+list_for_subject(subject)?;   // Vec<(object, mask)>
+list_for_object(object)?;     // Vec<(subject, mask)>
+count_for_subject(subject)?;
 count_for_object(object)?;
-list_labels()?;                 // All labeled entities
 ```
 
-### Protected Operations
-
-Require actor authorization (ADMIN or sufficient permissions):
+### Entities (optional)
 
 ```rust
-protected_grant(actor, subject, object, mask)?;
-protected_revoke(actor, subject, object)?;
-protected_set_role(actor, object, role, mask)?;
-protected_set_inherit(actor, object, child, parent)?;
-protected_list_for_object(actor, object)?;  // Requires VIEW
+create_entity(name)?;         // Auto-increment ID
+rename_entity(id, name)?;
+delete_entity(id)?;
+set_label(id, name)?;
+get_label(id)?;
+get_id_by_label(name)?;
 ```
 
-### Bootstrap
-
-```rust
-bootstrap(root_id)?;    // First-time setup, grants root ADMIN on itself
-is_bootstrapped()?;
-get_root()?;
-```
-
-## Permission Constants
+## Constants
 
 ```rust
 pub const READ: u64    = 1;
@@ -127,19 +136,16 @@ pub const GRANT: u64   = 1 << 4;
 pub const EXECUTE: u64 = 1 << 5;
 pub const VIEW: u64    = 1 << 62;
 pub const ADMIN: u64   = 1 << 63;
-
-// Use remaining 56 bits for custom permissions
+// 56 bits available for custom permissions
 ```
 
 ## Performance
 
-On mobile ARM64 (8 cores):
-
 ```
-Single check:           2-3 us
-Batch grants:           200-300K/sec
-Inheritance depth 10:   ~17 us
-Concurrent reads:       2.1M checks/sec
+Single check:         2-3 us
+Batch grants:         200-300K/sec
+Inheritance depth 10: ~17 us
+Concurrent reads:     2.1M/sec (8 threads)
 ```
 
 ## License
