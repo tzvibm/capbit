@@ -276,3 +276,84 @@ pub fn bootstrap(root: u64) -> Result<()> {
         tx.1.meta.put(tx.tx(), "root", &root.to_string()).map_err(err)
     })
 }
+
+// ============================================================================
+// NAPI bindings (optional, ~60 lines)
+// ============================================================================
+#[cfg(feature = "napi")]
+mod js {
+    use super::*;
+    use napi_derive::napi;
+    use napi::bindgen_prelude::*;
+
+    fn to_err(e: CapbitError) -> napi::Error { napi::Error::from_reason(e.to_string()) }
+    fn b2u(b: BigInt) -> u64 { b.get_u64().1 }
+
+    #[napi] pub fn js_init(path: String) -> napi::Result<()> { init(&path).map_err(to_err) }
+    #[napi] pub fn js_clear_all() -> napi::Result<()> { clear_all().map_err(to_err) }
+
+    #[napi] pub fn js_grant(subject: BigInt, object: BigInt, mask: BigInt) -> napi::Result<()> {
+        grant(b2u(subject), b2u(object), b2u(mask)).map_err(to_err)
+    }
+    #[napi] pub fn js_grant_set(subject: BigInt, object: BigInt, mask: BigInt) -> napi::Result<()> {
+        grant_set(b2u(subject), b2u(object), b2u(mask)).map_err(to_err)
+    }
+    #[napi] pub fn js_revoke(subject: BigInt, object: BigInt) -> napi::Result<bool> {
+        revoke(b2u(subject), b2u(object)).map_err(to_err)
+    }
+    #[napi] pub fn js_check(subject: BigInt, object: BigInt, required: BigInt) -> napi::Result<bool> {
+        check(b2u(subject), b2u(object), b2u(required)).map_err(to_err)
+    }
+    #[napi] pub fn js_get_mask(subject: BigInt, object: BigInt) -> napi::Result<BigInt> {
+        get_mask(b2u(subject), b2u(object)).map(|m| BigInt::from(m)).map_err(to_err)
+    }
+
+    #[napi] pub fn js_set_role(object: BigInt, role: BigInt, mask: BigInt) -> napi::Result<()> {
+        set_role(b2u(object), b2u(role), b2u(mask)).map_err(to_err)
+    }
+    #[napi] pub fn js_get_role(object: BigInt, role: BigInt) -> napi::Result<BigInt> {
+        get_role(b2u(object), b2u(role)).map(|m| BigInt::from(m)).map_err(to_err)
+    }
+
+    #[napi] pub fn js_set_inherit(object: BigInt, child: BigInt, parent: BigInt) -> napi::Result<()> {
+        set_inherit(b2u(object), b2u(child), b2u(parent)).map_err(to_err)
+    }
+    #[napi] pub fn js_remove_inherit(object: BigInt, child: BigInt) -> napi::Result<bool> {
+        remove_inherit(b2u(object), b2u(child)).map_err(to_err)
+    }
+
+    #[napi] pub fn js_create_entity(name: String) -> napi::Result<BigInt> {
+        create_entity(&name).map(|id| BigInt::from(id)).map_err(to_err)
+    }
+    #[napi] pub fn js_rename_entity(id: BigInt, name: String) -> napi::Result<()> {
+        rename_entity(b2u(id), &name).map_err(to_err)
+    }
+    #[napi] pub fn js_delete_entity(id: BigInt) -> napi::Result<bool> {
+        delete_entity(b2u(id)).map_err(to_err)
+    }
+    #[napi] pub fn js_set_label(id: BigInt, name: String) -> napi::Result<()> {
+        set_label(b2u(id), &name).map_err(to_err)
+    }
+    #[napi] pub fn js_get_label(id: BigInt) -> napi::Result<Option<String>> {
+        get_label(b2u(id)).map_err(to_err)
+    }
+    #[napi] pub fn js_get_id_by_label(name: String) -> napi::Result<Option<BigInt>> {
+        get_id_by_label(&name).map(|o| o.map(|id| BigInt::from(id))).map_err(to_err)
+    }
+
+    #[napi] pub fn js_bootstrap(root: BigInt) -> napi::Result<()> { bootstrap(b2u(root)).map_err(to_err) }
+    #[napi] pub fn js_is_bootstrapped() -> napi::Result<bool> { is_bootstrapped().map_err(to_err) }
+    #[napi] pub fn js_get_root() -> napi::Result<Option<BigInt>> {
+        get_root().map(|o| o.map(|id| BigInt::from(id))).map_err(to_err)
+    }
+
+    // Constants as functions (NAPI doesn't export const)
+    #[napi] pub fn js_read() -> BigInt { BigInt::from(READ) }
+    #[napi] pub fn js_write() -> BigInt { BigInt::from(WRITE) }
+    #[napi] pub fn js_delete() -> BigInt { BigInt::from(DELETE) }
+    #[napi] pub fn js_create() -> BigInt { BigInt::from(CREATE) }
+    #[napi] pub fn js_grant_perm() -> BigInt { BigInt::from(GRANT) }
+    #[napi] pub fn js_execute() -> BigInt { BigInt::from(EXECUTE) }
+    #[napi] pub fn js_view() -> BigInt { BigInt::from(VIEW) }
+    #[napi] pub fn js_admin() -> BigInt { BigInt::from(ADMIN) }
+}

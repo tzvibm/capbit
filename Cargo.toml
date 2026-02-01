@@ -9,11 +9,17 @@ keywords = ["access-control", "authorization", "permissions", "capabilities", "l
 categories = ["authentication", "database"]
 
 [lib]
-crate-type = ["rlib"]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+napi = ["napi-rs", "napi-derive"]
 
 [dependencies]
 heed = "0.20"
 byteorder = "1.5"
+napi-rs = { package = "napi", version = "2", features = ["napi9"], optional = true }
+napi-derive = { version = "2", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
