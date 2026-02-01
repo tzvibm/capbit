@@ -8,6 +8,17 @@ Most authorization systems (including Google's Zanzibar) use **boolean relations
 
 Capbit uses **64-bit masks**: each grant carries 2^64 possible permission combinations. Define new permission types at runtime. No schema.
 
+**Not just numbers:** While IDs are u64 internally for speed, you can use human-readable labels:
+
+```rust
+let alice = create_entity("alice")?;    // returns u64 ID
+let doc = create_entity("quarterly-report")?;
+grant(alice, doc, READ | WRITE)?;
+
+// Or look up by name
+let alice = get_id_by_label("alice")?.unwrap();
+```
+
 | | Traditional (Zanzibar-style) | Capbit |
 |---|---|---|
 | Permissions per grant | 1 (boolean) | 64 bits |
@@ -59,10 +70,18 @@ use capbit::*;
 
 init("/path/to/db")?;
 
-grant(alice, doc, READ | WRITE)?;
+// Create named entities
+let alice = create_entity("alice")?;
+let bob = create_entity("bob")?;
+let doc = create_entity("quarterly-report")?;
 
-if check(alice, doc, READ)? {
-    // allowed
+// Grant permissions
+grant(alice, doc, READ | WRITE)?;
+grant(bob, doc, READ)?;
+
+// Check access
+if check(alice, doc, WRITE)? {
+    println!("{} can write", get_label(alice)?.unwrap());
 }
 ```
 

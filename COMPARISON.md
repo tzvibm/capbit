@@ -9,7 +9,7 @@ Capbit and Google's Zanzibar are both authorization systems, but with fundamenta
 | Permission model | Boolean relations | 64-bit masks (2^64 combinations) |
 | Roles per object | Fixed by schema | Unlimited (any u64) |
 | Schema requirement | Yes | None |
-| Entity types | Separate namespaces | Unified (all u64 IDs) |
+| Entity types | Separate namespaces | Unified u64 IDs (with labels) |
 | Local check latency | Graph traversal + lookups | ~2-3µs (bitmask AND) |
 | Update propagation | Cache invalidation | Instant |
 | Graph restructuring | Update many tuples | Single inheritance change |
@@ -447,6 +447,12 @@ For everyone else, Capbit offers:
 ```rust
 // Initialize
 init("/path/to/db")?;
+
+// Entities (human-readable names for u64 IDs)
+let alice = create_entity("alice")?;        // Auto-increment ID
+let doc = create_entity("quarterly-report")?;
+let id = get_id_by_label("alice")?;         // Lookup by name
+let name = get_label(alice)?;               // Get name from ID
 
 // Permissions
 grant(subject, object, mask)?;          // Add permissions
