@@ -2,279 +2,189 @@
 
 Technical guidance for Claude Code when working with this repository.
 
-> **Version:** v3 (v2 deprecated - see README changelog)
+> **Version:** v3.2 (~770 lines total)
 
 ## Project Overview
 
-Capbit is a Rust library for high-performance access control with:
-- **Entities**: Things/resources in format `type:id` (e.g., `user:john`, `resource:office`)
-- **Capabilities**: For org entities, ROLES that bundle primitive actions (e.g., `employee`=0x07)
-- **Grants**: Assign ONE role → user gets SET of actions
-- **Delegations**: Inherited grants (bounded by delegator's capabilities)
-- **Protected mutations**: All writes require authorization
-- **Bitmask evaluation**: O(1) permission check via single AND operation
-
-**Key distinction:** System grants on `_type:*` are one-to-one (each SystemCap = one action). Org grants assign roles (sets of actions).
+Capbit is a minimal Rust library for capability-based access control:
+- **u64 IDs**: Subjects and objects are simple u64 numbers
+- **Bitmask capabilities**: 64-bit masks with named constants (READ, WRITE, DELETE, etc.)
+- **O(1) evaluation**: Permission check is a single AND operation
+- **Roles**: Scoped per-object role definitions for indirection
+- **Inheritance**: Dynamic parent lookup with cycle prevention
+- **Entities**: CRUD for users/resources with auto-increment IDs
+- **Labels**: Human-readable names for IDs
+- **Protected mutations**: Admin-controlled operations
 
 ## Commands
 
 ```bash
-cargo build                                # Build library
-cargo build --release                      # Build optimized
-cargo test                                 # Run all 192 tests
-cargo test -- --nocapture                  # Run with output
-cargo test demo_simulation -- --nocapture  # Interactive demo
+cargo build                    # Build library
+cargo build --features server  # Build with server
+cargo test                     # Run all 24 tests
+cargo run --features server    # Run server (port 3000)
 ```
-
-### Running the Server
-
-**IMPORTANT for Claude CLI:** Use the management script to run the server:
-
-```bash
-./scripts/server.sh start    # Start server (background, port 3000)
-./scripts/server.sh stop     # Stop server
-./scripts/server.sh status   # Check if running
-./scripts/server.sh logs     # View server logs
-PORT=3001 ./scripts/server.sh start  # Use different port
-```
-
-Do NOT use `cargo run` directly - it won't work properly in Claude CLI's environment.
-The script handles process detachment and logging correctly for Termux.
 
 ## Architecture
 
-### File Structure
+### Files
 
-```
-capbit/
-├── src/
-│   ├── lib.rs              # Public API re-exports
-│   ├── core.rs             # Core database operations
-│   ├── caps.rs             # SystemCap constants
-│   ├── bootstrap.rs        # Genesis/root creation
-│   ├── protected.rs        # Protected mutation API
-│   ├── auth.rs             # Password-based authentication (v3)
-│   └── bin/
-│       └── server.rs       # REST API server
-├── demo/
-│   ├── index.html          # Interactive web demo
-│   ├── app.js              # Demo JavaScript (v3)
-│   └── styles.css          # Demo styles (v3)
-├── docs/
-│   ├── GUIDE.md            # Visual guide with diagrams
-│   ├── SIMULATION.md       # Full simulation spec
-│   ├── TEST_PLAN.md        # Comprehensive test plan
-│   ├── V3_ROADMAP.md       # Future features roadmap
-│   └── COMPARISON.md       # Comparison with other systems
-├── tests/
-│   ├── integration.rs          # v1 compatibility tests
-│   ├── attack_vectors.rs       # Security tests
-│   ├── attack_vectors_extended.rs  # Advanced security
-│   ├── permission_boundaries.rs    # Capability edge cases
-│   ├── revocation.rs           # Permission removal
-│   ├── authorized_operations.rs    # Client abilities
-│   ├── input_validation.rs     # Edge cases
-│   ├── inheritance_advanced.rs # Complex inheritance
-│   ├── batch_operations.rs     # Batch API
-│   ├── query_operations.rs     # Query completeness
-│   ├── type_system.rs          # Type lifecycle
-│   ├── protected_api.rs        # v2 API tests
-│   ├── simulation.rs           # Organization scenarios
-│   ├── benchmarks.rs           # Performance tests
-│   └── demo_verbose.rs         # Interactive demo
-├── Cargo.toml
-├── README.md               # User documentation
-└── CLAUDE.md               # Technical guidance for Claude Code
-```
+| File | Lines | Purpose |
+|------|-------|---------|
+| `src/lib.rs` | 219 | Core library with `Dbs` struct, cycle prevention |
+| `src/bin/server.rs` | 100 | REST API: 14 endpoints |
+| `demo/index.html` | 146 | Collapsible UI with nav, emojis |
+| `tests/integration.rs` | 170 | 24 integration tests |
+| `tests/benchmarks.rs` | 133 | Performance benchmarks |
 
-### Core Modules
-
-| Module | Purpose |
-|--------|---------|
-| `core.rs` | LMDB operations, transactions, access checks |
-| `caps.rs` | SystemCap bitmask constants |
-| `bootstrap.rs` | Genesis: create root user, core types |
-| `protected.rs` | Authorization-checked mutations |
-| `auth.rs` | Password-based authentication (v3) |
-
-### Entity Types
-
-```
-user:alice        - Person
-team:engineering  - Group
-app:backend       - Application
-resource:doc123   - Protected resource
-_type:user        - Meta-entity for type-level permissions
-```
-
-### Storage (LMDB)
-
-```
-LMDB
-├── relationships/           (subject/rel_type/object → epoch)
-├── relationships_rev/       (object/rel_type/subject → epoch)
-├── capabilities/            (entity/rel_type → cap_mask)
-├── inheritance/             (subject/object/source → epoch)
-├── inheritance_by_source/   (source/object/subject → epoch)
-├── inheritance_by_object/   (object/source/subject → epoch)
-├── cap_labels/              (entity/cap_bit → label)
-├── types/                   (type_name → epoch)
-├── entities/                (entity_id → epoch)
-└── meta/                    (key → value)
-```
-
-### Core Model
-
-```
-ENTITIES = Things/resources (user:alice, resource:office, team:sales)
-CAPABILITIES = For org entities: ROLES (sets of primitive actions)
-               For _type:*: SystemCap bits (one-to-one)
-GRANTS = Assign ONE role → get SET of actions
-DELEGATIONS = Inherited grants (bounded by delegator)
-
-Example: Roles on resource:office
-  "visitor"  = 0x01 (enter only)
-  "employee" = 0x07 (enter + print + fax)
-  "owner"    = 0x3F (all actions)
-
-Grant bob "employee" → bob gets 0x07 (one grant, multiple actions)
-```
-
-### Permission Check Flow (check_access)
-
-```
-1. Find grants: subject/*/object → get relation names
-2. Type-level grants: subject/*/_type:{type} → get relation names
-3. Inheritance: subject/object/* → get sources, recurse for inherited grants
-4. Capability lookup: For each relation, get cap_mask from object's capabilities
-5. Combine: OR all cap_masks together
-6. Evaluate: (effective & required) == required
-
-Note: check_access includes type-level grants when querying instances.
-E.g., querying user:root on team:engineering includes root's grants on _type:team.
-```
-
-### Two-Layer Capability Model
-
-**Layer 1: System Capabilities (SystemCap)** - Only meaningful on `_type:*` scopes
-**Layer 2: Org-Defined Capabilities** - Arbitrary bitmasks, org defines meaning per entity
-
-### SystemCap Bits (Layer 1 - for `_type:*` scopes only)
-
-| Capability | Hex | Purpose |
-|------------|-----|---------|
-| TYPE_CREATE | 0x0001 | Create types |
-| TYPE_DELETE | 0x0002 | Delete types |
-| ENTITY_CREATE | 0x0004 | Create entities |
-| ENTITY_DELETE | 0x0008 | Delete entities |
-| GRANT_READ | 0x0010 | View relationships |
-| GRANT_WRITE | 0x0020 | Create relationships |
-| GRANT_DELETE | 0x0040 | Remove relationships |
-| CAP_READ | 0x0080 | View capabilities |
-| CAP_WRITE | 0x0100 | Define capabilities |
-| CAP_DELETE | 0x0200 | Remove capabilities |
-| DELEGATE_READ | 0x0400 | View delegations |
-| DELEGATE_WRITE | 0x0800 | Create delegations |
-| DELEGATE_DELETE | 0x1000 | Remove delegations |
-| SYSTEM_READ | 0x2000 | View system internals (_type:* entities) |
-
-Composites:
-- `ENTITY_ADMIN` = 0x1ffc (full entity management)
-- `GRANT_ADMIN` = 0x0070 (full grant control)
-- `TYPE_ADMIN` = 0x3fff (everything including SYSTEM_READ)
-- `ALL` = 0x3fff (all capability bits)
-
-### Org-Defined Capabilities (Layer 2)
-
-On non-`_type:*` entities, capabilities are ROLES (sets of primitive actions):
-```
-resource:office (primitives: enter=0x01, print=0x02, fax=0x04, safe=0x08):
-  "visitor"  = 0x01  (enter only)
-  "employee" = 0x07  (enter + print + fax)
-  "manager"  = 0x0F  (+ safe)
-  "owner"    = 0x3F  (all)
-
-app:api-gateway (primitives: read=0x01, write=0x02, delete=0x04, bulk=0x08):
-  "basic"      = 0x03  (read + write)
-  "pro"        = 0x1F  (+ delete + bulk + webhooks)
-  "enterprise" = 0xFF  (all)
-```
-
-### Scope Isolation Security
-
-Having SystemCap values on your entity does NOT grant system powers:
-```rust
-// Alice has 0x1fff on resource:doc - can she create users? NO!
-// create_entity checks capabilities on _type:user, not resource:doc
-```
-
-### Protected API Pattern
-
-All mutations in `protected.rs` follow:
+### Database (5 tables via `Dbs` struct)
 
 ```rust
-pub fn set_grant(actor: &str, seeker: &str, relation: &str, scope: &str) -> Result<u64> {
-    // 1. Check actor has required capability on scope (or _type:*)
-    check_permission(actor, scope, SystemCap::GRANT_WRITE)?;
-
-    // 2. Execute within transaction
-    with_write_txn_pub(|txn, dbs| {
-        // 3. Validate scope exists
-        // 4. Perform operation
-        _set_relationship_in(txn, dbs, seeker, relation, scope)
-    })
+struct Dbs {
+    caps: Db,   // [subject:8][object:8] -> role/mask
+    rev: Db,    // [object:8][subject:8] -> role/mask (reverse index)
+    roles: Db,  // [object:8][role:8] -> mask (role definitions)
+    inh: Db,    // [object:8][child:8] -> parent (inheritance)
+    meta: Db,   // string keys -> values (labels, bootstrap, next_id)
 }
 ```
 
-### Bootstrap Sequence
+### Core API
 
 ```rust
-bootstrap("root"):
-  1. Create meta-type "_type"
-  2. Create core types: user, team, app, resource
-  3. Create type entities: _type:_type, _type:user, etc.
-  4. Define admin capability on each type
-  5. Create user:root entity
-  6. Grant root "admin" on all type entities
-  7. Mark system as bootstrapped
+// Initialization
+pub fn init(path: &str) -> Result<()>
+pub fn clear_all() -> Result<()>
+
+// Entity CRUD
+pub fn create_entity(name: &str) -> Result<u64>      // auto-increment ID
+pub fn rename_entity(id: u64, name: &str) -> Result<()>
+pub fn delete_entity(id: u64) -> Result<bool>
+
+// Core operations
+pub fn grant(subject: u64, object: u64, role: u64) -> Result<()>
+pub fn revoke(subject: u64, object: u64) -> Result<bool>
+pub fn check(subject: u64, object: u64, required: u64) -> Result<bool>
+pub fn get_mask(subject: u64, object: u64) -> Result<u64>
+pub fn batch_grant(grants: &[(u64, u64, u64)]) -> Result<()>
+pub fn batch_revoke(revokes: &[(u64, u64)]) -> Result<usize>
+
+// Roles (scoped per object)
+pub fn set_role(object: u64, role: u64, mask: u64) -> Result<()>
+pub fn get_role(object: u64, role: u64) -> Result<u64>
+
+// Inheritance (with cycle prevention)
+pub fn set_inherit(object: u64, child: u64, parent: u64) -> Result<()>
+pub fn remove_inherit(object: u64, child: u64) -> Result<bool>
+pub fn get_inherit(object: u64, child: u64) -> Result<Option<u64>>
+
+// Queries
+pub fn list_for_subject(subject: u64) -> Result<Vec<(u64, u64)>>
+pub fn list_for_object(object: u64) -> Result<Vec<(u64, u64)>>
+
+// Protected (require actor authorization)
+pub fn protected_grant(actor, subject, object, role) -> Result<()>
+pub fn protected_revoke(actor, subject, object) -> Result<bool>
+pub fn protected_set_role(actor, object, role, mask) -> Result<()>
+pub fn protected_set_inherit(actor, object, child, parent) -> Result<()>
+
+// Bootstrap
+pub fn bootstrap(root_id: u64) -> Result<()>
+pub fn is_bootstrapped() -> Result<bool>
+pub fn get_root() -> Result<Option<u64>>
+
+// Labels
+pub fn set_label(id: u64, name: &str) -> Result<()>
+pub fn get_label(id: u64) -> Result<Option<String>>
+pub fn get_id_by_label(name: &str) -> Result<Option<u64>>
+pub fn list_labels() -> Result<Vec<(u64, String)>>
+
+// Capability helpers
+pub fn caps_to_names(mask: u64) -> Vec<&'static str>
+pub fn names_to_caps(names: &[&str]) -> u64
 ```
 
-## Complexity
+### Capability Constants
 
-| Operation | Complexity |
-|-----------|------------|
-| Key lookup | O(log N) |
-| Prefix scan | O(log N + K) |
-| Bitmask check | O(1) |
-| Access check | O(log N) |
+```rust
+pub const READ: u64 = 1;          // 0x01
+pub const WRITE: u64 = 1 << 1;    // 0x02
+pub const DELETE: u64 = 1 << 2;   // 0x04
+pub const CREATE: u64 = 1 << 3;   // 0x08
+pub const GRANT: u64 = 1 << 4;    // 0x10
+pub const EXECUTE: u64 = 1 << 5;  // 0x20
+pub const VIEW: u64 = 1 << 62;    // Protected list access
+pub const ADMIN: u64 = 1 << 63;   // Full control
+```
 
-## Test Categories
+### Server Endpoints
 
-| Category | Count | Purpose |
-|----------|-------|---------|
-| Security Attacks | 26 | Attack vectors, privilege escalation, scope isolation |
-| Permission Boundaries | 16 | Capability edge cases |
-| Revocation | 11 | Permission removal, cascade |
-| Authorized Operations | 17 | Client abilities (happy path) |
-| Input Validation | 18 | Edge cases, special chars |
-| Inheritance | 12 | Diamond, wide, deep patterns |
-| Batch Operations | 13 | WriteBatch, atomic ops |
-| Query Operations | 15 | Query completeness |
-| Type System | 19 | Type lifecycle, permissions |
-| Protected API | 23 | v2 API authorization |
-| Integration | 9 | End-to-end |
-| Simulation | 2 | Organization scenarios |
-| Benchmarks | 7 | Performance |
-| Doc-tests | 3 | Example verification |
-| **Total** | **192** | |
+| Method | Endpoint | Body/Query | Response |
+|--------|----------|------------|----------|
+| GET | /status | - | `{ bootstrapped, root }` |
+| POST | /bootstrap | `{ root_id }` | `{ ok, data: root_id }` |
+| POST | /entity | `{ name }` | `{ ok, data: id }` |
+| POST | /entity/rename | `{ id, name }` | `{ ok }` |
+| POST | /entity/delete | `{ id }` | `{ ok }` |
+| POST | /grant | `{ actor, subject, object, mask }` | `{ ok }` |
+| POST | /revoke | `{ actor, subject, object }` | `{ ok }` |
+| POST | /role | `{ actor, object, role_id, mask }` | `{ ok }` |
+| POST | /inherit | `{ actor, object, child, parent }` | `{ ok }` |
+| GET | /check | `?subject=&object=&required=` | `{ allowed, mask }` |
+| GET | /list | `?subject=` or `?object=` | `[{ id, mask, label }]` |
+| POST | /label | `{ id, name }` | `{ ok }` |
+| GET | /labels | - | `[{ id, mask, label }]` |
+| POST | /reset | - | `{ ok }` |
+
+### Validation
+
+```rust
+// Prevents self-reference and circular inheritance
+fn no_cycle(d: &Dbs, tx: &RoTxn, obj: u64, from: u64, to: u64) -> Result<()>
+```
+
+| Case | Example | Error |
+|------|---------|-------|
+| Self-inherit | `set_inherit(doc, alice, alice)` | "Cannot reference self" |
+| Direct cycle | A→B, B→A | "Circular reference" |
+| Chain cycle | A→B→C→A | "Circular reference" |
+
+## Quick Start
+
+```rust
+use capbit::{init, bootstrap, create_entity, grant, check, READ, WRITE};
+
+init("/tmp/capbit.mdb")?;
+bootstrap(1)?;
+
+// Create entities (auto-increment IDs)
+let alice = create_entity("alice")?;   // returns 1
+let bob = create_entity("bob")?;       // returns 2
+let doc = create_entity("report.pdf")?; // returns 3
+
+// Grant access
+grant(bob, doc, READ | WRITE)?;
+
+// Check access
+assert!(check(bob, doc, READ)?);
+assert!(!check(bob, doc, DELETE)?);
+```
+
+## Demo UI Features
+
+- 🧭 **Sticky nav**: Jump to any section
+- 📂 **Collapsible**: Click headers to expand/collapse
+- 😀 **Emojis**: Visual icons for sections
+- 🔄 **Auto-collapse**: Setup hides after init
+- ✅ **Validation**: Helpful error messages
 
 ## Design Principles
 
-1. **Entities are Things**: `type:id` format (user:alice, resource:office)
-2. **Capabilities are Actions**: Single bits (enter=0x01, print=0x02, fax=0x04)
-3. **Grants are Sets of Actions**: Assign capabilities to users, accumulate via OR
-4. **Protected by Default**: v2 API requires authorization
-5. **Type-Level Permissions**: Control entity creation at `_type:*` level
-6. **Bounded Delegation**: Inherited grants never exceed delegator's
-7. **Single Bootstrap**: Genesis runs exactly once
-8. **Fail Secure**: Missing permission = denied
+1. **u64 IDs**: No string parsing, direct memory operations
+2. **Named Dbs struct**: `d.caps`, `d.roles` instead of `d.0`, `d.2`
+3. **Cycle prevention**: `no_cycle()` validates inheritance
+4. **Entity CRUD**: `create_entity()` with auto-increment
+5. **Roles as indirection**: Change one role = update millions of users
+6. **Dynamic inheritance**: Parent's current access checked at query time
+7. **Batch operations**: LMDB single-writer optimized
+8. **Fail secure**: Missing permission = denied

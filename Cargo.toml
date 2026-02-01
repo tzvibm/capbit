@@ -1,11 +1,11 @@
 [package]
 name = "capbit"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
-description = "High-performance access control library with string-based relationships and bitmask capabilities"
+description = "Minimal capability-based access control with u64 IDs and bitmask permissions"
 license = "LicenseRef-CNCOSL"
 repository = "https://github.com/tzvibm/capbit"
-keywords = ["access-control", "authorization", "permissions", "rbac", "lmdb"]
+keywords = ["access-control", "authorization", "permissions", "capabilities", "lmdb"]
 categories = ["authentication", "database"]
 
 [lib]
@@ -18,21 +18,18 @@ required-features = ["server"]
 
 [features]
 default = []
-server = ["axum", "tokio", "tower-http", "serde_json", "socket2"]
+server = ["axum", "tokio", "tower-http", "serde_json"]
 
 [dependencies]
 heed = "0.20"
 serde = { version = "1.0", features = ["derive"] }
 byteorder = "1.5"
-getrandom = "0.2"
-sha2 = "0.10"
 
 # Server dependencies (optional)
 axum = { version = "0.7", optional = true }
 tokio = { version = "1", features = ["full"], optional = true }
 tower-http = { version = "0.5", features = ["cors"], optional = true }
 serde_json = { version = "1.0", optional = true }
-socket2 = { version = "0.5", optional = true }
 
 [dev-dependencies]
 tempfile = "3"

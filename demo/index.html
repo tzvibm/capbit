@@ -1,669 +1,147 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Capbit Demo</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <header>
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 0.5rem;">
-            <h1>Cap<span>bit</span></h1>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <div class="status-dot" id="status-dot"></div>
-                <span id="auth-status" style="font-size: 0.75rem; color: var(--text-muted);">Not logged in</span>
-                <button id="logout-btn" class="btn sm outline" onclick="doLogout()" style="display: none;">Logout</button>
-            </div>
-        </div>
-    </header>
+<html><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Capbit</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--b:#0f172a;--c:#1e293b;--i:#334155;--t:#f1f5f9;--m:#94a3b8;--p:#6366f1;--g:#22c55e;--r:#ef4444}
+body{font-family:system-ui;background:var(--b);color:var(--t)}
+.w{max-width:500px;margin:0 auto;padding:1rem}
+nav{background:var(--c);padding:.5rem .75rem;display:flex;gap:.5rem;flex-wrap:wrap;position:sticky;top:0;z-index:10;border-bottom:1px solid var(--i)}
+nav a{color:var(--m);text-decoration:none;font-size:.7rem;padding:.3rem .5rem;border-radius:4px;white-space:nowrap}
+nav a:hover{background:var(--i);color:var(--t)}
+h1{text-align:center;margin:1rem 0;font-size:1.5rem}h1 span{color:var(--p)}
+.k{background:var(--c);border-radius:10px;margin-bottom:.75rem;overflow:hidden}
+.t{font-size:.75rem;color:var(--m);padding:.75rem 1rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
+.t:hover{background:var(--i)}
+.t::after{content:'▼';font-size:.6rem;transition:transform .2s}
+.k.closed .t::after{transform:rotate(-90deg)}
+.k.closed .bd{display:none}
+.bd{padding:0 1rem 1rem}
+.r{display:flex;gap:.5rem;margin-bottom:.5rem}
+.c{flex:1;display:flex;flex-direction:column;gap:.2rem}
+label{font-size:.75rem;color:var(--m)}
+input,select{background:var(--i);border:1px solid #475569;border-radius:5px;padding:.4rem;color:var(--t);font-size:.85rem;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--p)}
+button{background:var(--p);color:#fff;border:none;border-radius:5px;padding:.5rem;font-size:.85rem;cursor:pointer;width:100%;margin-top:.5rem}
+button:hover{opacity:.9}.d{background:var(--r)}.sec{background:var(--i)}
+.s{display:flex;align-items:center;gap:.5rem;font-size:.8rem}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--r)}.dot.ok{background:var(--g)}
+.res{margin-top:.5rem;padding:.5rem;border-radius:5px;font-size:.8rem}
+.res.ok{background:rgba(34,197,94,.15);border:1px solid var(--g)}
+.res.er{background:rgba(239,68,68,.15);border:1px solid var(--r)}
+.it{background:var(--i);border-radius:5px;padding:.4rem;margin-top:.3rem;font-size:.75rem;display:flex;justify-content:space-between}
+.log{background:var(--b);border-radius:5px;padding:.5rem;max-height:120px;overflow-y:auto;font-size:.7rem;font-family:monospace}
+.le{padding:.15rem 0;border-bottom:1px solid #334155}
+.caps{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.25rem}.caps label{display:flex;align-items:center;gap:.2rem;font-size:.7rem;background:var(--i);padding:.25rem .5rem;border-radius:4px;cursor:pointer}
+.caps input{width:auto}
+.em{font-size:1rem;margin-right:.5rem}
+</style>
+</head><body>
+<nav>
+<a href="#entities">👤 Users</a>
+<a href="#grant">🔑 Grant</a>
+<a href="#check">✅ Check</a>
+<a href="#view">📋 View</a>
+<a href="#roles">🎭 Roles</a>
+<a href="#inherit">👥 Inherit</a>
+</nav>
+<div class="w">
+<h1>Cap<span>bit</span></h1>
 
-    <div class="container">
-        <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="showTab('home')" id="tab-btn-home">Home</button>
-            <button class="tab" onclick="showTab('query')">Query</button>
-            <button class="tab" onclick="showTab('logs')">Logs</button>
-            <button class="tab" onclick="showTab('setup')">Setup</button>
-        </div>
+<div class="k" id="status"><div class="t"><span><span class="em">📡</span>Status</span></div>
+<div class="bd"><div class="s"><div class="dot" id="dot"></div><span id="st">Connecting...</span></div></div></div>
 
-        <!-- Setup Tab -->
-        <div id="tab-setup" class="tab-content">
-            <!-- Auth Card -->
-            <div class="card" id="auth-card">
-                <div class="card-title">Authentication</div>
-                <div id="auth-logged-out">
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-                        Not logged in. Bootstrap to create root user, or login with password/token.
-                    </p>
-                    <div class="form-row" style="margin-bottom: 0.75rem;">
-                        <div class="input-group">
-                            <label>Username</label>
-                            <input type="text" id="login-entity" placeholder="e.g. root">
-                        </div>
-                        <div class="input-group">
-                            <label>Password</label>
-                            <input type="password" id="login-password" placeholder="Your password">
-                        </div>
-                    </div>
-                    <button class="btn full" onclick="doPasswordLogin()" style="margin-bottom: 0.75rem;">Login with Password</button>
-                    <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-bottom: 0.5rem;">or</p>
-                    <div class="input-group" style="margin-bottom: 0.5rem;">
-                        <label>Token</label>
-                        <input type="text" id="login-token" placeholder="Paste your token here">
-                    </div>
-                    <button class="btn outline full" onclick="doLogin()">Login with Token</button>
-                </div>
-                <div id="auth-logged-in" style="display: none;">
-                    <p style="font-size: 0.85rem; margin-bottom: 0.5rem;">
-                        Logged in as: <strong id="logged-in-entity"></strong>
-                    </p>
-                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-                        Token: <code id="current-token" style="font-size: 0.65rem;"></code>
-                    </p>
-                    <button class="btn outline full" onclick="doCopyToken()">Copy Token</button>
-                </div>
-            </div>
+<div class="k closed" id="setup"><div class="t" onclick="tog(this)"><span><span class="em">⚙️</span>Setup</span></div>
+<div class="bd">
+<div class="c"><label>Admin User ID</label><input type="number" id="ri" value="1"></div>
+<button onclick="boot()">Initialize System</button><div id="br"></div>
+</div></div>
 
-            <div class="card" id="bootstrap-card">
-                <div class="card-title">Bootstrap System</div>
-                <p id="bootstrap-status" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;"></p>
-                <div id="bootstrap-form">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Root User ID</label>
-                            <input type="text" id="bootstrap-root" value="root" placeholder="e.g. root, admin">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Password (optional)</label>
-                            <input type="password" id="bootstrap-password" placeholder="Set a password for login">
-                        </div>
-                    </div>
-                    <button class="btn full" onclick="doBootstrap()">Bootstrap</button>
-                </div>
-            </div>
+<div class="k" id="entities"><div class="t" onclick="tog(this)"><span><span class="em">👤</span>Users & Resources</span></div>
+<div class="bd">
+<div class="r"><div class="c"><label>Name</label><input id="enm" placeholder="alice, bob, report.pdf..."></div><button onclick="ent()" style="width:auto;padding:.4rem .8rem;margin:0;align-self:flex-end">+ Add</button></div>
+<div id="eres"></div>
+<div class="r" style="margin-top:.5rem"><div class="c"><label>Edit</label><select id="esel" class="sel"></select></div><div class="c"><label>Rename to</label><input id="ernm"></div></div>
+<div class="r"><button onclick="ren()" class="sec" style="flex:1">Rename</button><button onclick="del()" class="d" style="flex:1">Delete</button></div>
+</div></div>
 
-            <div class="card" id="set-password-card" style="display: none;">
-                <div class="card-title">Set User Password</div>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-                    Set password for yourself or another user (requires admin).
-                </p>
-                <div class="form-row">
-                    <div class="input-group">
-                        <label>Username</label>
-                        <input type="text" id="set-password-entity" placeholder="e.g. alice">
-                    </div>
-                    <div class="input-group">
-                        <label>New Password</label>
-                        <input type="password" id="set-password-value" placeholder="New password">
-                    </div>
-                </div>
-                <button class="btn full" onclick="doSetPassword()" style="margin-top: 0.5rem;">Set Password</button>
-            </div>
+<div class="k" id="grant"><div class="t" onclick="tog(this)"><span><span class="em">🔑</span>Grant Access</span></div>
+<div class="bd">
+<div class="r"><div class="c"><label>As (admin)</label><select id="ga" class="sel"></select></div><div class="c"><label>Grant to</label><select id="gs" class="sel"></select></div></div>
+<div class="c"><label>On resource</label><select id="go" class="sel"></select></div>
+<label style="margin-top:.5rem">Permissions</label><div class="caps" id="gcaps"></div>
+<button onclick="grt()">🔑 Grant Access</button><div id="gr"></div>
+</div></div>
 
-            <div class="card">
-                <div class="card-title">Quick Setup Templates</div>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-                    Run a template to populate the system. Watch the log to see each API call.
-                </p>
-                <div class="btn-group">
-                    <button class="btn warning" onclick="runTemplate('startup')">Startup</button>
-                    <button class="btn warning" onclick="runTemplate('saas')">SaaS</button>
-                </div>
-            </div>
+<div class="k" id="check"><div class="t" onclick="tog(this)"><span><span class="em">✅</span>Check Access</span></div>
+<div class="bd">
+<div class="r"><div class="c"><label>User</label><select id="cs" class="sel"></select></div><div class="c"><label>Resource</label><select id="co" class="sel"></select></div></div>
+<label>Required permissions (optional)</label><div class="caps" id="ccaps"></div>
+<button onclick="chk()">✅ Check Access</button><div id="ck"></div>
+</div></div>
 
-            <div class="card">
-                <div class="card-title">Danger Zone</div>
-                <button class="btn danger full" onclick="doReset()">Reset Database</button>
-            </div>
-        </div>
+<div class="k closed" id="view"><div class="t" onclick="tog(this)"><span><span class="em">📋</span>View Permissions</span></div>
+<div class="bd">
+<div class="r"><div class="c"><label>By user</label><select id="ls" class="sel"></select></div><div class="c"><label>By resource</label><select id="lo" class="sel"></select></div></div>
+<button class="sec" onclick="lst()">📋 Show Permissions</button><div id="lr"></div>
+</div></div>
 
-        <!-- Home Tab - Dashboard -->
-        <div id="tab-home" class="tab-content active">
-            <!-- Hero -->
-            <div class="hero">
-                <div class="hero-icon">🔐</div>
-                <div class="hero-text">
-                    <div class="hero-title">Fine-Grained Access Control</div>
-                    <div class="hero-sub">Entity-relative roles and capabilities. Bit-level granularity with O(1) evaluation. Bounded inheritance. Full observability.</div>
-                </div>
-            </div>
+<div class="k closed" id="roles"><div class="t" onclick="tog(this)"><span><span class="em">🎭</span>Define Roles</span></div>
+<div class="bd">
+<p style="font-size:.7rem;color:var(--m);margin-bottom:.5rem">Create reusable permission templates</p>
+<div class="r"><div class="c"><label>As (admin)</label><select id="ra" class="sel"></select></div><div class="c"><label>On resource</label><select id="ro" class="sel"></select></div></div>
+<div class="c"><label>Role ID</label><input type="number" id="rr" value="1" style="width:80px"></div>
+<label style="margin-top:.5rem">Role permissions</label><div class="caps" id="rcaps"></div>
+<button class="sec" onclick="rol()">💾 Save Role</button><div id="rres"></div>
+</div></div>
 
-            <!-- Stats Grid -->
-            <div class="dash-grid">
-                <div class="dash-stat" onclick="toggleDash('types')">
-                    <span class="dash-icon">📁</span>
-                    <span class="dash-num" id="count-types">0</span>
-                    <span class="dash-label">Types</span>
-                </div>
-                <div class="dash-stat" onclick="toggleDash('entities')">
-                    <span class="dash-icon">👤</span>
-                    <span class="dash-num" id="count-entities">0</span>
-                    <span class="dash-label">Entities</span>
-                </div>
-                <div class="dash-stat" onclick="toggleDash('capbits')">
-                    <span class="dash-icon">⚡</span>
-                    <span class="dash-num" id="count-capbits">0</span>
-                    <span class="dash-label">Actions</span>
-                </div>
-                <div class="dash-stat" onclick="toggleDash('relations')">
-                    <span class="dash-icon">🎭</span>
-                    <span class="dash-num" id="count-relations">0</span>
-                    <span class="dash-label">Roles</span>
-                </div>
-                <div class="dash-stat" onclick="toggleDash('grants')">
-                    <span class="dash-icon">🔑</span>
-                    <span class="dash-num" id="count-grants">0</span>
-                    <span class="dash-label">Members</span>
-                </div>
-                <div class="dash-stat" onclick="toggleDash('delegations')">
-                    <span class="dash-icon">🔗</span>
-                    <span class="dash-num" id="count-delegations">0</span>
-                    <span class="dash-label">Inheritance</span>
-                </div>
-            </div>
+<div class="k closed" id="inherit"><div class="t" onclick="tog(this)"><span><span class="em">👥</span>Inheritance</span></div>
+<div class="bd">
+<p style="font-size:.7rem;color:var(--m);margin-bottom:.5rem">User inherits permissions from another user/group</p>
+<div class="r"><div class="c"><label>As (admin)</label><select id="ia" class="sel"></select></div><div class="c"><label>On resource</label><select id="io" class="sel"></select></div></div>
+<div class="r"><div class="c"><label>User</label><select id="ic" class="sel" onchange="exclude('ip',this.value)"></select></div><div class="c"><label>Inherits from</label><select id="ip" class="sel" onchange="exclude('ic',this.value)"></select></div></div>
+<button class="sec" onclick="inh()">🔗 Set Inheritance</button><div id="ir"></div>
+</div></div>
 
-            <!-- Quick Start hint -->
-            <div class="hint" id="empty-hint">
-                <p>👆 Tap <strong>Setup</strong> → run a template to see it in action</p>
-            </div>
+<div class="k closed" id="log"><div class="t" onclick="tog(this)"><span><span class="em">📜</span>Activity Log</span></div>
+<div class="bd"><div class="log" id="logc"></div></div></div>
 
-            <!-- Collapsible sections -->
-            <div class="dash-section hidden" id="dash-types">
-                <div class="dash-header">📁 Types</div>
-                <div id="type-list" class="dash-list"></div>
-            </div>
+<button class="d" onclick="rst()">🗑️ Reset Everything</button>
+</div>
 
-            <div class="dash-section hidden" id="dash-entities">
-                <div class="dash-header">👤 Entities</div>
-                <div id="entity-list" class="dash-list"></div>
-            </div>
+<script>
+const $=id=>document.getElementById(id)
+const CAPS=[['read',1],['write',2],['delete',4],['create',8],['grant',16],['exec',32]]
+const tog=el=>el.parentElement.classList.toggle('closed')
+const log=(m,ok=1)=>{const e=document.createElement('div');e.className='le';e.style.color=ok?'var(--g)':'var(--r)';e.textContent=new Date().toLocaleTimeString()+' '+(ok?'✓':'✗')+' '+m;$('logc').prepend(e)}
+const api=async(m,u,b)=>{try{const o={method:m,headers:{'Content-Type':'application/json'}};if(b)o.body=JSON.stringify(b);const r=await(await fetch(u,o)).json();log(u.split('/').pop()+': '+(r.ok?'OK':r.error),r.ok);return r}catch(e){log(e,0);return{ok:0,error:e+''}}}
+const res=(id,ok,m)=>$(id).innerHTML='<div class="res '+(ok?'ok':'er')+'">'+m+'</div>'
+const getCaps=id=>CAPS.reduce((a,[n,v])=>a|($(id+'-'+n)?.checked?v:0),0)
+const capsNames=m=>CAPS.filter(([,v])=>m&v).map(([n])=>n).join(', ')||'none'
+const exclude=(id,v)=>[...$( id).options].forEach(o=>o.disabled=o.value&&o.value===v)
 
-            <div class="dash-section hidden" id="dash-capbits">
-                <div class="dash-header">⚡ Actions</div>
-                <div id="primitive-cap-list" class="dash-list"></div>
-            </div>
+function initCaps(id){$(id).innerHTML=CAPS.map(([n])=>'<label><input type="checkbox" id="'+id+'-'+n+'">'+n+'</label>').join('')}
+async function loadLabels(){
+  const r=await api('GET','/labels');if(!r.ok)return
+  const opts='<option value="">— select —</option>'+r.data.map(e=>'<option value="'+e.id+'">'+(e.label||'#'+e.id)+'</option>').join('')
+  document.querySelectorAll('.sel').forEach(s=>{const v=s.value;s.innerHTML=opts;s.value=v})
+  $('eres').innerHTML=r.data.length?r.data.map(e=>'<div class="it"><span>#'+e.id+'</span><span>'+(e.label||'—')+'</span></div>').join(''):'<div class="it" style="color:var(--m)">No entities yet. Add users and resources above.</div>'
+}
+async function ent(){const n=$('enm').value.trim();if(!n){res('eres',0,'Enter a name');return}const r=await api('POST','/entity',{name:n});res('eres',r.ok,r.ok?'✓ Created: '+n+' (#'+r.data+')':r.error);if(r.ok){$('enm').value='';loadLabels()}}
+async function ren(){const id=$('esel').value,n=$('ernm').value.trim();if(!id){res('eres',0,'Select an entity');return}if(!n){res('eres',0,'Enter new name');return}const r=await api('POST','/entity/rename',{id:+id,name:n});res('eres',r.ok,r.ok?'✓ Renamed to: '+n:r.error);if(r.ok){$('ernm').value='';loadLabels()}}
+async function del(){const id=$('esel').value;if(!id){res('eres',0,'Select an entity');return}if(!confirm('Delete this entity?'))return;const r=await api('POST','/entity/delete',{id:+id});res('eres',r.ok,r.ok?'✓ Deleted':r.error);if(r.ok)loadLabels()}
 
-            <div class="dash-section hidden" id="dash-relations">
-                <div class="dash-header">🎭 Roles</div>
-                <div id="cap-list" class="dash-list"></div>
-            </div>
+async function status(){const r=await api('GET','/status');if(r.ok){$('dot').classList.add('ok');$('st').textContent=r.data.bootstrapped?'✓ Ready (admin: #'+r.data.root+')':'⚠️ Not initialized';if(r.data.bootstrapped){$('setup').classList.add('closed');$('status').classList.add('closed')}else{$('setup').classList.remove('closed')}}}
+async function boot(){const r=await api('POST','/bootstrap',{root_id:+$('ri').value||1});res('br',r.ok,r.ok?'✓ Initialized! Admin is #'+r.data:r.error);if(r.ok){status();loadLabels()}}
+async function grt(){const a=$('ga').value,s=$('gs').value,o=$('go').value,m=getCaps('gcaps');if(!a||!s||!o){res('gr',0,'Select all fields');return}if(!m){res('gr',0,'Select at least one permission');return}const r=await api('POST','/grant',{actor:+a,subject:+s,object:+o,mask:m});res('gr',r.ok,r.ok?'✓ Access granted!':r.error)}
+async function chk(){const s=$('cs').value,o=$('co').value;if(!s||!o){res('ck',0,'Select user and resource');return}const q=getCaps('ccaps'),r=await api('GET','/check?subject='+s+'&object='+o+'&required='+q);r.ok?res('ck',r.data.allowed,(r.data.allowed?'✅ ALLOWED':'❌ DENIED')+' — has: '+capsNames(r.data.mask)):res('ck',0,r.error)}
+async function lst(){const s=$('ls').value,o=$('lo').value;if(!s&&!o){res('lr',0,'Select user or resource');return}const r=await api('GET','/list?'+(s?'subject='+s:'object='+o));r.ok?$('lr').innerHTML=r.data.length?r.data.map(e=>'<div class="it"><span>'+(e.label||'#'+e.id)+'</span><span>'+capsNames(e.mask)+'</span></div>').join(''):'<div class="it" style="color:var(--m)">No permissions found</div>':res('lr',0,r.error)}
+async function rol(){const a=$('ra').value,o=$('ro').value;if(!a||!o){res('rres',0,'Select admin and resource');return}const r=await api('POST','/role',{actor:+a,object:+o,role_id:+$('rr').value,mask:getCaps('rcaps')});res('rres',r.ok,r.ok?'✓ Role saved!':r.error)}
+async function inh(){const a=$('ia').value,o=$('io').value,c=$('ic').value,p=$('ip').value;if(!a||!o||!c||!p){res('ir',0,'Fill all fields');return}const r=await api('POST','/inherit',{actor:+a,object:+o,child:+c,parent:+p});res('ir',r.ok,r.ok?'✓ Inheritance set!':r.error)}
+async function rst(){if(!confirm('⚠️ This will delete ALL data. Continue?'))return;if((await api('POST','/reset')).ok)location.reload()}
 
-            <div class="dash-section hidden" id="dash-grants">
-                <div class="dash-header">🔑 Members</div>
-                <div id="grant-list" class="dash-list"></div>
-            </div>
-
-            <div class="dash-section hidden" id="dash-delegations">
-                <div class="dash-header">🔗 Inheritance</div>
-                <div id="delegation-list" class="dash-list"></div>
-            </div>
-        </div>
-
-        <!-- Query Tab -->
-        <div id="tab-query" class="tab-content">
-            <div class="home-list">
-                <!-- 1. Types -->
-                <div class="home-card" onclick="showQuery('types')">
-                    <span class="hc-icon">📁</span>
-                    <span class="hc-name">Types</span>
-                </div>
-                <div class="expand-section hidden" id="qf-types">
-                    <div class="input-group">
-                        <label>Type</label>
-                        <select id="q-type" onchange="qType()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-types-result"></div>
-                </div>
-
-                <!-- 2. Entities -->
-                <div class="home-card" onclick="showQuery('entities')">
-                    <span class="hc-icon">👤</span>
-                    <span class="hc-name">Entities</span>
-                </div>
-                <div class="expand-section hidden" id="qf-entities">
-                    <div class="input-group">
-                        <label>Entity</label>
-                        <select id="q-entity" onchange="qEntity()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-entities-result"></div>
-                </div>
-
-                <!-- 3. Actions by Type -->
-                <div class="home-card" onclick="showQuery('actions')">
-                    <span class="hc-icon">⚡</span>
-                    <span class="hc-name">Actions by Type</span>
-                </div>
-                <div class="expand-section hidden" id="qf-actions">
-                    <div class="input-group">
-                        <label>Type</label>
-                        <select id="q-act-type" onchange="qActionsByType()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-actions-result"></div>
-                </div>
-
-                <!-- 4. Groups by Entity -->
-                <div class="home-card" onclick="showQuery('groups-ent')">
-                    <span class="hc-icon">👥</span>
-                    <span class="hc-name">Groups by Entity</span>
-                </div>
-                <div class="expand-section hidden" id="qf-groups-ent">
-                    <div class="input-group">
-                        <label>Entity</label>
-                        <select id="q-grp-ent" onchange="qGroupsByEntity()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-groups-ent-result"></div>
-                </div>
-
-                <!-- 5. Groups by Role -->
-                <div class="home-card" onclick="showQuery('groups-role')">
-                    <span class="hc-icon">🎭</span>
-                    <span class="hc-name">Groups by Role</span>
-                </div>
-                <div class="expand-section hidden" id="qf-groups-role">
-                    <div class="input-group">
-                        <label>Role name</label>
-                        <select id="q-grp-role" onchange="qGroupsByRole()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-groups-role-result"></div>
-                </div>
-
-                <!-- 6. Members: By Who -->
-                <div class="home-card" onclick="showQuery('mem-who')">
-                    <span class="hc-icon">→</span>
-                    <span class="hc-name">Members: By Who</span>
-                </div>
-                <div class="expand-section hidden" id="qf-mem-who">
-                    <div class="input-group">
-                        <label>Who</label>
-                        <select id="q-mem-who" onchange="qMembersByWho()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-mem-who-result"></div>
-                </div>
-
-                <!-- 7. Members: By What -->
-                <div class="home-card" onclick="showQuery('mem-what')">
-                    <span class="hc-icon">←</span>
-                    <span class="hc-name">Members: By What</span>
-                </div>
-                <div class="expand-section hidden" id="qf-mem-what">
-                    <div class="input-group">
-                        <label>What</label>
-                        <select id="q-mem-what" onchange="qMembersByWhat()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-mem-what-result"></div>
-                </div>
-
-                <!-- 8. Members: By Role -->
-                <div class="home-card" onclick="showQuery('mem-role')">
-                    <span class="hc-icon">🏷️</span>
-                    <span class="hc-name">Members: By Role</span>
-                </div>
-                <div class="expand-section hidden" id="qf-mem-role">
-                    <div class="input-group">
-                        <label>Role</label>
-                        <select id="q-mem-role" onchange="qMembersByRole()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-mem-role-result"></div>
-                </div>
-
-                <!-- 9. Members: Who + What → Roles -->
-                <div class="home-card" onclick="showQuery('mem-ww')">
-                    <span class="hc-icon">→</span>
-                    <span class="hc-name">Members: Who + What → Roles</span>
-                </div>
-                <div class="expand-section hidden" id="qf-mem-ww">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Who</label>
-                            <select id="q-mem-ww-who" onchange="qMemWhoWhat()"><option value="">Select...</option></select>
-                        </div>
-                        <div class="input-group">
-                            <label>What</label>
-                            <select id="q-mem-ww-what" onchange="qMemWhoWhat()"><option value="">Select...</option></select>
-                        </div>
-                    </div>
-                    <div id="q-mem-ww-result"></div>
-                </div>
-
-                <!-- 10. Members: Who + Role → What -->
-                <div class="home-card" onclick="showQuery('mem-wr')">
-                    <span class="hc-icon">→</span>
-                    <span class="hc-name">Members: Who + Role → What</span>
-                </div>
-                <div class="expand-section hidden" id="qf-mem-wr">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Who</label>
-                            <select id="q-mem-wr-who" onchange="qMemWhoRole()"><option value="">Select...</option></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Role</label>
-                            <select id="q-mem-wr-role" onchange="qMemWhoRole()"><option value="">Select...</option></select>
-                        </div>
-                    </div>
-                    <div id="q-mem-wr-result"></div>
-                </div>
-
-                <!-- 11. Members: What + Role → Who -->
-                <div class="home-card" onclick="showQuery('mem-xr')">
-                    <span class="hc-icon">←</span>
-                    <span class="hc-name">Members: What + Role → Who</span>
-                </div>
-                <div class="expand-section hidden" id="qf-mem-xr">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>What</label>
-                            <select id="q-mem-xr-what" onchange="qMemWhatRole()"><option value="">Select...</option></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Role</label>
-                            <select id="q-mem-xr-role" onchange="qMemWhatRole()"><option value="">Select...</option></select>
-                        </div>
-                    </div>
-                    <div id="q-mem-xr-result"></div>
-                </div>
-
-                <!-- 12. Sharing: By Receiver -->
-                <div class="home-card" onclick="showQuery('sh-recv')">
-                    <span class="hc-icon">🔗</span>
-                    <span class="hc-name">Sharing: By Receiver</span>
-                </div>
-                <div class="expand-section hidden" id="qf-sh-recv">
-                    <div class="input-group">
-                        <label>Receiver</label>
-                        <select id="q-sh-recv" onchange="qSharingByRecv()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-sh-recv-result"></div>
-                </div>
-
-                <!-- 13. Sharing: By Giver -->
-                <div class="home-card" onclick="showQuery('sh-giver')">
-                    <span class="hc-icon">🔗</span>
-                    <span class="hc-name">Sharing: By Giver</span>
-                </div>
-                <div class="expand-section hidden" id="qf-sh-giver">
-                    <div class="input-group">
-                        <label>Giver</label>
-                        <select id="q-sh-giver" onchange="qSharingByGiver()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-sh-giver-result"></div>
-                </div>
-
-                <!-- 14. Sharing: By Resource -->
-                <div class="home-card" onclick="showQuery('sh-res')">
-                    <span class="hc-icon">🔗</span>
-                    <span class="hc-name">Sharing: By Resource</span>
-                </div>
-                <div class="expand-section hidden" id="qf-sh-res">
-                    <div class="input-group">
-                        <label>Resource</label>
-                        <select id="q-sh-res" onchange="qSharingByRes()"><option value="">Select...</option></select>
-                    </div>
-                    <div id="q-sh-res-result"></div>
-                </div>
-
-                <!-- 15. Sharing: Receiver + Resource → Givers -->
-                <div class="home-card" onclick="showQuery('sh-rr')">
-                    <span class="hc-icon">🔗</span>
-                    <span class="hc-name">Sharing: Recv + Res → Givers</span>
-                </div>
-                <div class="expand-section hidden" id="qf-sh-rr">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Receiver</label>
-                            <select id="q-sh-rr-recv" onchange="qShRecvRes()"><option value="">Select...</option></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Resource</label>
-                            <select id="q-sh-rr-res" onchange="qShRecvRes()"><option value="">Select...</option></select>
-                        </div>
-                    </div>
-                    <div id="q-sh-rr-result"></div>
-                </div>
-
-                <!-- 16. Sharing: Receiver + Giver → Resources -->
-                <div class="home-card" onclick="showQuery('sh-rg')">
-                    <span class="hc-icon">🔗</span>
-                    <span class="hc-name">Sharing: Recv + Giver → Res</span>
-                </div>
-                <div class="expand-section hidden" id="qf-sh-rg">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Receiver</label>
-                            <select id="q-sh-rg-recv" onchange="qShRecvGiver()"><option value="">Select...</option></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Giver</label>
-                            <select id="q-sh-rg-giver" onchange="qShRecvGiver()"><option value="">Select...</option></select>
-                        </div>
-                    </div>
-                    <div id="q-sh-rg-result"></div>
-                </div>
-
-                <!-- 17. Sharing: Resource + Giver → Receivers -->
-                <div class="home-card" onclick="showQuery('sh-xg')">
-                    <span class="hc-icon">🔗</span>
-                    <span class="hc-name">Sharing: Res + Giver → Recv</span>
-                </div>
-                <div class="expand-section hidden" id="qf-sh-xg">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Resource</label>
-                            <select id="q-sh-xg-res" onchange="qShResGiver()"><option value="">Select...</option></select>
-                        </div>
-                        <div class="input-group">
-                            <label>Giver</label>
-                            <select id="q-sh-xg-giver" onchange="qShResGiver()"><option value="">Select...</option></select>
-                        </div>
-                    </div>
-                    <div id="q-sh-xg-result"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Logs Tab -->
-        <div id="tab-logs" class="tab-content">
-            <div class="card">
-                <div class="card-title">
-                    Activity Log
-                    <div style="display: flex; gap: 0.25rem;">
-                        <button class="btn sm outline" onclick="copyLogs()">Copy</button>
-                        <button class="btn sm outline" onclick="clearLog()">Clear</button>
-                    </div>
-                </div>
-                <div class="log" id="log"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- FAB Button -->
-    <button class="fab" id="fab" onclick="toggleModal()">+</button>
-
-    <!-- Modal Overlay -->
-    <div class="modal-overlay" id="modal-overlay" onclick="closeModal()">
-        <div class="modal-sheet" onclick="event.stopPropagation()">
-            <div class="modal-header">
-                <h3 id="modal-title">Create</h3>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-content">
-                <!-- Action Menu (default view) -->
-                <div id="modal-menu" class="action-menu">
-                    <div class="menu-group-label">Create</div>
-                    <button class="action-item" onclick="showForm('type')">
-                        <span class="action-icon" style="background: rgba(139, 92, 246, 0.2);">T</span>
-                        <div><strong>Type</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Define a new entity type</span></div>
-                    </button>
-                    <button class="action-item" onclick="showForm('entity')">
-                        <span class="action-icon entity">+</span>
-                        <div><strong>Entity</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Add user, team, app, or resource</span></div>
-                    </button>
-
-                    <button class="action-item" onclick="showForm('cap-bit')">
-                        <span class="action-icon cap">⚡</span>
-                        <div><strong>Action</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Define what can be done</span></div>
-                    </button>
-                    <button class="action-item" onclick="showForm('relation')">
-                        <span class="action-icon cap">🎭</span>
-                        <div><strong>Role</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Bundle actions together</span></div>
-                    </button>
-                    <button class="action-item" onclick="showForm('grant')">
-                        <span class="action-icon grant">🔑</span>
-                        <div><strong>Member</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Add someone to a role</span></div>
-                    </button>
-                    <button class="action-item" onclick="showForm('delegate')">
-                        <span class="action-icon delegate">🔗</span>
-                        <div><strong>Inheritance</strong><br><span style="color: var(--text-muted); font-size: 0.8rem;">Inherit from another</span></div>
-                    </button>
-                </div>
-
-                <!-- Type Form -->
-                <div id="form-type" class="hidden">
-                    <div class="input-group">
-                        <label>Type Name</label>
-                        <input type="text" id="m-type-name" placeholder="e.g. project, document">
-                    </div>
-                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.5rem;">
-                        Creates a new entity type. Requires TYPE_CREATE on _type:_type.
-                    </p>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateTypeModal()">Create Type</button>
-                </div>
-
-                <!-- Entity Form -->
-                <div id="form-entity" class="hidden">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Type</label>
-                            <select id="m-entity-type">
-                                <option value="user">user</option>
-                                <option value="team">team</option>
-                                <option value="app">app</option>
-                                <option value="resource">resource</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label>ID</label>
-                            <input type="text" id="m-entity-id" placeholder="e.g. alice">
-                        </div>
-                    </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateEntityModal()">Create Entity</button>
-                </div>
-
-                <!-- Capability Bit Form -->
-                <div id="form-cap-bit" class="hidden">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Entity Type</label>
-                            <select id="m-label-scope" onchange="updateBitStatus()">
-                                <option value="_type:resource">_type:resource</option>
-                                <option value="_type:user">_type:user</option>
-                                <option value="_type:team">_type:team</option>
-                                <option value="_type:app">_type:app</option>
-                                <option value="_type:_type">_type:_type</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label>Bit (0-15)</label>
-                            <input type="number" id="m-label-bit" min="0" max="15" value="0" style="width: 70px;">
-                        </div>
-                    </div>
-                    <div id="bit-status" style="margin-top: 0.5rem; font-size: 0.75rem;"></div>
-                    <div class="input-group" style="margin-top: 0.5rem;">
-                        <label>Label</label>
-                        <input type="text" id="m-label-name" placeholder="e.g. read, write, enter">
-                    </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doDefineCapLabelModal()">Define Action</button>
-                </div>
-
-                <!-- Relation Form -->
-                <div id="form-relation" class="hidden">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <label>Entity</label>
-                            <select id="m-cap-scope" onchange="updateRelationDropdown(); updateCapBitLabels();">
-                                <option value="">-- Select entity --</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label>Relation</label>
-                            <select id="m-cap-relation" onchange="handleRelationSelect()">
-                                <option value="">-- Select entity first --</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="input-group hidden" id="m-cap-new-relation-group" style="margin-top: 0.5rem;">
-                        <label>New Relation Name</label>
-                        <input type="text" id="m-cap-new-relation" placeholder="e.g. employee">
-                    </div>
-                    <div class="input-group" style="margin-top: 0.5rem;">
-                        <label>Capability Bits</label>
-                        <div id="m-cap-labels" style="display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.25rem;">
-                            <span style="color: var(--text-muted); font-size: 0.8rem;">Select an entity to see available capability bits</span>
-                        </div>
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem;">
-                            <span style="font-family: monospace; font-size: 0.85rem;">Mask = <strong id="m-cap-value">0x0000</strong></span>
-                            <button class="btn sm outline" type="button" onclick="showForm('cap-bit')">+ Define New Bit</button>
-                        </div>
-                    </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateCapabilityModal()">Create Role</button>
-                </div>
-
-                <!-- Grant Form -->
-                <div id="form-grant" class="hidden">
-                    <div class="input-group">
-                        <label>Who gets access?</label>
-                        <select id="m-grant-seeker">
-                            <option value="">-- Select person --</option>
-                        </select>
-                    </div>
-                    <div class="form-row" style="margin-top: 0.5rem;">
-                        <div class="input-group">
-                            <label>To what?</label>
-                            <select id="m-grant-scope" onchange="updateGrantRelationDropdown()">
-                                <option value="">-- Select resource --</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label>As what group?</label>
-                            <select id="m-grant-relation">
-                                <option value="">-- Select resource first --</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateGrantModal()">Add Member</button>
-                </div>
-
-                <!-- Delegate Form -->
-                <div id="form-delegate" class="hidden">
-                    <div class="input-group">
-                        <label>Who receives shared access?</label>
-                        <select id="m-deleg-seeker">
-                            <option value="">-- Select person --</option>
-                        </select>
-                    </div>
-                    <div class="form-row" style="margin-top: 0.5rem;">
-                        <div class="input-group">
-                            <label>On what resource?</label>
-                            <select id="m-deleg-scope">
-                                <option value="">-- Select resource --</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label>From who?</label>
-                            <select id="m-deleg-source">
-                                <option value="">-- Select person --</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button class="btn full" style="margin-top: 1rem;" onclick="doCreateDelegationModal()">Share</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
-</body>
-</html>
+['gcaps','ccaps','rcaps'].forEach(initCaps)
+status();loadLabels()
+</script>
+</body></html>
