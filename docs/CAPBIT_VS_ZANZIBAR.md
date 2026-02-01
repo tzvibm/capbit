@@ -169,31 +169,31 @@ This unified model means:
 
 ---
 
-## 3. Consistency and Freshness
+## 3. Consistency Model (Engine-Level)
 
-### Zanzibar: Cached with Zookies
+**Important note:** Zanzibar's "zookies" and caching discussions in the original paper relate to *distributed* consistency (cross-region replication). That's a deployment layer concern, not an engine property. Here we compare the engines themselves.
 
-Zanzibar uses aggressive caching for performance:
+### Engine-Level Consistency
 
-```
-Client → Check(alice, doc, view) → Cache hit → Return (possibly stale)
-```
+Both engines, when queried locally, read from their storage backend:
 
-To guarantee freshness, clients must use "zookies" (consistency tokens):
+**Zanzibar engine:** Queries Spanner (or equivalent) for relation tuples, traverses graph.
 
-```
-Client → Check(alice, doc, view, zookie=X) → Ensure data ≥ X → Return
-```
+**Capbit engine:** Queries LMDB for bitmasks, traverses inheritance chain.
 
-**Tradeoffs:**
-- Fast reads from cache
-- Stale reads possible without zookies
-- Permission changes have propagation delay
-- Cache invalidation complexity
+At the local level, both provide consistent reads from their respective stores. The difference is in the *model*:
 
-### Capbit: Always Fresh
+### Model Comparison
 
-Capbit computes permissions at check time from current database state:
+| Aspect | Zanzibar | Capbit |
+|--------|----------|--------|
+| Update model | Write tuple, invalidate computed relations | Write mask, instantly visible |
+| Computed permissions | Derived from graph (may need recomputation) | Direct bitmask (no derivation) |
+| Inheritance update | Update tuples for affected relations | Single link change, computed at read |
+
+### Capbit's Advantage: No Derived State
+
+Capbit stores permissions directly as bitmasks. There's no "computed" permission that could be stale:
 
 ```rust
 fn resolve(d: &Dbs, tx: &RoTxn, mut s: u64, o: u64) -> Result<u64> {
@@ -207,22 +207,13 @@ fn resolve(d: &Dbs, tx: &RoTxn, mut s: u64, o: u64) -> Result<u64> {
 }
 ```
 
-**Guarantees:**
-- Every check reads current state
-- Permission changes visible on next check
-- No cache invalidation needed
-- No consistency tokens required
+Every check computes the current mask from current data. No caching layer needed at the engine level.
 
-### Comparison
+### Distributed Consistency (See Section 5)
 
-| Aspect | Zanzibar | Capbit |
-|--------|----------|--------|
-| Read freshness | Eventually consistent | **Always current** |
-| Consistency tokens | Required (zookies) | Not needed |
-| Update visibility | Delayed (cache TTL) | **Instant** |
-| Cache invalidation | Complex | None |
+Zanzibar's zookies, cache invalidation, and eventual consistency are concerns of the *distributed deployment*, not the engine. Any authorization engine (including Capbit) would need similar mechanisms if deployed globally. This is addressed in Section 5.
 
-**Winner: Capbit** — Simpler model, always-fresh reads.
+**Winner: Capbit** — Simpler model with no derived/cached state at engine level.
 
 ---
 
@@ -430,9 +421,9 @@ fn custom_resolve(s: u64, o: u64, context: &Context) -> Result<u64> {
 | Entity model | Typed namespaces | Unified u64 IDs | **Capbit** |
 | Inheritance direction | Subject→Object | Any→Any | **Capbit** |
 | Graph restructuring | Many updates | One change | **Capbit** |
-| Update propagation | Delayed | Instant | **Capbit** |
+| Update propagation | Delayed (graph recomputation) | Instant (direct storage) | **Capbit** |
 | Engine complexity | Graph traversal | Bitmask AND | **Capbit** |
-| Freshness | Cached | Always current | **Capbit** |
+| Derived state | Computed from relations | None (direct masks) | **Capbit** |
 | Operational overhead | High (bundled) | Zero (embeddable) | **Capbit** |
 | Global distribution | Bundled | Add as needed | Tie* |
 | Ecosystem maturity | Established | New | Zanzibar |
