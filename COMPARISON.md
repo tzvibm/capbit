@@ -10,7 +10,7 @@ Capbit and Google's Zanzibar are both authorization systems, but with fundamenta
 | Roles per object | Fixed by schema | Unlimited (any u64) |
 | Schema requirement | Yes | None |
 | Entity types | Separate namespaces | Unified u64 IDs (with labels) |
-| Local check latency | Graph traversal + lookups | ~2-3µs (bitmask AND) |
+| Local check latency | Graph traversal + lookups | ~500ns (bitmask AND) |
 | Update propagation | Cache invalidation | Instant |
 | Graph restructuring | Update many tuples | Single inheritance change |
 | Embedding | Bundled with distribution | ~280 lines, embeddable |
@@ -224,11 +224,11 @@ Zanzibar's zookies, cache invalidation, and eventual consistency are concerns of
 ### Capbit Engine (Benchmarks on mobile ARM64)
 
 ```
-Single check latency:     2-3 µs
-Batch grant throughput:   200-300K/sec
-Inheritance depth 10:     ~17 µs
-Concurrent reads (8 threads): 2.1M checks/sec
-1M grants setup:          ~5 seconds
+Single check latency:     ~500 ns
+Batch grant throughput:   400-650K/sec
+Inheritance depth 10:     ~5 µs
+Concurrent reads (8 threads): 6M checks/sec
+1M grants setup:          ~2.5 seconds
 ```
 
 ### Engine-Level Comparison

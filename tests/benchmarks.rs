@@ -65,6 +65,11 @@ bench!(lookup_scaling, {
         setup();
         let mut g: Vec<_> = (0..n).map(|i| (i+1000, 1u64, 1u64)).collect();
         g.push((999, 1, 7)); bench_grant(&g);
+
+        // Verify correctness
+        assert_eq!(get_mask(999, 1).unwrap(), 7, "target grant should exist");
+        assert_eq!(get_mask(1000, 1).unwrap(), 1, "filler grant should exist");
+
         let t = avg(1000, || { let _ = get_mask(999, 1); });
         println!("  N={n:6}: {t:?}"); r.push((n, t));
     }
@@ -76,6 +81,13 @@ bench!(lookup_scaling, {
 bench!(bitmask_o1, {
     hdr("Bitmask O(1)"); setup();
     transact(|tx| tx.grant(1, 100, u64::MAX)).unwrap();
+
+    // Verify correctness - all checks should pass since we granted all bits
+    assert_eq!(get_mask(1, 100).unwrap(), u64::MAX, "should have all bits");
+    for m in [1u64, 0xFF, 0xFFFF, 0xFFFFFFFF, u64::MAX] {
+        assert!(check(1, 100, m).unwrap(), "check({:#x}) should pass", m);
+    }
+
     let mut r = vec![];
     for m in [1u64, 0xFF, 0xFFFF, 0xFFFFFFFF, u64::MAX] {
         let t = avg(1000, || { let _ = check(1, 100, m); });
@@ -143,6 +155,12 @@ bench!(stress_million_grants, {
     let setup_time = t.elapsed();
     println!("\n  Setup: {:?} ({}/s)\n", setup_time, fmt_num((total as f64 / setup_time.as_secs_f64()) as u64));
 
+    // Verify some grants exist - first batch grants (0 % 100_000, 0 / 100 + 1_000_000, 1) = (0, 1_000_000, 1)
+    assert!(get_mask(0, 1_000_000).unwrap() > 0, "grant (0, 1_000_000) should exist");
+    // Check a specific grant pattern: idx=500 -> (500, 1_000_005, 501 % 64 + 1)
+    let mask_500 = get_mask(500, 1_000_005).unwrap();
+    assert!(mask_500 > 0, "grant (500, 1_000_005) should exist");
+
     println!("  Random lookup: {:?}", avg(5000, || { let _ = get_mask(rand() % 100_000, rand() % 10_000 + 1_000_000); }));
     println!("  Random check:  {:?}", avg(5000, || { let _ = check(rand() % 100_000, rand() % 10_000 + 1_000_000, 1); }));
 });
@@ -169,6 +187,13 @@ bench!(stress_deep_inheritance, {
     }).unwrap();
     println!("  Setup: {:?}\n", t.elapsed());
 
+    // Verify inheritance works - entity at depth d should inherit from base (depth 0)
+    let base = 0u64;
+    assert_eq!(get_mask(base, base + 1000).unwrap(), READ | WRITE, "base should have direct grant");
+    assert_eq!(get_mask(base + 1, base + 1000).unwrap(), READ | WRITE, "depth 1 should inherit");
+    assert_eq!(get_mask(base + 9, base + 1000).unwrap(), READ | WRITE, "depth 9 should inherit");
+    assert!(check(base + 5, base + 1000, READ).unwrap(), "depth 5 should have READ");
+
     for d in [1, 3, 5, 7, 9] {
         let t = avg(1000, || {
             let c = rand() % chains;
@@ -186,6 +211,10 @@ bench!(stress_concurrent_reads, {
     let grants: Vec<_> = (0..50_000u64).map(|i| (i % 10_000, i / 10 + 100_000, 7u64)).collect();
     bench_grant(&grants);
     println!("  Setup: 50K grants across 10K users\n");
+
+    // Verify grants exist - user 0 should have grants on objects 100_000, 101_000, 102_000, etc.
+    assert_eq!(get_mask(0, 100_000).unwrap(), 7, "user 0 should have mask 7 on object 100_000");
+    assert!(check(0, 100_000, 1).unwrap(), "user 0 should pass check on object 100_000");
 
     let ops_per_thread = 100_000u64;
     let num_threads = 8;
@@ -241,6 +270,12 @@ bench!(stress_labels, {
     println!("  Batched create ({}): {:?} ({}/s)", fmt_num(count), t.elapsed(), fmt_num(batch_rate as u64));
     println!("  Speedup: {:.0}x\n", batch_rate / single_rate);
 
+    // Verify label lookups work correctly
+    let test_id = get_id_by_label("entity_000000").unwrap();
+    assert!(test_id.is_some(), "entity_000000 should exist");
+    let test_id = test_id.unwrap();
+    assert_eq!(get_label(test_id).unwrap(), Some("entity_000000".to_string()), "label should match");
+
     let t = Instant::now();
     for _ in 0..10_000 {
         let _ = get_id_by_label(&format!("entity_{:06}", rand() % count));
@@ -279,6 +314,15 @@ bench!(stress_enterprise_sim, {
     }
     println!("\n  Setup: {:?}", t.elapsed());
 
+    // Verify grants exist - employee 0 in team 0 should have access to team 0's docs
+    let emp_0 = 0u64;
+    let doc_0 = 1_000_000u64;  // first doc of team 0
+    assert_eq!(get_mask(emp_0, doc_0).unwrap(), READ | WRITE, "emp 0 should have READ|WRITE on doc 0");
+    assert!(check(emp_0, doc_0, READ).unwrap(), "emp 0 should pass READ check");
+    // Employee from team 1 should NOT have access to team 0's docs
+    let emp_10 = 10u64;  // first employee of team 1
+    assert_eq!(get_mask(emp_10, doc_0).unwrap(), 0, "emp from team 1 should NOT have access to team 0 doc");
+
     let ops = 50_000u64;
     let t = Instant::now();
     for _ in 0..ops {
@@ -295,6 +339,14 @@ bench!(stress_enterprise_sim, {
 bench!(a_baseline, {
     setup();
     transact(|tx| tx.grant(1, 100, 7)).unwrap();
+
+    // Verify correctness before benchmarking
+    assert_eq!(get_mask(1, 100).unwrap(), 7, "get_mask should return granted mask");
+    assert!(check(1, 100, 1).unwrap(), "check(1) should pass (1 & 7 == 1)");
+    assert!(check(1, 100, 7).unwrap(), "check(7) should pass (7 & 7 == 7)");
+    assert!(!check(1, 100, 8).unwrap(), "check(8) should fail (8 & 7 != 8)");
+    assert_eq!(get_mask(1, 999).unwrap(), 0, "non-existent grant should return 0");
+
     let l = avg(1000, || { let _ = get_mask(1, 100); });
     let c = avg(1000, || { let _ = check(1, 100, 1); });
     println!("\n======================================================================");

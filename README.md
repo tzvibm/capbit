@@ -195,10 +195,10 @@ These constants define system capabilities when checked against `_system`:
 ## Performance
 
 ```
-Single check:         2-3 us
-Batch grants:         200-300K/sec
-Inheritance depth 10: ~17 us
-Concurrent reads:     2.1M/sec (8 threads)
+Single check:         ~500 ns
+Batch grants:         400-650K/sec
+Inheritance depth 10: ~5 us
+Concurrent reads:     6M/sec (8 threads)
 ```
 
 ## Testing
