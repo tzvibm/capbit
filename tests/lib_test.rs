@@ -261,43 +261,337 @@ fn test_count_functions() {
     assert_eq!(count_for_object(100).unwrap(), 2);
 }
 
-// === Protected Operations ===
+// === Protected Operations (check against _system object) ===
 
 #[test]
-fn test_protected_grant_with_admin() {
+fn test_protected_grant_with_system_grant() {
     let _lock = setup();
-    grant(1, 100, ADMIN).unwrap();
+    let (system, root_user) = bootstrap().unwrap();
 
-    // Admin can grant any permission
-    protected_grant(1, 2, 100, READ | WRITE | DELETE).unwrap();
+    // Root user (with GRANT on _system) can grant any permission
+    protected_grant(root_user, 2, 100, READ | WRITE | DELETE).unwrap();
     assert!(check(2, 100, DELETE).unwrap());
+
+    // Non-privileged user cannot grant
+    let alice = create_entity("alice").unwrap();
+    assert!(protected_grant(alice, 3, 100, READ).is_err());
+
+    // Grant GRANT permission on _system to alice
+    grant(alice, system, GRANT).unwrap();
+    protected_grant(alice, 3, 100, READ).unwrap();
+    assert!(check(3, 100, READ).unwrap());
 }
 
 #[test]
-fn test_protected_grant_subset() {
+fn test_protected_revoke_requires_system_grant() {
     let _lock = setup();
-    grant(1, 100, READ | WRITE).unwrap();
-
-    // Can grant subset of own permissions
-    protected_grant(1, 2, 100, READ).unwrap();
-    assert!(check(2, 100, READ).unwrap());
-
-    // Cannot grant permissions we don't have
-    assert!(protected_grant(1, 2, 100, DELETE).is_err());
-}
-
-#[test]
-fn test_protected_revoke_requires_admin() {
-    let _lock = setup();
-    grant(1, 100, READ | WRITE).unwrap();
+    let (system, root_user) = bootstrap().unwrap();
     grant(2, 100, READ).unwrap();
 
-    // Non-admin cannot revoke
-    assert!(protected_revoke(1, 2, 100).is_err());
+    // Non-privileged user cannot revoke
+    let alice = create_entity("alice").unwrap();
+    assert!(protected_revoke(alice, 2, 100).is_err());
 
-    // Admin can revoke
-    grant(1, 100, ADMIN).unwrap();
-    assert!(protected_revoke(1, 2, 100).unwrap());
+    // Root user can revoke
+    assert!(protected_revoke(root_user, 2, 100).unwrap());
+
+    // Grant GRANT on _system to alice, then she can revoke
+    grant(3, 100, READ).unwrap();
+    grant(alice, system, GRANT).unwrap();
+    assert!(protected_revoke(alice, 3, 100).unwrap());
+}
+
+#[test]
+fn test_protected_set_role_requires_system_admin() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    // Non-privileged user cannot set roles
+    let alice = create_entity("alice").unwrap();
+    assert!(protected_set_role(alice, 100, 1, READ | WRITE).is_err());
+
+    // Root user can
+    protected_set_role(root_user, 100, 1, READ | WRITE).unwrap();
+    assert_eq!(get_role(100, 1).unwrap(), READ | WRITE);
+
+    // Grant ADMIN on _system to alice
+    grant(alice, system, ADMIN).unwrap();
+    protected_set_role(alice, 100, 2, DELETE).unwrap();
+    assert_eq!(get_role(100, 2).unwrap(), DELETE);
+}
+
+#[test]
+fn test_protected_inherit_requires_system_admin() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    let alice = create_entity("alice").unwrap();
+
+    // Non-privileged user cannot set inheritance
+    assert!(protected_set_inherit(alice, 100, 1, 2).is_err());
+    assert!(protected_remove_inherit(alice, 100, 1).is_err());
+
+    // Root user can
+    protected_set_inherit(root_user, 100, 1, 2).unwrap();
+    assert_eq!(get_inherit(100, 1).unwrap(), Some(2));
+    protected_remove_inherit(root_user, 100, 1).unwrap();
+    assert_eq!(get_inherit(100, 1).unwrap(), None);
+
+    // Grant ADMIN on _system to alice
+    grant(alice, system, ADMIN).unwrap();
+    protected_set_inherit(alice, 100, 1, 2).unwrap();
+    assert_eq!(get_inherit(100, 1).unwrap(), Some(2));
+}
+
+#[test]
+fn test_protected_list_requires_system_view() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+    grant(1, 100, READ).unwrap();
+
+    let alice = create_entity("alice").unwrap();
+
+    // Non-privileged user cannot list
+    assert!(protected_list_for_object(alice, 100).is_err());
+
+    // Root user can
+    assert_eq!(protected_list_for_object(root_user, 100).unwrap().len(), 1);
+
+    // Grant VIEW on _system to alice
+    grant(alice, system, VIEW).unwrap();
+    assert_eq!(protected_list_for_object(alice, 100).unwrap().len(), 1);
+}
+
+#[test]
+fn test_user_freedom_any_bits() {
+    let _lock = setup();
+    bootstrap().unwrap();
+
+    // Users can use ANY bit on their own objects - system doesn't care
+    const MY_ADMIN: u64 = 1 << 63;  // Same bit as ADMIN
+    const MY_CUSTOM: u64 = 1 << 50;
+
+    let alice = create_entity("alice").unwrap();
+    let my_doc = create_entity("my_doc").unwrap();
+
+    // Alice grants herself custom bits on her doc (no system permission needed)
+    grant(alice, my_doc, MY_ADMIN | MY_CUSTOM | READ | WRITE).unwrap();
+
+    assert!(check(alice, my_doc, MY_ADMIN).unwrap());
+    assert!(check(alice, my_doc, MY_CUSTOM).unwrap());
+    assert!(check(alice, my_doc, READ | WRITE).unwrap());
+
+    // She can grant to others too (unprotected grant)
+    let bob = create_entity("bob").unwrap();
+    grant(bob, my_doc, READ).unwrap();
+    assert!(check(bob, my_doc, READ).unwrap());
+}
+
+// === Happy Path: Root delegates to users ===
+
+#[test]
+fn test_root_creates_admin_user() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    // Root creates an admin and grants them full system access
+    let admin = create_entity("admin").unwrap();
+    protected_grant(root_user, admin, system, u64::MAX).unwrap();
+
+    // Admin now has all powers
+    assert!(check(admin, system, GRANT | ADMIN | VIEW).unwrap());
+
+    // Admin can do protected operations
+    let user = create_entity("user").unwrap();
+    protected_grant(admin, user, system, VIEW).unwrap();
+    assert!(check(user, system, VIEW).unwrap());
+}
+
+#[test]
+fn test_root_creates_limited_operator() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    // Root creates operator with only GRANT (can assign permissions but not change roles)
+    let operator = create_entity("operator").unwrap();
+    protected_grant(root_user, operator, system, GRANT).unwrap();
+
+    // Operator can grant permissions to users
+    let user = create_entity("user").unwrap();
+    protected_grant(operator, user, system, VIEW).unwrap();
+    assert!(check(user, system, VIEW).unwrap());
+
+    // But operator cannot set roles (needs ADMIN)
+    assert!(protected_set_role(operator, 100, 1, READ).is_err());
+}
+
+#[test]
+fn test_delegation_chain() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    // Root -> Admin -> Operator -> User
+    let admin = create_entity("admin").unwrap();
+    let operator = create_entity("operator").unwrap();
+    let user = create_entity("user").unwrap();
+
+    // Root grants admin full access
+    protected_grant(root_user, admin, system, GRANT | ADMIN | VIEW).unwrap();
+
+    // Admin grants operator limited access
+    protected_grant(admin, operator, system, GRANT | VIEW).unwrap();
+
+    // Operator grants user view-only
+    protected_grant(operator, user, system, VIEW).unwrap();
+
+    // Verify permissions
+    assert!(check(admin, system, ADMIN).unwrap());
+    assert!(!check(operator, system, ADMIN).unwrap());
+    assert!(check(operator, system, GRANT).unwrap());
+    assert!(!check(user, system, GRANT).unwrap());
+    assert!(check(user, system, VIEW).unwrap());
+}
+
+// === Adversarial: Privilege escalation attempts ===
+
+#[test]
+fn test_adversarial_unprivileged_user() {
+    let _lock = setup();
+    let (system, _root_user) = bootstrap().unwrap();
+
+    let attacker = create_entity("attacker").unwrap();
+    let victim = create_entity("victim").unwrap();
+
+    // Attacker has no system permissions - all protected ops fail
+    assert!(protected_grant(attacker, attacker, system, ADMIN).is_err());
+    assert!(protected_grant(attacker, victim, 100, READ).is_err());
+    assert!(protected_revoke(attacker, victim, 100).is_err());
+    assert!(protected_set_role(attacker, 100, 1, READ).is_err());
+    assert!(protected_set_inherit(attacker, 100, 1, 2).is_err());
+    assert!(protected_list_for_object(attacker, 100).is_err());
+}
+
+#[test]
+fn test_adversarial_self_escalation() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    // User with VIEW tries to escalate to GRANT
+    let user = create_entity("user").unwrap();
+    protected_grant(root_user, user, system, VIEW).unwrap();
+
+    // Cannot grant themselves more permissions
+    assert!(protected_grant(user, user, system, GRANT).is_err());
+    assert!(protected_grant(user, user, system, ADMIN).is_err());
+
+    // Still only has VIEW
+    assert!(check(user, system, VIEW).unwrap());
+    assert!(!check(user, system, GRANT).unwrap());
+}
+
+#[test]
+fn test_adversarial_grant_without_permission() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    // User with GRANT but not ADMIN tries to grant ADMIN
+    let user = create_entity("user").unwrap();
+    let target = create_entity("target").unwrap();
+    protected_grant(root_user, user, system, GRANT).unwrap();
+
+    // Can grant GRANT (has it)
+    protected_grant(user, target, system, GRANT).unwrap();
+    assert!(check(target, system, GRANT).unwrap());
+
+    // The system doesn't restrict what bits you grant - it only checks if you have GRANT permission
+    // This is by design: GRANT on _system = can call protected_grant
+    protected_grant(user, target, system, ADMIN).unwrap();
+    assert!(check(target, system, ADMIN).unwrap());
+}
+
+#[test]
+fn test_adversarial_revoke_root() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    // User with GRANT tries to revoke root's permissions
+    let attacker = create_entity("attacker").unwrap();
+    protected_grant(root_user, attacker, system, GRANT).unwrap();
+
+    // Attacker can revoke root (has GRANT permission)
+    // This is intentional - if you grant someone GRANT, they can revoke anyone
+    assert!(protected_revoke(attacker, root_user, system).unwrap());
+
+    // Root no longer has permissions on _system
+    assert!(!check(root_user, system, GRANT).unwrap());
+
+    // But attacker still does
+    assert!(check(attacker, system, GRANT).unwrap());
+}
+
+#[test]
+fn test_adversarial_direct_grant_bypass() {
+    let _lock = setup();
+    let (system, _root_user) = bootstrap().unwrap();
+
+    // Attacker tries to use unprotected grant() to give themselves system permissions
+    let attacker = create_entity("attacker").unwrap();
+
+    // This works! grant() is unprotected
+    grant(attacker, system, ADMIN).unwrap();
+    assert!(check(attacker, system, ADMIN).unwrap());
+
+    // This is why you must not expose grant() to untrusted code
+    // Only expose protected_* functions to users
+}
+
+#[test]
+fn test_view_only_cannot_modify() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    let viewer = create_entity("viewer").unwrap();
+    protected_grant(root_user, viewer, system, VIEW).unwrap();
+
+    // Viewer can list
+    grant(1, 100, READ).unwrap();
+    assert!(protected_list_for_object(viewer, 100).is_ok());
+
+    // But cannot modify anything
+    assert!(protected_grant(viewer, 2, 100, READ).is_err());
+    assert!(protected_revoke(viewer, 1, 100).is_err());
+    assert!(protected_set_role(viewer, 100, 1, READ).is_err());
+}
+
+#[test]
+fn test_separate_permission_bits() {
+    let _lock = setup();
+    let (system, root_user) = bootstrap().unwrap();
+
+    // Create users with different individual permissions
+    let granter = create_entity("granter").unwrap();
+    let admin = create_entity("admin").unwrap();
+    let viewer = create_entity("viewer").unwrap();
+
+    protected_grant(root_user, granter, system, GRANT).unwrap();
+    protected_grant(root_user, admin, system, ADMIN).unwrap();
+    protected_grant(root_user, viewer, system, VIEW).unwrap();
+
+    // Granter: can grant/revoke, cannot set roles
+    protected_grant(granter, 1, 100, READ).unwrap();
+    protected_revoke(granter, 1, 100).unwrap();
+    assert!(protected_set_role(granter, 100, 1, READ).is_err());
+
+    // Admin: can set roles/inherit, cannot grant (no GRANT bit)
+    protected_set_role(admin, 100, 1, READ).unwrap();
+    protected_set_inherit(admin, 100, 1, 2).unwrap();
+    assert!(protected_grant(admin, 1, 100, READ).is_err());
+
+    // Viewer: can only list
+    grant(1, 100, READ).unwrap();
+    protected_list_for_object(viewer, 100).unwrap();
+    assert!(protected_grant(viewer, 2, 100, READ).is_err());
+    assert!(protected_set_role(viewer, 100, 2, READ).is_err());
 }
 
 // === Bootstrap ===
@@ -307,18 +601,25 @@ fn test_bootstrap() {
     let _lock = setup();
     assert!(!is_bootstrapped().unwrap());
 
-    bootstrap(1).unwrap();
+    let (system, root_user) = bootstrap().unwrap();
 
     assert!(is_bootstrapped().unwrap());
-    assert_eq!(get_root().unwrap(), Some(1));
-    assert!(check(1, 1, ADMIN).unwrap());
+    assert_eq!(get_root_user().unwrap(), Some(root_user));
+    assert_eq!(get_system().unwrap(), system);
+
+    // Root user has all permissions on _system
+    assert!(check(root_user, system, u64::MAX).unwrap());
+
+    // Entities have labels
+    assert_eq!(get_label(system).unwrap(), Some("_system".to_string()));
+    assert_eq!(get_label(root_user).unwrap(), Some("_root_user".to_string()));
 }
 
 #[test]
 fn test_bootstrap_only_once() {
     let _lock = setup();
-    bootstrap(1).unwrap();
-    assert!(bootstrap(2).is_err());
+    bootstrap().unwrap();
+    assert!(bootstrap().is_err());
 }
 
 // === Utility Functions ===

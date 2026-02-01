@@ -144,6 +144,39 @@ get_label(id)?;
 get_id_by_label(name)?;
 ```
 
+### Bootstrap & Protected API
+
+System permissions are scoped to a special `_system` object. This means permission bits like `ADMIN` have no global meaning—they only matter when checked against `_system`.
+
+```rust
+// Initialize the system (creates _system and _root_user entities)
+let (system, root_user) = bootstrap()?;
+
+// root_user has all bits on _system
+assert!(check(root_user, system, u64::MAX)?);
+
+// Protected operations check actor's permissions on _system
+protected_grant(actor, subject, object, mask)?;   // Requires GRANT on _system
+protected_revoke(actor, subject, object)?;        // Requires GRANT on _system
+protected_set_role(actor, object, role, mask)?;   // Requires ADMIN on _system
+protected_set_inherit(actor, obj, child, parent)?; // Requires ADMIN on _system
+protected_remove_inherit(actor, object, child)?;  // Requires ADMIN on _system
+protected_list_for_object(actor, object)?;        // Requires VIEW on _system
+
+// Query bootstrap state
+is_bootstrapped()?;           // true if bootstrap() was called
+get_system()?;                // Returns _system entity ID
+get_root_user()?;             // Returns _root_user entity ID
+```
+
+**User freedom:** Users can use any bit on their own objects. The system only enforces permissions when you use `protected_*` functions, and only checks against `_system`:
+
+```rust
+const MY_CUSTOM: u64 = 1 << 50;
+grant(alice, my_doc, ADMIN | MY_CUSTOM)?;  // No system permission needed
+// ADMIN bit here is just data—system doesn't intercept it
+```
+
 ## Constants
 
 ```rust

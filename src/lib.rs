@@ -246,33 +246,40 @@ const CAPS: &[(&str, u64)] = &[("read",READ),("write",WRITE),("delete",DELETE),(
 pub fn caps_to_names(mask: u64) -> Vec<&'static str> { CAPS.iter().filter(|(_, b)| mask & b == *b).map(|(n, _)| *n).collect() }
 pub fn names_to_caps(names: &[&str]) -> u64 { names.iter().filter_map(|n| CAPS.iter().find(|(k, _)| k == n).map(|(_, v)| v)).fold(0, |a, b| a | b) }
 
-// Protected ops
-fn is_root(actor: u64) -> Result<bool> { Ok(get_root()? == Some(actor)) }
-fn require(actor: u64, object: u64, req: u64) -> Result<()> {
-    if is_root(actor)? || (get_mask(actor, object)? & req) == req { Ok(()) }
-    else { Err(CapbitError(format!("{} lacks {:x} on {}", actor, req, object))) }
+// Protected ops - all system permission checks happen against _system object
+pub fn get_system() -> Result<u64> {
+    read(|d, tx| d.meta.get(tx, "system").map_err(err)?.and_then(|s| s.parse().ok()).ok_or_else(|| CapbitError("Not bootstrapped".into())))
+}
+
+fn require_system(actor: u64, req: u64) -> Result<()> {
+    if check(actor, get_system()?, req)? { Ok(()) }
+    else { Err(CapbitError(format!("{} lacks {:x} on _system", actor, req))) }
 }
 
 pub fn protected_grant(actor: u64, subject: u64, object: u64, mask: u64) -> Result<()> {
-    if is_root(actor)? { return grant(subject, object, mask); }
-    let m = get_mask(actor, object)?;
-    if (m & ADMIN) == 0 && (mask & !m) != 0 { return Err(CapbitError(format!("{} cannot grant {:x}", actor, mask))); }
+    require_system(actor, GRANT)?;
     grant(subject, object, mask)
 }
-pub fn protected_revoke(actor: u64, subject: u64, object: u64) -> Result<bool> { require(actor, object, ADMIN)?; revoke(subject, object) }
-pub fn protected_set_role(actor: u64, object: u64, role: u64, mask: u64) -> Result<()> { require(actor, object, ADMIN)?; set_role(object, role, mask) }
-pub fn protected_set_inherit(actor: u64, object: u64, child: u64, parent: u64) -> Result<()> { require(actor, object, ADMIN)?; set_inherit(object, child, parent) }
-pub fn protected_remove_inherit(actor: u64, object: u64, child: u64) -> Result<bool> { require(actor, object, ADMIN)?; remove_inherit(object, child) }
-pub fn protected_list_for_object(actor: u64, object: u64) -> Result<Vec<(u64, u64)>> { require(actor, object, VIEW)?; list_for_object(object) }
+pub fn protected_revoke(actor: u64, subject: u64, object: u64) -> Result<bool> { require_system(actor, GRANT)?; revoke(subject, object) }
+pub fn protected_set_role(actor: u64, object: u64, role: u64, mask: u64) -> Result<()> { require_system(actor, ADMIN)?; set_role(object, role, mask) }
+pub fn protected_set_inherit(actor: u64, object: u64, child: u64, parent: u64) -> Result<()> { require_system(actor, ADMIN)?; set_inherit(object, child, parent) }
+pub fn protected_remove_inherit(actor: u64, object: u64, child: u64) -> Result<bool> { require_system(actor, ADMIN)?; remove_inherit(object, child) }
+pub fn protected_list_for_object(actor: u64, object: u64) -> Result<Vec<(u64, u64)>> { require_system(actor, VIEW)?; list_for_object(object) }
 
-// Bootstrap
+// Bootstrap - creates _system, _root_role, _root_user
 pub fn is_bootstrapped() -> Result<bool> { read(|d, tx| Ok(d.meta.get(tx, "boot").map_err(err)?.is_some())) }
-pub fn get_root() -> Result<Option<u64>> { read(|d, tx| Ok(d.meta.get(tx, "root").map_err(err)?.and_then(|s| s.parse().ok()))) }
-pub fn bootstrap(root: u64) -> Result<()> {
+pub fn get_root_user() -> Result<Option<u64>> { read(|d, tx| Ok(d.meta.get(tx, "root_user").map_err(err)?.and_then(|s| s.parse().ok()))) }
+
+/// Bootstrap the system. Returns (system_id, root_user_id).
+pub fn bootstrap() -> Result<(u64, u64)> {
     if is_bootstrapped()? { return Err(CapbitError("Already bootstrapped".into())); }
     transact(|tx| {
-        tx.grant(root, root, ADMIN)?;
+        let system = tx.create_entity("_system")?;
+        let root_user = tx.create_entity("_root_user")?;
+        tx.grant(root_user, system, u64::MAX)?;
         tx.1.meta.put(tx.tx(), "boot", "1").map_err(err)?;
-        tx.1.meta.put(tx.tx(), "root", &root.to_string()).map_err(err)
+        tx.1.meta.put(tx.tx(), "system", &system.to_string()).map_err(err)?;
+        tx.1.meta.put(tx.tx(), "root_user", &root_user.to_string()).map_err(err)?;
+        Ok((system, root_user))
     })
 }

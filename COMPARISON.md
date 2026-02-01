@@ -398,7 +398,78 @@ fn custom_resolve(s: u64, o: u64, context: &Context) -> Result<u64> {
 
 ---
 
-## 8. When to Use Each
+## 8. System-Scoped Permissions
+
+### The Problem with Global Permission Bits
+
+In many authorization systems, certain permission bits have **global meaning**. If `ADMIN` means "system administrator" everywhere, users can't freely use that bit on their own objects without accidentally triggering system-level checks.
+
+### Capbit's Solution: The `_system` Object
+
+All system permission checks happen in the context of a special `_system` object:
+
+```rust
+// Bootstrap creates _system and _root_user
+let (system, root_user) = bootstrap()?;
+
+// root_user has all bits on _system
+check(root_user, system, u64::MAX)?;  // true
+```
+
+Protected operations check the **actor's permissions on `_system`**, not on the target object:
+
+```rust
+// This checks: does actor have GRANT on _system?
+protected_grant(actor, subject, object, mask)?;
+
+// NOT: does actor have GRANT on object?
+```
+
+### User Freedom
+
+Users can use **any bit** on their own objects without system interference:
+
+```rust
+const MY_ADMIN: u64 = 1 << 63;  // Same bit value as ADMIN
+
+// Alice uses "ADMIN" bit on her document - system doesn't care
+grant(alice, my_doc, MY_ADMIN)?;
+check(alice, my_doc, MY_ADMIN)?;  // true
+
+// System only cares about permissions on _system
+protected_grant(alice, bob, other_doc, READ)?;  // Fails - alice has no GRANT on _system
+```
+
+### Permission Delegation
+
+Root can delegate system permissions to operators:
+
+```rust
+let (system, root_user) = bootstrap()?;
+let operator = create_entity("operator")?;
+
+// Grant operator the ability to manage permissions (but not roles)
+protected_grant(root_user, operator, system, GRANT)?;
+
+// Now operator can use protected_grant/protected_revoke
+protected_grant(operator, alice, doc, READ)?;  // Works
+
+// But not protected_set_role (needs ADMIN on _system)
+protected_set_role(operator, doc, 1, READ)?;  // Fails
+```
+
+### Comparison
+
+| Aspect | Global Permissions | Scoped to `_system` |
+|--------|-------------------|---------------------|
+| Bit meaning | Fixed globally | Context-dependent |
+| User freedom | Limited by reserved bits | Full 64 bits available |
+| Permission checks | Implicit/magical | Explicit against `_system` |
+| Delegation | Often all-or-nothing | Fine-grained (GRANT vs ADMIN vs VIEW) |
+
+---
+
+## 9. When to Use Each
 
 ### Use Zanzibar When:
 - You're Google-scale (trillions of ACLs)
@@ -417,7 +488,7 @@ fn custom_resolve(s: u64, o: u64, context: &Context) -> Result<u64> {
 
 ---
 
-## 9. Summary
+## 10. Summary
 
 | Dimension | Zanzibar | Capbit | Winner |
 |-----------|----------|--------|--------|
@@ -430,6 +501,8 @@ fn custom_resolve(s: u64, o: u64, context: &Context) -> Result<u64> {
 | Update propagation | Delayed (graph recomputation) | Instant (direct storage) | **Capbit** |
 | Engine complexity | Graph traversal | Bitmask AND | **Capbit** |
 | Derived state | Computed from relations | None (direct masks) | **Capbit** |
+| Permission bit freedom | Reserved bits | Full 64 bits for users | **Capbit** |
+| System permission scope | Global/implicit | Explicit (`_system` object) | **Capbit** |
 | Embedding | Bundled with distribution | ~280 lines, embeddable | **Capbit** |
 | Global distribution | Bundled | Add as needed | Tie* |
 | Ecosystem maturity | Established | New | Zanzibar |
@@ -454,17 +527,27 @@ For everyone else, Capbit offers:
 // Initialize
 init("/path/to/db")?;
 
+// Bootstrap (creates _system and _root_user)
+let (system, root_user) = bootstrap()?;
+
 // Entities (human-readable names for u64 IDs)
 let alice = create_entity("alice")?;        // Auto-increment ID
 let doc = create_entity("quarterly-report")?;
 let id = get_id_by_label("alice")?;         // Lookup by name
 let name = get_label(alice)?;               // Get name from ID
 
-// Permissions
+// Permissions (unprotected - for internal/trusted use)
 grant(subject, object, mask)?;          // Add permissions
 grant_set(subject, object, mask)?;      // Set exact permissions
 revoke(subject, object)?;               // Remove all permissions
 check(subject, object, required)?;      // Check permissions
+
+// Protected API (checks actor's permissions on _system)
+protected_grant(actor, subject, object, mask)?;   // Requires GRANT on _system
+protected_revoke(actor, subject, object)?;        // Requires GRANT on _system
+protected_set_role(actor, object, role, mask)?;   // Requires ADMIN on _system
+protected_set_inherit(actor, obj, child, parent)?; // Requires ADMIN on _system
+protected_list_for_object(actor, object)?;        // Requires VIEW on _system
 
 // Roles (indirection)
 set_role(object, role_id, mask)?;       // Define role
