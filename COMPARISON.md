@@ -416,28 +416,28 @@ let (system, root_user) = bootstrap()?;
 check(root_user, system, u64::MAX)?;  // true
 ```
 
-Protected operations check the **actor's permissions on `_system`**, not on the target object:
+Write operations check the **actor's permissions on `_system`**, not on the target object:
 
 ```rust
 // This checks: does actor have GRANT on _system?
-protected_grant(actor, subject, object, mask)?;
+grant(actor, subject, object, mask)?;
 
 // NOT: does actor have GRANT on object?
 ```
 
 ### User Freedom
 
-Users can use **any bit** on their own objects without system interference:
+Users can use **any bit** on their own objects via `transact()`:
 
 ```rust
 const MY_ADMIN: u64 = 1 << 63;  // Same bit value as ADMIN
 
-// Alice uses "ADMIN" bit on her document - system doesn't care
-grant(alice, my_doc, MY_ADMIN)?;
+// Use transact() to bypass protection for your own objects
+transact(|tx| tx.grant(alice, my_doc, MY_ADMIN))?;
 check(alice, my_doc, MY_ADMIN)?;  // true
 
-// System only cares about permissions on _system
-protected_grant(alice, bob, other_doc, READ)?;  // Fails - alice has no GRANT on _system
+// Public API checks permissions on _system
+grant(alice, bob, other_doc, READ)?;  // Fails - alice has no GRANT on _system
 ```
 
 ### Permission Delegation
@@ -449,13 +449,13 @@ let (system, root_user) = bootstrap()?;
 let operator = create_entity("operator")?;
 
 // Grant operator the ability to manage permissions (but not roles)
-protected_grant(root_user, operator, system, GRANT)?;
+grant(root_user, operator, system, GRANT)?;
 
-// Now operator can use protected_grant/protected_revoke
-protected_grant(operator, alice, doc, READ)?;  // Works
+// Now operator can use grant/revoke
+grant(operator, alice, doc, READ)?;  // Works
 
-// But not protected_set_role (needs ADMIN on _system)
-protected_set_role(operator, doc, 1, READ)?;  // Fails
+// But not set_role (needs ADMIN on _system)
+set_role(operator, doc, 1, READ)?;  // Fails
 ```
 
 ### Comparison

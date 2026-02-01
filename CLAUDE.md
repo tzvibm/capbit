@@ -21,20 +21,20 @@ All system-level permission checks happen against a special `_system` entity:
 ```rust
 let (system, root_user) = bootstrap()?;  // Creates _system and _root_user
 
-// Protected operations check actor's permissions on _system:
-protected_grant(actor, subject, object, mask)?;   // Requires GRANT on _system
-protected_revoke(actor, subject, object)?;        // Requires GRANT on _system
-protected_set_role(actor, object, role, mask)?;   // Requires ADMIN on _system
-protected_set_inherit(actor, obj, child, parent)?; // Requires ADMIN on _system
-protected_list_for_object(actor, object)?;        // Requires VIEW on _system
+// All write operations check actor's permissions on _system:
+grant(actor, subject, object, mask)?;       // Requires GRANT on _system
+revoke(actor, subject, object)?;            // Requires GRANT on _system
+set_role(actor, object, role, mask)?;       // Requires ADMIN on _system
+set_inherit(actor, obj, child, parent)?;    // Requires ADMIN on _system
+list_for_object(actor, object)?;            // Requires VIEW on _system
 ```
 
 **Key insight**: Permission bits only have system meaning when checked against `_system`. On user objects, all 64 bits are free to use however you want.
 
-### Two APIs
+### API Design
 
-1. **Unprotected** (`grant`, `revoke`, `set_role`, etc.) - For internal/trusted use
-2. **Protected** (`protected_grant`, etc.) - Check actor's permissions on `_system` first
+- **Public API** - All write operations require `actor` parameter, check against `_system`
+- **Internal** - `transact(|tx| ...)` bypasses protection, used for bootstrap/testing
 
 ## File Structure
 
@@ -85,11 +85,11 @@ get_id_by_label(name) -> Option<u64>
 | 1 | `WRITE` | — |
 | 2 | `DELETE` | — |
 | 3 | `CREATE` | — |
-| 4 | `GRANT` | `protected_grant`, `protected_revoke` |
+| 4 | `GRANT` | `grant`, `revoke`, `batch_grant`, `batch_revoke` |
 | 5 | `EXECUTE` | — |
 | 6–61 | — | — |
-| 62 | `VIEW` | `protected_list_for_object` |
-| 63 | `ADMIN` | `protected_set_role`, `protected_set_inherit` |
+| 62 | `VIEW` | `list_for_object` |
+| 63 | `ADMIN` | `set_role`, `set_inherit`, `remove_inherit` |
 
 **On user objects, all 64 bits are free to use.** System only checks against `_system`.
 

@@ -184,11 +184,11 @@ These constants define system capabilities when checked against `_system`:
 | 1 | `WRITE` | — |
 | 2 | `DELETE` | — |
 | 3 | `CREATE` | — |
-| 4 | `GRANT` | Can use `protected_grant`, `protected_revoke` |
+| 4 | `GRANT` | Can use `grant`, `revoke`, `batch_grant`, `batch_revoke` |
 | 5 | `EXECUTE` | — |
 | 6–61 | — | — |
-| 62 | `VIEW` | Can use `protected_list_for_object` |
-| 63 | `ADMIN` | Can use `protected_set_role`, `protected_set_inherit` |
+| 62 | `VIEW` | Can use `list_for_object` |
+| 63 | `ADMIN` | Can use `set_role`, `set_inherit`, `remove_inherit` |
 
 **On your own objects, all 64 bits are free to use however you want.** The system only checks bits against `_system`. On any other object, you can reuse `READ`, `ADMIN`, or any bit for your own meanings.
 
