@@ -179,17 +179,19 @@ grant(alice, my_doc, ADMIN | MY_CUSTOM)?;  // No system permission needed
 
 ## Constants
 
-```rust
-pub const READ: u64    = 1;
-pub const WRITE: u64   = 1 << 1;
-pub const DELETE: u64  = 1 << 2;
-pub const CREATE: u64  = 1 << 3;
-pub const GRANT: u64   = 1 << 4;
-pub const EXECUTE: u64 = 1 << 5;
-pub const VIEW: u64    = 1 << 62;
-pub const ADMIN: u64   = 1 << 63;
-// 56 bits available for custom permissions
-```
+| Bit | Constant | Purpose |
+|-----|----------|---------|
+| 0 | `READ` | Read access |
+| 1 | `WRITE` | Write/modify |
+| 2 | `DELETE` | Delete |
+| 3 | `CREATE` | Create |
+| 4 | `GRANT` | Grant permissions (on `_system`: can use `protected_grant`) |
+| 5 | `EXECUTE` | Execute |
+| 6–61 | *Custom* | Application-defined |
+| 62 | `VIEW` | View metadata (on `_system`: can use `protected_list_for_object`) |
+| 63 | `ADMIN` | Admin (on `_system`: can use `protected_set_role`, `protected_set_inherit`) |
+
+Bits 6–61 (56 bits) are available for your application's custom permissions.
 
 ## Performance
 
