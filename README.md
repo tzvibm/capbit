@@ -1,94 +1,147 @@
 # Capbit
 
-[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
-[![License: Non-Commercial](https://img.shields.io/badge/License-Non--Commercial-red.svg)](LICENSE)
+Minimal capability-based access control. ~280 lines of Rust.
 
-**Minimal capability-based access control for Rust** — 199 lines.
+## Features
 
-Most ACL libraries are bloated with ORMs, policy languages, and framework dependencies. Capbit is just the math: subjects, objects, and 64-bit capability masks. O(1) permission checks via bitwise AND. LMDB for persistence. No dependencies beyond that.
-
-**Everything is relative.** Subjects and objects are just u64 IDs — they can represent users, files, APIs, devices, anything. Roles are defined per-object, so "admin" on document A can mean something different than "admin" on document B. Capability masks are relative to each subject-object pair. You define the semantics.
-
-This is a library, not a framework. Embed it directly in your application.
+- **u64 IDs** — Subjects and objects are simple integers
+- **64-bit masks** — 2^64 permission combinations per role
+- **O(1) checks** — Single bitmask AND operation
+- **Unlimited roles** — Any u64 as role ID, defined per object
+- **Inheritance** — DAG with cycle prevention
+- **Instant updates** — No cache invalidation
+- **Zero ops** — Embedded LMDB, single file
 
 ## Usage
 
 ```rust
-use capbit::{init, grant, check, READ, WRITE, DELETE};
+use capbit::*;
 
-fn main() -> capbit::Result<()> {
-    init("./data/capbit.mdb")?;
+// Initialize
+init("/path/to/db")?;
 
-    grant(42, 100, READ | WRITE)?;  // user 42 can read/write doc 100
+// Grant permissions
+grant(alice, doc, READ | WRITE)?;
 
-    assert!(check(42, 100, READ)?);
-    assert!(!check(42, 100, DELETE)?);
-
-    Ok(())
+// Check access
+if check(alice, doc, READ)? {
+    // allowed
 }
+
+// Revoke
+revoke(alice, doc)?;
 ```
 
 ## API
 
+### Core Operations
+
 ```rust
-// Core
-grant(subject: u64, object: u64, mask: u64) -> Result<()>
-revoke(subject: u64, object: u64) -> Result<bool>
-check(subject: u64, object: u64, required: u64) -> Result<bool>
-get_mask(subject: u64, object: u64) -> Result<u64>
-
-// Batch
-batch_grant(grants: &[(u64, u64, u64)]) -> Result<()>
-batch_revoke(revokes: &[(u64, u64)]) -> Result<usize>
-
-// Roles (indirection layer)
-set_role(object: u64, role: u64, mask: u64) -> Result<()>
-get_role(object: u64, role: u64) -> Result<u64>
-
-// Inheritance (with cycle prevention)
-set_inherit(object: u64, child: u64, parent: u64) -> Result<()>
-remove_inherit(object: u64, child: u64) -> Result<bool>
-
-// Queries
-list_for_subject(subject: u64) -> Result<Vec<(u64, u64)>>
-list_for_object(object: u64) -> Result<Vec<(u64, u64)>>
-
-// Labels (optional, for human-readable names)
-set_label(id: u64, name: &str) -> Result<()>
-get_label(id: u64) -> Result<Option<String>>
-get_id_by_label(name: &str) -> Result<Option<u64>>
+grant(subject, object, mask)?;      // Add permissions (OR with existing)
+grant_set(subject, object, mask)?;  // Set exact permissions
+revoke(subject, object)?;           // Remove all permissions
+check(subject, object, required)?;  // Check if (mask & required) == required
+get_mask(subject, object)?;         // Get current permission mask
 ```
 
-## Constants
+### Roles (Indirection)
 
 ```rust
-pub const READ: u64 = 1;
-pub const WRITE: u64 = 1 << 1;
-pub const DELETE: u64 = 1 << 2;
-pub const CREATE: u64 = 1 << 3;
-pub const GRANT: u64 = 1 << 4;
+set_role(object, role_id, mask)?;   // Define role -> mask mapping
+grant(subject, object, role_id)?;   // Assign role (resolved at check time)
+get_role(object, role_id)?;         // Get role's mask
+```
+
+### Inheritance
+
+```rust
+set_inherit(object, child, parent)?;    // Child inherits parent's permissions
+remove_inherit(object, child)?;         // Remove inheritance link
+get_inherit(object, child)?;            // Get parent ID
+```
+
+### Entities (Optional CRUD)
+
+```rust
+create_entity(name)?;               // Auto-increment ID with label
+rename_entity(id, new_name)?;
+delete_entity(id)?;
+set_label(id, name)?;               // Label any ID
+get_label(id)?;
+get_id_by_label(name)?;
+```
+
+### Batch Operations
+
+```rust
+transact(|tx| {
+    tx.grant(a, b, READ)?;
+    tx.grant(c, d, WRITE)?;
+    tx.set_role(d, EDITOR, READ | WRITE)?;
+    tx.create_entity("alice")?;
+    Ok(())
+})?;
+
+batch_grant(&[(a, b, READ), (c, d, WRITE)])?;
+batch_revoke(&[(a, b), (c, d)])?;
+```
+
+### Query
+
+```rust
+list_for_subject(subject)?;     // Vec<(object, mask)>
+list_for_object(object)?;       // Vec<(subject, mask)>
+count_for_subject(subject)?;    // Count without iteration
+count_for_object(object)?;
+list_labels()?;                 // All labeled entities
+```
+
+### Protected Operations
+
+Require actor authorization (ADMIN or sufficient permissions):
+
+```rust
+protected_grant(actor, subject, object, mask)?;
+protected_revoke(actor, subject, object)?;
+protected_set_role(actor, object, role, mask)?;
+protected_set_inherit(actor, object, child, parent)?;
+protected_list_for_object(actor, object)?;  // Requires VIEW
+```
+
+### Bootstrap
+
+```rust
+bootstrap(root_id)?;    // First-time setup, grants root ADMIN on itself
+is_bootstrapped()?;
+get_root()?;
+```
+
+## Permission Constants
+
+```rust
+pub const READ: u64    = 1;
+pub const WRITE: u64   = 1 << 1;
+pub const DELETE: u64  = 1 << 2;
+pub const CREATE: u64  = 1 << 3;
+pub const GRANT: u64   = 1 << 4;
 pub const EXECUTE: u64 = 1 << 5;
-pub const VIEW: u64 = 1 << 62;
-pub const ADMIN: u64 = 1 << 63;
+pub const VIEW: u64    = 1 << 62;
+pub const ADMIN: u64   = 1 << 63;
+
+// Use remaining 56 bits for custom permissions
 ```
 
-## Design
+## Performance
 
-- **u64 IDs** — no string parsing, direct memory ops
-- **64-bit masks** — 64 capability bits per grant
-- **O(1) check** — single AND operation
-- **O(log N) lookup** — LMDB B-tree
-- **BiPair pattern** — forward/reverse indexes stay in sync
-- **Cycle prevention** — inheritance validated on write
+On mobile ARM64 (8 cores):
 
-## Testing
-
-```bash
-cargo test -- --test-threads=1
+```
+Single check:           2-3 us
+Batch grants:           200-300K/sec
+Inheritance depth 10:   ~17 us
+Concurrent reads:       2.1M checks/sec
 ```
 
 ## License
 
-Non-Commercial Open Source — see [LICENSE](LICENSE).
-
-For commercial licensing: https://github.com/tzvibm
+CNCOSL - See LICENSE
