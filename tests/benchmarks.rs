@@ -285,12 +285,13 @@ bench!(stress_enterprise_sim, {
         fmt_num(ops), t.elapsed(), fmt_num((ops as f64 / t.elapsed().as_secs_f64()) as u64));
 });
 
-bench!(summary, {
+// Prefixed with 'a_' to run first (before CPU heats up from stress tests)
+bench!(a_baseline, {
     setup(); grant(1, 100, 7).unwrap();
     let l = avg(1000, || { let _ = get_mask(1, 100); });
     let c = avg(1000, || { let _ = check(1, 100, 1); });
     println!("\n======================================================================");
-    println!("                    CAPBIT BENCHMARK SUMMARY");
+    println!("                    CAPBIT BASELINE (clean DB)");
     println!("======================================================================");
     println!("  Lookup: {:>12?}  Check: {:>12?}", l, c);
     println!("  O(log N) scaling  |  O(1) bitmask");
