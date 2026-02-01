@@ -162,7 +162,7 @@ This unified model means:
 |--------|----------|--------|
 | Graph shape | Arbitrary | DAG (sufficient for auth) |
 | Bulk restructure | Update many tuples | Single inheritance link |
-| Propagation | Cache invalidation delay | Instant |
+| Propagation | Recompute derived relations | Instant (direct storage) |
 | Traversal direction | Multi-directional | Upward (correct for inheritance) |
 
 **Winner: Capbit** — Bulk restructuring with single operation, instant propagation.
