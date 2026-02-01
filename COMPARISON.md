@@ -13,7 +13,7 @@ Capbit and Google's Zanzibar are both authorization systems, but with fundamenta
 | Local check latency | Graph traversal + lookups | ~2-3µs (bitmask AND) |
 | Update propagation | Cache invalidation | Instant |
 | Graph restructuring | Update many tuples | Single inheritance change |
-| Codebase | Massive | ~280 lines |
+| Embedding | Bundled with distribution | ~280 lines, embeddable |
 
 ---
 
@@ -316,6 +316,12 @@ Capbit can be distributed using standard techniques:
 
 ## 6. Operational Simplicity
 
+### A Note on Size Comparisons
+
+Zanzibar's codebase size is largely a consequence of bundling the distribution layer (Spanner integration, cache invalidation, multi-region replication) with the authorization engine. Comparing total codebase sizes directly would be misleading.
+
+The meaningful comparison is: **because Capbit decouples the authorization engine from distribution, it can be embedded extremely cheaply.** If you need distribution, you add it as a separate layer (see Section 5). If you don't, you pay zero overhead.
+
 ### Zanzibar
 
 Requires:
@@ -330,8 +336,8 @@ Requires:
 
 Requires:
 - One file (LMDB database)
-- ~280 lines of code
-- Embed in your application
+- ~280 lines of authorization logic
+- Embed directly in your application
 
 ```rust
 // Complete setup
@@ -345,9 +351,9 @@ capbit::check(alice, doc, READ)?;
 | Aspect | Zanzibar | Capbit |
 |--------|----------|--------|
 | Infrastructure | Distributed system | **Single file** |
-| Code size | Massive | **~280 lines** |
+| Decoupling | Bundled with distribution | **Auth logic only (~280 lines)** |
 | Operations | Team required | **Zero-ops** |
-| Embedding | Not possible | **Native** |
+| Embedding | Not practical | **Native** |
 
 **Winner: Capbit** — Embeddable, zero operational overhead.
 
@@ -424,18 +430,18 @@ fn custom_resolve(s: u64, o: u64, context: &Context) -> Result<u64> {
 | Update propagation | Delayed (graph recomputation) | Instant (direct storage) | **Capbit** |
 | Engine complexity | Graph traversal | Bitmask AND | **Capbit** |
 | Derived state | Computed from relations | None (direct masks) | **Capbit** |
-| Operational overhead | High (bundled) | Zero (embeddable) | **Capbit** |
+| Embedding | Bundled with distribution | ~280 lines, embeddable | **Capbit** |
 | Global distribution | Bundled | Add as needed | Tie* |
 | Ecosystem maturity | Established | New | Zanzibar |
 
-*Distribution is an orthogonal deployment layer, not an engine capability (see Section 5).
+*Distribution is an orthogonal deployment layer, not an engine capability (see Section 5). Zanzibar's size is largely due to bundling distribution—Capbit's decoupling enables cheap embedding.
 
 **Conclusion:** Capbit provides a more expressive and simpler authorization model than Zanzibar for the vast majority of applications. Zanzibar's bundled distribution is not an advantage—it's overhead for anyone not operating at Google scale.
 
 For everyone else, Capbit offers:
 - **More power** (64-bit masks, unlimited roles, instant updates)
 - **Simpler engine** (bitmask AND vs graph traversal)
-- **Less complexity** (280 lines, no infrastructure)
+- **Cheap embedding** (decoupled from distribution, ~280 lines of authorization logic)
 - **Deployment flexibility** (add distribution only when needed)
 
 ---
