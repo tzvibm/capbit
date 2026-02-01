@@ -148,6 +148,14 @@ Inheritance depth 10: ~17 us
 Concurrent reads:     2.1M/sec (8 threads)
 ```
 
+## Testing
+
+```bash
+cargo test -- --test-threads=1
+```
+
+Tests must run single-threaded (LMDB limitation).
+
 ## License
 
 CNCOSL - See LICENSE

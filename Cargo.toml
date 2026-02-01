@@ -15,5 +15,8 @@ crate-type = ["rlib"]
 heed = "0.20"
 byteorder = "1.5"
 
+[dev-dependencies]
+tempfile = "3"
+
 [profile.release]
 lto = true
