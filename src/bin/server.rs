@@ -96,6 +96,27 @@ struct CreateSessionReq { ttl_secs: Option<u64> }
 #[derive(Deserialize)]
 struct SetPasswordReq { entity_id: String, password: String }
 
+#[derive(Deserialize)]
+struct DeleteEntityReq { entity_id: String }
+
+#[derive(Deserialize)]
+struct DeleteGrantReq { seeker: String, relation: String, scope: String }
+
+#[derive(Deserialize)]
+struct DeleteDelegationReq { seeker: String, scope: String, delegate: String }
+
+#[derive(Deserialize)]
+struct DeleteCapabilityReq { scope: String, relation: String }
+
+#[derive(Deserialize)]
+struct DeleteTypeReq { type_name: String }
+
+#[derive(Deserialize)]
+struct DeleteCapLabelReq { scope: String, bit: u64 }
+
+#[derive(Deserialize)]
+struct RenameEntityReq { entity_id: String, new_name: String }
+
 #[derive(Serialize)]
 struct ApiResponse<T> {
     success: bool,
@@ -312,6 +333,65 @@ async fn post_delegation(Auth(actor): Auth, Json(req): Json<CreateDelegationReq>
     }
 }
 
+async fn post_delete_entity(Auth(actor): Auth, Json(req): Json<DeleteEntityReq>) -> (StatusCode, Json<ApiResponse<String>>) {
+    match protected::delete_entity(&actor, &req.entity_id) {
+        Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("deleted".into()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
+async fn post_delete_grant(Auth(actor): Auth, Json(req): Json<DeleteGrantReq>) -> (StatusCode, Json<ApiResponse<String>>) {
+    match protected::delete_grant(&actor, &req.seeker, &req.relation, &req.scope) {
+        Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("deleted".into()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
+async fn post_delete_delegation(Auth(actor): Auth, Json(req): Json<DeleteDelegationReq>) -> (StatusCode, Json<ApiResponse<String>>) {
+    match protected::delete_delegation(&actor, &req.seeker, &req.scope, &req.delegate) {
+        Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("deleted".into()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
+async fn post_delete_capability(Auth(actor): Auth, Json(req): Json<DeleteCapabilityReq>) -> (StatusCode, Json<ApiResponse<String>>) {
+    match protected::delete_capability(&actor, &req.scope, &req.relation) {
+        Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("deleted".into()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
+async fn post_delete_type(Auth(actor): Auth, Json(req): Json<DeleteTypeReq>) -> (StatusCode, Json<ApiResponse<String>>) {
+    match protected::delete_type(&actor, &req.type_name) {
+        Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("deleted".into()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
+async fn post_delete_cap_label(Auth(actor): Auth, Json(req): Json<DeleteCapLabelReq>) -> (StatusCode, Json<ApiResponse<String>>) {
+    // Require CAP_DELETE on the scope
+    let caps = check_access(&actor, &req.scope, None).unwrap_or(0);
+    if (caps & SystemCap::CAP_DELETE) == 0 {
+        return (StatusCode::FORBIDDEN, Json(ApiResponse::err("Requires CAP_DELETE on scope")));
+    }
+    match capbit::delete_cap_label(&req.scope, req.bit) {
+        Ok(_) => (StatusCode::OK, Json(ApiResponse::ok("deleted".into()))),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
+async fn post_rename_entity(Auth(actor): Auth, Json(req): Json<RenameEntityReq>) -> (StatusCode, Json<ApiResponse<String>>) {
+    match protected::rename_entity(&actor, &req.entity_id, &req.new_name) {
+        Ok(_) => {
+            // Return the new entity ID with the updated name
+            let entity_type = req.entity_id.split(':').next().unwrap_or("");
+            let new_id = format!("{}:{}", entity_type, req.new_name);
+            (StatusCode::OK, Json(ApiResponse::ok(new_id)))
+        }
+        Err(e) => (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e.message))),
+    }
+}
+
 async fn post_check(Auth(actor): Auth, Json(req): Json<CheckAccessReq>) -> Json<ApiResponse<CheckResult>> {
     // User can only check access for themselves, or if they have GRANT_READ on the object
     if actor != req.subject {
@@ -513,6 +593,15 @@ async fn main() {
         .route("/capability", post(post_capability))
         .route("/delegation", post(post_delegation))
         .route("/cap-label", post(post_cap_label))
+        // Delete
+        .route("/delete/entity", post(post_delete_entity))
+        .route("/delete/grant", post(post_delete_grant))
+        .route("/delete/delegation", post(post_delete_delegation))
+        .route("/delete/capability", post(post_delete_capability))
+        .route("/delete/type", post(post_delete_type))
+        .route("/delete/cap-label", post(post_delete_cap_label))
+        // Rename
+        .route("/rename/entity", post(post_rename_entity))
         .layer(cors);
 
     let port: u16 = std::env::var("PORT").unwrap_or_else(|_| "3000".into()).parse().expect("Invalid PORT");
@@ -537,4 +626,6 @@ async fn main() {
 
 
 
+
+// rebuild3
 

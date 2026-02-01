@@ -238,9 +238,9 @@ fn entity_requires_valid_type() {
     // Try to create entity of non-existent type
     let result = protected::create_entity("user:root", "nonexistent", "test");
     assert!(result.is_err());
-    // Error could be "Type does not exist" or "lacks permission" depending on check order
+    // Error could be "Type does not exist", "lacks permission", or "not found" depending on check order
     let err_msg = result.unwrap_err().message;
-    assert!(err_msg.contains("does not exist") || err_msg.contains("lacks permission"),
+    assert!(err_msg.contains("does not exist") || err_msg.contains("lacks permission") || err_msg.contains("not found"),
             "Unexpected error: {}", err_msg);
 }
 

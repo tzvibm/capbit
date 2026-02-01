@@ -6,7 +6,7 @@ use crate::caps::SystemCap;
 use crate::core::{
     self, CapbitError, Result,
     create_type_in, create_entity_in, set_meta_in,
-    set_capability_in, set_relationship_in,
+    set_capability_in, set_relationship_in, set_cap_label_in,
     with_write_txn, current_epoch,
 };
 
@@ -38,7 +38,6 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
     }
 
     with_write_txn(|txn, dbs| {
-
         // 1. Create the meta-type (type of types)
         create_type_in(txn, dbs, "_type")?;
 
@@ -102,7 +101,7 @@ pub fn bootstrap(root_id: &str) -> Result<u64> {
             (14, "password-admin"),
         ];
         for (bit, label) in syscap_labels {
-            core::set_cap_label_in(txn, dbs, "_type:_type", bit, label)?;
+            set_cap_label_in(txn, dbs, "_type:_type", bit, label)?;
         }
 
         // 8. Mark as bootstrapped

@@ -33,11 +33,14 @@ fn setup_bootstrapped() -> std::sync::MutexGuard<'static, ()> {
 fn attack_entity_spoofing() {
     let _lock = setup_bootstrapped();
 
-    // Alice has admin on _type:user (root grants this)
+    // Create alice first, then grant her admin on _type:user
+    protected::create_entity("user:root", "user", "alice").unwrap();
     protected::set_grant("user:root", "user:alice", "admin", "_type:user").unwrap();
 
-    // Bob (no permissions) tries to create user:alice (impersonation)
-    let result = protected::create_entity("user:bob", "user", "alice");
+    // Bob (no permissions) tries to create user:eve (impersonation attempt)
+    // First create bob so he exists
+    protected::create_entity("user:root", "user", "bob").unwrap();
+    let result = protected::create_entity("user:bob", "user", "eve");
 
     // Expected: DENIED - bob lacks ENTITY_CREATE on _type:user
     assert!(result.is_err());

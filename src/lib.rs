@@ -1,12 +1,13 @@
 //! # Capbit
 //!
-//! High-performance access control library with string-based relationships
-//! and bitmask capabilities.
+//! High-performance access control library with normalized LMDB storage.
+//! Uses interleaved bits for dual O(log n) lookup and O(1) entity rename.
 //!
 //! ## Features
 //!
 //! - **O(1) Bitmask Eval**: Final permission check is a single AND operation
 //! - **O(log N) Lookup**: LMDB B-tree storage (full check is O(k × log N))
+//! - **O(1) Rename**: Entity names stored separately from grants
 //! - **String Relationships**: Human-readable types ("editor", "viewer", "member")
 //! - **Per-Entity Semantics**: Each entity defines what relationships mean to it
 //! - **Inheritance**: Inherit relationships without graph traversal
@@ -96,6 +97,7 @@ pub use core::{
     // Labels
     set_cap_label,
     get_cap_label,
+    delete_cap_label,
 
     // Access checks (read-only, no protection needed)
     check_access,
@@ -128,6 +130,19 @@ pub use core::check_access as get_effective_capabilities;
 // Test utilities (also available for integration tests)
 pub use core::{clear_all, test_lock};
 
-// v3: Length-prefixed keys (no delimiters, no escaping)
+// Interleaved key encoding module
 pub mod keys;
-pub use keys::{build_key, build_prefix, parse_key, get_part, entity_key, entity_to_str, entity_from_str};
+
+// Re-export key functions for compatibility
+pub use keys::{
+    // New interleaved key functions
+    interleave, deinterleave, name_hash,
+    entity_key, grant_key, capability_key, inheritance_key, cap_label_key,
+    parse_entity_key, parse_grant_key, parse_capability_key, parse_inheritance_key, parse_cap_label_key,
+    set_mode_first, set_mode_second, get_mode,
+    entity_compare, grant_compare, inheritance_compare, capability_compare, cap_label_compare,
+
+    // Legacy key functions (for session/auth compatibility)
+    build_key, build_prefix, parse_key, get_part,
+    entity_from_str, entity_to_str,
+};

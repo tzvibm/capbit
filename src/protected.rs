@@ -5,9 +5,10 @@
 use crate::caps::SystemCap;
 use crate::core::{
     self, CapbitError, Result,
-    parse_entity_id, create_entity_in, delete_entity_in, entity_exists_in,
+    parse_entity_id, create_entity_in, delete_entity_by_label_in, entity_exists_in,
     set_relationship_in, delete_relationship_in,
-    set_capability_in, set_inheritance_in, delete_inheritance_in,
+    set_capability_in, delete_capability_in, set_inheritance_in, delete_inheritance_in,
+    rename_entity_in, resolve_entity,
     with_write_txn, current_epoch,
 };
 
@@ -54,7 +55,8 @@ pub fn create_entity(requester: &str, entity_type: &str, id: &str) -> Result<u64
 
     let entity_id = format!("{}:{}", entity_type, id);
     with_write_txn(|txn, dbs| {
-        create_entity_in(txn, dbs, &entity_id)
+        create_entity_in(txn, dbs, &entity_id)?;
+        Ok(current_epoch())
     })
 }
 
@@ -65,7 +67,21 @@ pub fn delete_entity(requester: &str, entity_id: &str) -> Result<bool> {
     check_permission(requester, &type_scope, SystemCap::ENTITY_DELETE)?;
 
     with_write_txn(|txn, dbs| {
-        delete_entity_in(txn, dbs, entity_id)
+        delete_entity_by_label_in(txn, dbs, entity_id)
+    })
+}
+
+/// Rename an entity. Requires ENTITY_DELETE on _type:{type} (or some appropriate cap).
+/// This is O(1) - grants are not affected because they use entity IDs, not names.
+pub fn rename_entity(requester: &str, entity_label: &str, new_name: &str) -> Result<()> {
+    let (entity_type, _) = parse_entity_id(entity_label)?;
+    let type_scope = format!("_type:{}", entity_type);
+    // Require entity delete permission (or we could define a new ENTITY_RENAME cap)
+    check_permission(requester, &type_scope, SystemCap::ENTITY_DELETE)?;
+
+    with_write_txn(|txn, dbs| {
+        let (type_id, entity_id) = resolve_entity(txn, dbs, entity_label)?;
+        rename_entity_in(txn, dbs, type_id, entity_id, new_name)
     })
 }
 
@@ -107,6 +123,15 @@ pub fn set_capability(requester: &str, scope: &str, relation: &str, cap_mask: u6
 
     with_write_txn(|txn, dbs| {
         set_capability_in(txn, dbs, scope, relation, cap_mask)
+    })
+}
+
+/// Delete capability definition. Requires CAP_DELETE on scope.
+pub fn delete_capability(requester: &str, scope: &str, relation: &str) -> Result<bool> {
+    check_permission(requester, scope, SystemCap::CAP_DELETE)?;
+
+    with_write_txn(|txn, dbs| {
+        delete_capability_in(txn, dbs, scope, relation)
     })
 }
 
@@ -155,6 +180,15 @@ pub fn create_type(requester: &str, type_name: &str) -> Result<u64> {
         set_relationship_in(txn, dbs, requester, "admin", &type_entity)?;
 
         Ok(current_epoch())
+    })
+}
+
+/// Delete a type. Requires TYPE_DELETE on _type:_type.
+pub fn delete_type(requester: &str, type_name: &str) -> Result<bool> {
+    check_permission(requester, "_type:_type", SystemCap::TYPE_DELETE)?;
+
+    with_write_txn(|txn, dbs| {
+        crate::core::delete_type_in(txn, dbs, type_name)
     })
 }
 

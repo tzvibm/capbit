@@ -250,6 +250,23 @@ select:focus, input:focus {
 }
 
 .list-item .arrow { color: var(--text-muted); }
+.list-item { position: relative; }
+.del-btn, .rename-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    opacity: 0.5;
+    padding: 0.25rem 0.5rem;
+}
+.del-btn { right: 0.5rem; }
+.rename-btn { right: 2rem; font-size: 0.9rem; }
+.del-btn:hover { opacity: 1; color: var(--danger); }
+.rename-btn:hover { opacity: 1; color: var(--primary); }
 
 .relation-badge {
     background: var(--primary);

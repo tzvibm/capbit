@@ -354,3 +354,83 @@ fn change_capability_and_regrant() {
     protected::set_grant("user:root", "user:alice", "editor", "resource:doc").unwrap();
     assert_eq!(check_access("user:alice", "resource:doc", None).unwrap(), 0xFF);
 }
+
+// ============================================================================
+// Cascade Delete
+// ============================================================================
+
+/// Verify deleting an entity removes all its relationships
+#[test]
+fn delete_entity_cascades_relationships() {
+    let _lock = setup_bootstrapped();
+
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::create_entity("user:root", "resource", "doc").unwrap();
+
+    protected::set_capability("user:root", "resource:doc", "editor", 0x0F).unwrap();
+    protected::set_grant("user:root", "user:alice", "editor", "resource:doc").unwrap();
+
+    // Alice has access
+    assert!(has_capability("user:alice", "resource:doc", 0x0F).unwrap());
+
+    // Delete alice
+    protected::delete_entity("user:root", "user:alice").unwrap();
+
+    // Alice no longer exists
+    assert!(!entity_exists("user:alice").unwrap());
+
+    // Relationship is gone (check_access fails because entity is deleted)
+    let result = check_access("user:alice", "resource:doc", None);
+    assert!(result.is_err() || result.unwrap() == 0);
+}
+
+/// Verify deleting an entity removes inheritance records
+#[test]
+fn delete_entity_cascades_inheritance() {
+    let _lock = setup_bootstrapped();
+
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::create_entity("user:root", "user", "bob").unwrap();
+    protected::create_entity("user:root", "resource", "doc").unwrap();
+
+    protected::set_capability("user:root", "resource:doc", "editor", 0x0F).unwrap();
+    protected::set_grant("user:root", "user:alice", "editor", "resource:doc").unwrap();
+    protected::set_delegation("user:root", "user:bob", "resource:doc", "user:alice").unwrap();
+
+    // Bob inherits from alice
+    assert!(has_capability("user:bob", "resource:doc", 0x0F).unwrap());
+
+    // Delete alice (the source)
+    protected::delete_entity("user:root", "user:alice").unwrap();
+
+    // Bob's inherited access is gone
+    assert_eq!(check_access("user:bob", "resource:doc", None).unwrap(), 0);
+}
+
+/// Verify deleting a resource cleans up all grants to it
+#[test]
+fn delete_resource_cascades_grants() {
+    let _lock = setup_bootstrapped();
+
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::create_entity("user:root", "user", "bob").unwrap();
+    protected::create_entity("user:root", "resource", "doc").unwrap();
+
+    protected::set_capability("user:root", "resource:doc", "editor", 0x0F).unwrap();
+    protected::set_capability("user:root", "resource:doc", "viewer", 0x01).unwrap();
+    protected::set_grant("user:root", "user:alice", "editor", "resource:doc").unwrap();
+    protected::set_grant("user:root", "user:bob", "viewer", "resource:doc").unwrap();
+
+    // Both have access
+    assert!(has_capability("user:alice", "resource:doc", 0x0F).unwrap());
+    assert!(has_capability("user:bob", "resource:doc", 0x01).unwrap());
+
+    // Delete the resource
+    protected::delete_entity("user:root", "resource:doc").unwrap();
+
+    // No more access (check_access fails because resource is deleted)
+    let result = check_access("user:alice", "resource:doc", None);
+    assert!(result.is_err() || result.unwrap() == 0);
+    let result = check_access("user:bob", "resource:doc", None);
+    assert!(result.is_err() || result.unwrap() == 0);
+}

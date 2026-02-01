@@ -67,7 +67,7 @@ fn empty_type_in_parse() {
     let _ = result; // Don't assert, just verify no crash
 }
 
-/// Verify empty relation is handled
+/// Verify empty relation is rejected (LMDB doesn't support zero-length keys)
 #[test]
 fn empty_relation_handled() {
     let _lock = setup_bootstrapped();
@@ -75,13 +75,9 @@ fn empty_relation_handled() {
     protected::create_entity("user:root", "user", "alice").unwrap();
     protected::create_entity("user:root", "resource", "doc").unwrap();
 
-    // Empty relation name - should work but give no capability
-    set_capability("resource:doc", "", 0x01).unwrap();
-    set_relationship("user:alice", "", "resource:doc").unwrap();
-
-    // Check if it worked
-    let caps = check_access("user:alice", "resource:doc", None).unwrap();
-    assert_eq!(caps, 0x01);
+    // Empty relation name - rejected due to LMDB limitations
+    let result = set_capability("resource:doc", "", 0x01);
+    assert!(result.is_err(), "Empty relation should be rejected");
 }
 
 /// Verify missing colon in entity ID is rejected
@@ -328,9 +324,9 @@ fn entity_in_nonexistent_type_fails() {
     // Type "nonexistent" doesn't exist
     let result = protected::create_entity("user:root", "nonexistent", "test");
     assert!(result.is_err());
-    // Error could be "Type does not exist" or "lacks permission" depending on check order
+    // Error could be "Type does not exist", "lacks permission", or "not found" depending on check order
     let err_msg = result.unwrap_err().message;
-    assert!(err_msg.contains("does not exist") || err_msg.contains("lacks permission"),
+    assert!(err_msg.contains("does not exist") || err_msg.contains("lacks permission") || err_msg.contains("not found"),
             "Unexpected error: {}", err_msg);
 }
 

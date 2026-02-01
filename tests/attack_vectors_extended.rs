@@ -138,8 +138,9 @@ fn attack_scope_path_traversal_attempt() {
 
     // Path traversal attempts should not grant access
     // These are different entity IDs, not path-related
-    assert_eq!(check_access("user:alice", "resource:public/../secret", None).unwrap(), 0);
-    assert_eq!(check_access("user:alice", "resource:./secret", None).unwrap(), 0);
+    // In the normalized schema, non-existent entities return an error
+    assert!(check_access("user:alice", "resource:public/../secret", None).is_err());
+    assert!(check_access("user:alice", "resource:./secret", None).is_err());
 }
 
 /// ATTACK: Grant on type entity vs instance entity confusion
@@ -379,11 +380,9 @@ fn attack_zombie_permission_after_delete() {
     // This is a data consistency concern, not necessarily a security one
     // if we check entity existence before operations
 
-    // Check access for deleted entity - should return 0 or handle gracefully
-    let caps = check_access("user:alice", "resource:doc", None).unwrap();
-    // The grants may still be there (orphaned), but ideally should be cleaned
-    // For now, just verify we don't crash
-    let _ = caps;
+    // Check access for deleted entity - should return error (entity not found)
+    // In normalized schema, deleted entities can't be looked up
+    assert!(check_access("user:alice", "resource:doc", None).is_err());
 }
 
 // ============================================================================

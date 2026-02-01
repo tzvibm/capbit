@@ -1127,6 +1127,82 @@ async function doCreateDelegationModal() {
 }
 
 // ============================================================================
+// Delete Operations
+// ============================================================================
+
+async function doDeleteEntity(entityId) {
+    if (!confirm(`Delete ${entityId}? This will remove all its grants and inheritance.`)) return;
+    const result = await api('POST', '/delete/entity', { entity_id: entityId });
+    if (result.ok) {
+        await loadData();
+        log(`🗑️ Deleted entity: ${entityId}`, 'success');
+        renderAll();
+    }
+}
+
+async function doDeleteGrant(seeker, relation, scope) {
+    if (!confirm(`Remove ${seeker} from ${relation} on ${scope}?`)) return;
+    const result = await api('POST', '/delete/grant', { seeker, relation, scope });
+    if (result.ok) {
+        await loadData();
+        log(`🗑️ Removed grant: ${seeker} → ${relation} → ${scope}`, 'success');
+        renderAll();
+    }
+}
+
+async function doDeleteDelegation(seeker, scope, delegate) {
+    if (!confirm(`Remove inheritance: ${seeker} from ${delegate} on ${scope}?`)) return;
+    const result = await api('POST', '/delete/delegation', { seeker, scope, delegate });
+    if (result.ok) {
+        await loadData();
+        log(`🗑️ Removed inheritance: ${seeker} ← ${delegate} on ${scope}`, 'success');
+        renderAll();
+    }
+}
+
+async function doDeleteCapability(scope, relation) {
+    if (!confirm(`Delete role "${relation}" on ${scope}?`)) return;
+    const result = await api('POST', '/delete/capability', { scope, relation });
+    if (result.ok) {
+        await loadData();
+        log(`🗑️ Deleted role: ${relation} on ${scope}`, 'success');
+        renderAll();
+    }
+}
+
+async function doDeleteType(typeName) {
+    if (!confirm(`Delete type "${typeName}"? This will also delete _type:${typeName}.`)) return;
+    const result = await api('POST', '/delete/type', { type_name: typeName });
+    if (result.ok) {
+        await loadData();
+        log(`🗑️ Deleted type: ${typeName}`, 'success');
+        renderAll();
+    }
+}
+
+async function doDeleteCapLabel(scope, bit, label) {
+    if (!confirm(`Delete action "${label}" (bit ${bit}) on ${scope}?`)) return;
+    const result = await api('POST', '/delete/cap-label', { scope, bit });
+    if (result.ok) {
+        await loadData();
+        log(`🗑️ Deleted action: ${label} (bit ${bit}) on ${scope}`, 'success');
+        renderAll();
+    }
+}
+
+async function doRenameEntity(entityId) {
+    const [type, oldName] = entityId.split(':');
+    const newName = prompt(`Rename ${entityId}\n\nEnter new name:`, oldName);
+    if (!newName || newName === oldName) return;
+    const result = await api('POST', '/rename/entity', { entity_id: entityId, new_name: newName });
+    if (result.ok) {
+        await loadData();
+        log(`Renamed: ${entityId} → ${type}:${newName}`, 'success');
+        renderAll();
+    }
+}
+
+// ============================================================================
 // UI Rendering
 // ============================================================================
 
@@ -1250,7 +1326,7 @@ function renderTypes() {
         return;
     }
     const html = '<div class="list">' + known.types.map(t =>
-        `<div class="list-item${t.startsWith('_') ? ' system-item' : ''}">${t.startsWith('_') ? systemIcon() : ''}<span class="chip"><span class="type">${t}</span></span></div>`
+        `<div class="list-item${t.startsWith('_') ? ' system-item' : ''}">${t.startsWith('_') ? systemIcon() : ''}<span class="chip"><span class="type">${t}</span></span>${!t.startsWith('_') ? `<button class="del-btn" onclick="doDeleteType('${t}')">&times;</button>` : ''}</div>`
     ).join('') + '</div>';
     setHtml('type-list', html);
 }
@@ -1258,7 +1334,7 @@ function renderTypes() {
 function renderEntities() {
     const displayEntities = filterSystem(known.entities, 'id');
     renderListOrEmpty('entity-list', displayEntities, '📋', 'No entities yet',
-        e => `<div class="list-item${isSystemEntity(e.id) ? ' system-item' : ''}">${isSystemEntity(e.id) ? systemIcon() : ''}${chip(e.id)}</div>`);
+        e => `<div class="list-item${isSystemEntity(e.id) ? ' system-item' : ''}">${isSystemEntity(e.id) ? systemIcon() : ''}${chip(e.id)}${!isSystemEntity(e.id) ? `<button class="rename-btn" onclick="doRenameEntity('${e.id}')" title="Rename">✎</button><button class="del-btn" onclick="doDeleteEntity('${e.id}')">&times;</button>` : ''}</div>`);
 }
 
 function renderPrimitiveCapabilities() {
@@ -1276,7 +1352,7 @@ function renderPrimitiveCapabilities() {
         labels.sort((a, b) => a.bit - b.bit);
         labels.forEach(l => {
             const mask = 1 << l.bit;
-            html += `<div class="list-item">${chip(scope)} <span class="cap-badge cap-badge-success">bit${l.bit}</span> <strong>${l.label}</strong> ${capBadge(mask)}</div>`;
+            html += `<div class="list-item">${chip(scope)} <span class="cap-badge cap-badge-success">bit${l.bit}</span> <strong>${l.label}</strong> ${capBadge(mask)}<button class="del-btn" onclick="doDeleteCapLabel('${scope}',${l.bit},'${l.label}')">&times;</button></div>`;
         });
     });
     setHtml('primitive-cap-list', html + '</div>');
@@ -1285,12 +1361,12 @@ function renderPrimitiveCapabilities() {
 function renderGrants() {
     const displayGrants = filterSystem(known.grants, 'scope');
     renderListOrEmpty('grant-list', displayGrants, '🔗', 'No direct grants yet',
-        g => `<div class="list-item${isSystemEntity(g.scope) ? ' system-item' : ''}">${isSystemEntity(g.scope) ? systemIcon() : ''}${chip(g.seeker)} ${arrow()} ${badge(g.relation)} ${arrow()} ${chip(g.scope)}</div>`);
+        g => `<div class="list-item${isSystemEntity(g.scope) ? ' system-item' : ''}">${isSystemEntity(g.scope) ? systemIcon() : ''}${chip(g.seeker)} ${arrow()} ${badge(g.relation)} ${arrow()} ${chip(g.scope)}<button class="del-btn" onclick="doDeleteGrant('${g.seeker}','${g.relation}','${g.scope}')">&times;</button></div>`);
 }
 
 function renderDelegations() {
     renderListOrEmpty('delegation-list', known.delegations, '↗️', 'No delegations yet',
-        d => `<div class="list-item delegation-item">${chip(d.seeker)} ${arrow('inherits from')} ${chip(d.delegate)} ${arrow('on')} ${chip(d.scope)}</div>`);
+        d => `<div class="list-item delegation-item">${chip(d.seeker)} ${arrow('inherits from')} ${chip(d.delegate)} ${arrow('on')} ${chip(d.scope)}<button class="del-btn" onclick="doDeleteDelegation('${d.seeker}','${d.scope}','${d.delegate}')">&times;</button></div>`);
 }
 
 function renderCapabilities() {
@@ -1315,6 +1391,7 @@ function renderCapabilities() {
             <div class="list-item cap-item${isSys ? ' system-item' : ''}">
                 ${isSys ? systemIcon() : ''}${chip(c.scope)} ${badge(c.relation)} ${capBadge(c.cap_mask)}
                 ${labelStr ? `<span class="cap-labels">= ${labelStr}</span>` : ''}
+                ${!isSys ? `<button class="del-btn" onclick="doDeleteCapability('${c.scope}','${c.relation}')">&times;</button>` : ''}
             </div>`;
     }).join(''));
 }

@@ -4,7 +4,7 @@
 //! atomicity, ordering, and error handling.
 
 use capbit::{
-    init, bootstrap, has_capability,
+    init, bootstrap, has_capability, protected,
     batch_set_relationships, batch_set_capabilities, batch_set_inheritance,
     write_batch, get_capability,
     clear_all, test_lock,
@@ -23,13 +23,6 @@ fn setup() {
     });
 }
 
-fn setup_clean() -> std::sync::MutexGuard<'static, ()> {
-    let lock = test_lock();
-    setup();
-    clear_all().unwrap();
-    lock
-}
-
 fn setup_bootstrapped() -> std::sync::MutexGuard<'static, ()> {
     let lock = test_lock();
     setup();
@@ -45,7 +38,13 @@ fn setup_bootstrapped() -> std::sync::MutexGuard<'static, ()> {
 /// Verify batch_set_relationships works for multiple entries
 #[test]
 fn batch_relationships_multiple_entries() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entities first
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::create_entity("user:root", "user", "bob").unwrap();
+    protected::create_entity("user:root", "resource", "doc").unwrap();
+    protected::create_entity("user:root", "team", "sales").unwrap();
 
     // Set up capabilities first
     batch_set_capabilities(&[
@@ -76,7 +75,11 @@ fn batch_relationships_multiple_entries() {
 /// Verify batch_set_capabilities works for multiple entries
 #[test]
 fn batch_capabilities_multiple_entries() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entities first
+    protected::create_entity("user:root", "resource", "doc1").unwrap();
+    protected::create_entity("user:root", "resource", "doc2").unwrap();
 
     let entries = vec![
         ("resource:doc1".to_string(), "viewer".to_string(), 0x01u64),
@@ -99,7 +102,13 @@ fn batch_capabilities_multiple_entries() {
 /// Verify batch_set_inheritance works for multiple entries
 #[test]
 fn batch_inheritance_multiple_entries() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entities first
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::create_entity("user:root", "user", "bob").unwrap();
+    protected::create_entity("user:root", "user", "charlie").unwrap();
+    protected::create_entity("user:root", "resource", "doc").unwrap();
 
     // Set up a capability and direct grant
     batch_set_capabilities(&[
@@ -133,7 +142,7 @@ fn batch_inheritance_multiple_entries() {
 /// Verify empty batch succeeds
 #[test]
 fn batch_empty_succeeds() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
 
     let empty_rels: Vec<(String, String, String)> = vec![];
     let result = batch_set_relationships(&empty_rels);
@@ -158,7 +167,13 @@ fn batch_empty_succeeds() {
 /// Verify WriteBatch with multiple operation types
 #[test]
 fn write_batch_mixed_operations() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entities first
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::create_entity("user:root", "user", "bob").unwrap();
+    protected::create_entity("user:root", "user", "charlie").unwrap();
+    protected::create_entity("user:root", "resource", "doc").unwrap();
 
     let mut batch = write_batch();
     batch
@@ -182,7 +197,11 @@ fn write_batch_mixed_operations() {
 /// Verify WriteBatch ordering is preserved
 #[test]
 fn write_batch_ordering_matters() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entities first
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::create_entity("user:root", "resource", "doc").unwrap();
 
     // Order matters: capability must be defined before relationship can use it
     let mut batch = write_batch();
@@ -203,7 +222,12 @@ fn write_batch_ordering_matters() {
 /// Verify WriteBatch delete operations
 #[test]
 fn write_batch_delete_operations() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entities first
+    protected::create_entity("user:root", "user", "alice").unwrap();
+    protected::create_entity("user:root", "user", "bob").unwrap();
+    protected::create_entity("user:root", "resource", "doc").unwrap();
 
     // First create some data
     let mut setup = write_batch();
@@ -232,7 +256,11 @@ fn write_batch_delete_operations() {
 /// Verify WriteBatch can be cleared and reused
 #[test]
 fn write_batch_clear_and_reuse() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entities first
+    protected::create_entity("user:root", "resource", "doc1").unwrap();
+    protected::create_entity("user:root", "resource", "doc2").unwrap();
 
     let mut batch = write_batch();
     batch.set_capability("resource:doc1", "role", 0x01);
@@ -258,7 +286,10 @@ fn write_batch_clear_and_reuse() {
 /// Verify duplicate operations in batch (idempotent)
 #[test]
 fn batch_duplicate_operations() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entity first
+    protected::create_entity("user:root", "resource", "doc").unwrap();
 
     let entries = vec![
         ("resource:doc".to_string(), "viewer".to_string(), 0x01u64),
@@ -276,7 +307,10 @@ fn batch_duplicate_operations() {
 /// Verify conflicting operations in batch (last write wins)
 #[test]
 fn batch_conflicting_operations() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entity first
+    protected::create_entity("user:root", "resource", "doc").unwrap();
 
     let entries = vec![
         ("resource:doc".to_string(), "role".to_string(), 0x01u64),
@@ -297,7 +331,12 @@ fn batch_conflicting_operations() {
 /// Verify large batch operations work
 #[test]
 fn batch_large_number_of_operations() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create 100 entities first
+    for i in 0..100 {
+        protected::create_entity("user:root", "resource", &format!("doc{}", i)).unwrap();
+    }
 
     // Create 100 capabilities
     let caps: Vec<(String, String, u64)> = (0..100)
@@ -317,7 +356,13 @@ fn batch_large_number_of_operations() {
 /// Verify WriteBatch with many operations
 #[test]
 fn write_batch_many_operations() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entities first
+    for i in 0..50 {
+        protected::create_entity("user:root", "resource", &format!("doc{}", i)).unwrap();
+        protected::create_entity("user:root", "user", &format!("u{}", i)).unwrap();
+    }
 
     let mut batch = write_batch();
 
@@ -344,7 +389,10 @@ fn write_batch_many_operations() {
 /// Verify WriteBatch can set capability labels
 #[test]
 fn write_batch_with_labels() {
-    let _lock = setup_clean();
+    let _lock = setup_bootstrapped();
+
+    // Create entity first
+    protected::create_entity("user:root", "resource", "doc").unwrap();
 
     let mut batch = write_batch();
     batch
