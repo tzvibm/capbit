@@ -146,7 +146,7 @@ get_id_by_label(name)?;
 
 ### Bootstrap & Protected API
 
-System permissions are scoped to a special `_system` object. This means permission bits like `ADMIN` have no global meaning—they only matter when checked against `_system`.
+System permissions are scoped to a special `_system` object. All system-level privileges (ADMIN, GRANT, etc.) are checked against this entity, preventing users from granting themselves global powers on arbitrary objects.
 
 ```rust
 // Initialize the system (creates _system and _root_user entities)
