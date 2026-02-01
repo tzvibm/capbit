@@ -10,7 +10,7 @@ Capbit and Google's Zanzibar are both authorization systems, but with fundamenta
 | Roles per object | Fixed by schema | Unlimited (any u64) |
 | Schema requirement | Yes | None |
 | Entity types | Separate namespaces | Unified (all u64 IDs) |
-| Check latency | ~10ms (network + cache) | ~2-3µs (in-process) |
+| Local check latency | Graph traversal + lookups | ~2-3µs (bitmask AND) |
 | Update propagation | Cache invalidation | Instant |
 | Graph restructuring | Update many tuples | Single inheritance change |
 | Codebase | Massive | ~280 lines |
@@ -226,9 +226,11 @@ fn resolve(d: &Dbs, tx: &RoTxn, mut s: u64, o: u64) -> Result<u64> {
 
 ---
 
-## 4. Performance
+## 4. Performance (Engine-Level Comparison)
 
-### Benchmarks (Capbit on mobile ARM64)
+**Important note:** A fair performance comparison must compare engines at the same level. Comparing Capbit's local latency to Zanzibar's network latency is apples to oranges. Below we compare the *engine* characteristics.
+
+### Capbit Engine (Benchmarks on mobile ARM64)
 
 ```
 Single check latency:     2-3 µs
@@ -238,20 +240,90 @@ Concurrent reads (8 threads): 2.1M checks/sec
 1M grants setup:          ~5 seconds
 ```
 
-### Comparison
+### Engine-Level Comparison
 
-| Metric | Zanzibar | Capbit |
-|--------|----------|--------|
-| Check latency | ~10ms (network) | **2-3µs** (3000x faster) |
-| Architecture | Distributed service | **Embedded library** |
-| Network hops | 1+ per check | **Zero** |
-| Dependencies | Spanner, infrastructure | **Just LMDB** |
+| Metric | Zanzibar Engine | Capbit Engine |
+|--------|-----------------|---------------|
+| Check operation | Graph traversal + multiple lookups | Single bitmask AND |
+| Permission evaluation | Boolean per relation | 64 bits in O(1) |
+| Storage backend | Spanner (distributed) | LMDB (embedded) |
+| Dependencies | Heavy infrastructure | Single library |
 
-**Winner: Capbit** — 1000-5000x faster checks, zero network overhead.
+The key insight: Capbit's bitmask model is fundamentally cheaper to evaluate than Zanzibar's graph traversal model, *at the engine level*.
+
+**Winner: Capbit** — Simpler evaluation model, fewer operations per check.
 
 ---
 
-## 5. Operational Simplicity
+## 5. Global Distribution: An Orthogonal Concern
+
+A common misconception is that Zanzibar's distributed architecture is an inherent advantage. In reality, **global distribution is a deployment layer, not a model property**.
+
+### The Layered Architecture View
+
+```
+┌─────────────────────────────────────┐
+│     Distribution Layer (optional)   │  ← Replication, consensus, routing
+├─────────────────────────────────────┤
+│         Authorization Engine        │  ← Permission model, evaluation
+├─────────────────────────────────────┤
+│           Storage Layer             │  ← Persistence, transactions
+└─────────────────────────────────────┘
+```
+
+Zanzibar bundles all three layers into one system. Capbit focuses on the engine layer, leaving distribution as a separate concern.
+
+### Adding Distribution to Capbit
+
+Capbit can be distributed using standard techniques:
+
+**Option 1: Read replicas with async replication**
+```
+┌──────────┐     ┌──────────┐     ┌──────────┐
+│ Capbit   │────▶│ Capbit   │────▶│ Capbit   │
+│ Primary  │     │ Replica  │     │ Replica  │
+│ (writes) │     │ (reads)  │     │ (reads)  │
+└──────────┘     └──────────┘     └──────────┘
+```
+
+**Option 2: Raft/Paxos consensus for strong consistency**
+```
+┌──────────┐     ┌──────────┐     ┌──────────┐
+│ Capbit   │◀───▶│ Capbit   │◀───▶│ Capbit   │
+│ Node 1   │     │ Node 2   │     │ Node 3   │
+└──────────┘     └──────────┘     └──────────┘
+     Raft consensus layer
+```
+
+**Option 3: Edge deployment with eventual consistency**
+```
+┌─────────────────────────────────────────────┐
+│              Central Capbit                 │
+│            (source of truth)                │
+└──────────────────┬──────────────────────────┘
+                   │ sync
+    ┌──────────────┼──────────────┐
+    ▼              ▼              ▼
+┌────────┐    ┌────────┐    ┌────────┐
+│ Edge   │    │ Edge   │    │ Edge   │
+│ Capbit │    │ Capbit │    │ Capbit │
+└────────┘    └────────┘    └────────┘
+```
+
+### Why Separation Matters
+
+| Aspect | Bundled (Zanzibar) | Separated (Capbit) |
+|--------|--------------------|--------------------|
+| Deployment flexibility | One size fits all | Choose your topology |
+| Overhead for single-node | Full distributed stack | Zero overhead |
+| Edge/embedded use | Not possible | Native |
+| Upgrade distribution layer | Tied to auth system | Independent |
+
+**Conclusion:** Zanzibar's distribution is not a capability Capbit lacks—it's a deployment choice. Capbit's lean engine can be wrapped in any distribution layer appropriate for your scale.
+
+---
+
+## 6. Operational Simplicity
 
 ### Zanzibar
 
@@ -290,7 +362,7 @@ capbit::check(alice, doc, READ)?;
 
 ---
 
-## 6. Extensibility
+## 7. Extensibility
 
 ### Capbit's Extension Points
 
@@ -329,7 +401,7 @@ fn custom_resolve(s: u64, o: u64, context: &Context) -> Result<u64> {
 
 ---
 
-## 7. When to Use Each
+## 8. When to Use Each
 
 ### Use Zanzibar When:
 - You're Google-scale (trillions of ACLs)
@@ -348,7 +420,7 @@ fn custom_resolve(s: u64, o: u64, context: &Context) -> Result<u64> {
 
 ---
 
-## 8. Summary
+## 9. Summary
 
 | Dimension | Zanzibar | Capbit | Winner |
 |-----------|----------|--------|--------|
@@ -359,18 +431,21 @@ fn custom_resolve(s: u64, o: u64, context: &Context) -> Result<u64> {
 | Inheritance direction | Subject→Object | Any→Any | **Capbit** |
 | Graph restructuring | Many updates | One change | **Capbit** |
 | Update propagation | Delayed | Instant | **Capbit** |
-| Check latency | ~10ms | ~2µs | **Capbit** |
+| Engine complexity | Graph traversal | Bitmask AND | **Capbit** |
 | Freshness | Cached | Always current | **Capbit** |
-| Operational overhead | High | Zero | **Capbit** |
-| Global distribution | Native | Requires extension | Zanzibar |
+| Operational overhead | High (bundled) | Zero (embeddable) | **Capbit** |
+| Global distribution | Bundled | Add as needed | Tie* |
 | Ecosystem maturity | Established | New | Zanzibar |
 
-**Conclusion:** Capbit provides a more expressive, faster, and simpler authorization model than Zanzibar for the vast majority of applications. Zanzibar's advantages (global distribution, mature ecosystem) only matter at extreme scale or when buying into Google's infrastructure model.
+*Distribution is an orthogonal deployment layer, not an engine capability (see Section 5).
+
+**Conclusion:** Capbit provides a more expressive and simpler authorization model than Zanzibar for the vast majority of applications. Zanzibar's bundled distribution is not an advantage—it's overhead for anyone not operating at Google scale.
 
 For everyone else, Capbit offers:
 - **More power** (64-bit masks, unlimited roles, instant updates)
-- **Better performance** (1000x+ faster checks)
+- **Simpler engine** (bitmask AND vs graph traversal)
 - **Less complexity** (280 lines, no infrastructure)
+- **Deployment flexibility** (add distribution only when needed)
 
 ---
 
