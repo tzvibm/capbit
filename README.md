@@ -179,19 +179,20 @@ grant(alice, my_doc, ADMIN | MY_CUSTOM)?;  // No system permission needed
 
 ## Constants
 
-| Bit | Constant | Purpose |
-|-----|----------|---------|
-| 0 | `READ` | Read access |
-| 1 | `WRITE` | Write/modify |
-| 2 | `DELETE` | Delete |
-| 3 | `CREATE` | Create |
-| 4 | `GRANT` | Grant permissions (on `_system`: can use `protected_grant`) |
-| 5 | `EXECUTE` | Execute |
-| 6–61 | *Custom* | Application-defined |
-| 62 | `VIEW` | View metadata (on `_system`: can use `protected_list_for_object`) |
-| 63 | `ADMIN` | Admin (on `_system`: can use `protected_set_role`, `protected_set_inherit`) |
+These constants define system capabilities when checked against `_system`:
 
-Bits 6–61 (56 bits) are available for your application's custom permissions.
+| Bit | Constant | Meaning on `_system` |
+|-----|----------|----------------------|
+| 0 | `READ` | — |
+| 1 | `WRITE` | — |
+| 2 | `DELETE` | — |
+| 3 | `CREATE` | — |
+| 4 | `GRANT` | Can use `protected_grant`, `protected_revoke` |
+| 5 | `EXECUTE` | — |
+| 62 | `VIEW` | Can use `protected_list_for_object` |
+| 63 | `ADMIN` | Can use `protected_set_role`, `protected_set_inherit` |
+
+**On your own objects, all 64 bits are free to use however you want.** The system only checks these bits against `_system`—elsewhere they're just data.
 
 ## Performance
 

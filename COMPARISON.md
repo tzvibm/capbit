@@ -569,17 +569,17 @@ transact(|tx| {
 ### Permission Constants
 
 ```rust
+// System capabilities (checked against _system)
 pub const READ: u64    = 1;
 pub const WRITE: u64   = 1 << 1;
 pub const DELETE: u64  = 1 << 2;
 pub const CREATE: u64  = 1 << 3;
-pub const GRANT: u64   = 1 << 4;
+pub const GRANT: u64   = 1 << 4;   // protected_grant, protected_revoke
 pub const EXECUTE: u64 = 1 << 5;
-pub const VIEW: u64    = 1 << 62;
-pub const ADMIN: u64   = 1 << 63;
+pub const VIEW: u64    = 1 << 62;  // protected_list_for_object
+pub const ADMIN: u64   = 1 << 63;  // protected_set_role, protected_set_inherit
 
-// Custom bits: use any of the remaining 56 bits
-pub const CUSTOM_1: u64 = 1 << 6;
-pub const CUSTOM_2: u64 = 1 << 7;
-// ... etc
+// On your own objects, all 64 bits are free to use
+pub const MY_PUBLISH: u64 = 1 << 0;  // Reuse bit 0
+pub const MY_APPROVE: u64 = 1 << 6;
 ```
