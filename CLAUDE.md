@@ -53,20 +53,25 @@ get_system() -> Result<u64>
 get_root_user() -> Result<Option<u64>>
 is_bootstrapped() -> Result<bool>
 
-// Core (unprotected)
-grant(subject, object, mask)
-revoke(subject, object)
+// Write operations (require actor with permission on _system)
+grant(actor, subject, object, mask)      // Requires GRANT
+revoke(actor, subject, object)           // Requires GRANT
+set_role(actor, object, role, mask)      // Requires ADMIN
+set_inherit(actor, object, child, parent) // Requires ADMIN
+remove_inherit(actor, object, child)     // Requires ADMIN
+list_for_object(actor, object)           // Requires VIEW
+
+// Read operations (no actor needed)
 check(subject, object, required) -> bool
 get_mask(subject, object) -> u64
+get_role(object, role) -> u64
+get_inherit(object, child) -> Option<u64>
+list_for_subject(subject) -> Vec<(u64, u64)>
 
-// Protected (check against _system)
-protected_grant(actor, subject, object, mask)
-protected_revoke(actor, subject, object)
-protected_set_role(actor, object, role, mask)
-protected_set_inherit(actor, object, child, parent)
-protected_list_for_object(actor, object)
+// Internal (bypasses protection, use for bootstrap/testing)
+transact(|tx| { tx.grant(...); tx.set_role(...); Ok(()) })
 
-// Entities
+// Entities (no protection)
 create_entity(name) -> u64
 get_label(id) -> Option<String>
 get_id_by_label(name) -> Option<u64>

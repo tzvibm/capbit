@@ -528,7 +528,7 @@ For everyone else, Capbit offers:
 init("/path/to/db")?;
 
 // Bootstrap (creates _system and _root_user)
-let (system, root_user) = bootstrap()?;
+let (system, root) = bootstrap()?;
 
 // Entities (human-readable names for u64 IDs)
 let alice = create_entity("alice")?;        // Auto-increment ID
@@ -536,31 +536,23 @@ let doc = create_entity("quarterly-report")?;
 let id = get_id_by_label("alice")?;         // Lookup by name
 let name = get_label(alice)?;               // Get name from ID
 
-// Permissions (unprotected - for internal/trusted use)
-grant(subject, object, mask)?;          // Add permissions
-grant_set(subject, object, mask)?;      // Set exact permissions
-revoke(subject, object)?;               // Remove all permissions
-check(subject, object, required)?;      // Check permissions
+// Write operations (require actor with permission on _system)
+grant(actor, subject, object, mask)?;       // Requires GRANT
+revoke(actor, subject, object)?;            // Requires GRANT
+set_role(actor, object, role_id, mask)?;    // Requires ADMIN
+set_inherit(actor, object, child, parent)?; // Requires ADMIN
+list_for_object(actor, object)?;            // Requires VIEW
 
-// Protected API (checks actor's permissions on _system)
-protected_grant(actor, subject, object, mask)?;   // Requires GRANT on _system
-protected_revoke(actor, subject, object)?;        // Requires GRANT on _system
-protected_set_role(actor, object, role, mask)?;   // Requires ADMIN on _system
-protected_set_inherit(actor, obj, child, parent)?; // Requires ADMIN on _system
-protected_list_for_object(actor, object)?;        // Requires VIEW on _system
+// Read operations (no actor needed)
+check(subject, object, required)?;
+get_mask(subject, object)?;
+get_role(object, role_id)?;
+list_for_subject(subject)?;
 
-// Roles (indirection)
-set_role(object, role_id, mask)?;       // Define role
-grant(subject, object, role_id)?;       // Assign role
-
-// Inheritance
-set_inherit(object, child, parent)?;    // Child inherits from parent
-remove_inherit(object, child)?;         // Remove inheritance
-
-// Batch operations
+// Internal batch (bypasses protection)
 transact(|tx| {
-    tx.grant(a, b, mask)?;
-    tx.set_role(b, role, mask)?;
+    tx.grant(subject, object, mask)?;
+    tx.set_role(object, role, mask)?;
     tx.create_entity("name")?;
     Ok(())
 })?;
@@ -574,10 +566,10 @@ pub const READ: u64    = 1;
 pub const WRITE: u64   = 1 << 1;
 pub const DELETE: u64  = 1 << 2;
 pub const CREATE: u64  = 1 << 3;
-pub const GRANT: u64   = 1 << 4;   // protected_grant, protected_revoke
+pub const GRANT: u64   = 1 << 4;   // grant, revoke, batch_grant, batch_revoke
 pub const EXECUTE: u64 = 1 << 5;
-pub const VIEW: u64    = 1 << 62;  // protected_list_for_object
-pub const ADMIN: u64   = 1 << 63;  // protected_set_role, protected_set_inherit
+pub const VIEW: u64    = 1 << 62;  // list_for_object
+pub const ADMIN: u64   = 1 << 63;  // set_role, set_inherit, remove_inherit
 
 // On your own objects, all 64 bits are free to use
 pub const MY_PUBLISH: u64 = 1 << 0;  // Reuse bit 0

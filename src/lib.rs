@@ -179,25 +179,11 @@ pub fn clear_all() -> Result<()> {
 }
 pub fn test_lock() -> std::sync::MutexGuard<'static, ()> { TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner()) }
 
-// Single-op convenience functions
-pub fn grant(subject: u64, object: u64, mask: u64) -> Result<()> { transact(|tx| tx.grant(subject, object, mask)) }
-pub fn grant_set(subject: u64, object: u64, mask: u64) -> Result<()> { transact(|tx| tx.grant_set(subject, object, mask)) }
-pub fn revoke(subject: u64, object: u64) -> Result<bool> { transact(|tx| tx.revoke(subject, object)) }
-pub fn set_role(object: u64, role: u64, mask: u64) -> Result<()> { transact(|tx| tx.set_role(object, role, mask)) }
-pub fn set_inherit(object: u64, child: u64, parent: u64) -> Result<()> { transact(|tx| tx.set_inherit(object, child, parent)) }
-pub fn remove_inherit(object: u64, child: u64) -> Result<bool> { transact(|tx| tx.remove_inherit(object, child)) }
+// Entity management (no protection - entities are just IDs)
 pub fn create_entity(name: &str) -> Result<u64> { transact(|tx| tx.create_entity(name)) }
 pub fn rename_entity(id: u64, new_name: &str) -> Result<()> { transact(|tx| tx.rename_entity(id, new_name)) }
 pub fn delete_entity(id: u64) -> Result<bool> { transact(|tx| tx.delete_entity(id)) }
 pub fn set_label(id: u64, name: &str) -> Result<()> { transact(|tx| tx.set_label(id, name)) }
-
-// Batch convenience functions
-pub fn batch_grant(grants: &[(u64, u64, u64)]) -> Result<()> {
-    transact(|tx| { for &(s, o, m) in grants { tx.grant(s, o, m)?; } Ok(()) })
-}
-pub fn batch_revoke(revokes: &[(u64, u64)]) -> Result<usize> {
-    transact(|tx| { let mut c = 0; for &(s, o) in revokes { if tx.revoke(s, o)? { c += 1; } } Ok(c) })
-}
 
 // Read operations (iterative resolve - no recursion)
 fn resolve(d: &Dbs, tx: &RoTxn, mut s: u64, o: u64) -> Result<u64> {
@@ -216,7 +202,6 @@ pub fn check(subject: u64, object: u64, required: u64) -> Result<bool> { Ok((get
 pub fn get_role(object: u64, role: u64) -> Result<u64> { read(|d, tx| Ok(d.roles.get(tx, &key(object, role)).map_err(err)?.unwrap_or(role))) }
 pub fn get_inherit(object: u64, child: u64) -> Result<Option<u64>> { read(|d, tx| Ok(d.inh.get(tx, &key(object, child)).map_err(err)?)) }
 pub fn list_for_subject(subject: u64) -> Result<Vec<(u64, u64)>> { read(|d, tx| d.caps.list_fwd(tx, subject)) }
-pub fn list_for_object(object: u64) -> Result<Vec<(u64, u64)>> { read(|d, tx| d.caps.list_rev(tx, object)) }
 pub fn count_for_subject(subject: u64) -> Result<usize> { read(|d, tx| d.caps.count_fwd(tx, subject)) }
 pub fn count_for_object(object: u64) -> Result<usize> { read(|d, tx| d.caps.count_rev(tx, object)) }
 pub fn get_label(id: u64) -> Result<Option<String>> { read(|d, tx| Ok(d.labels.get(tx, &id.to_be_bytes()).map_err(err)?.map(|s| s.to_string()))) }
@@ -246,7 +231,7 @@ const CAPS: &[(&str, u64)] = &[("read",READ),("write",WRITE),("delete",DELETE),(
 pub fn caps_to_names(mask: u64) -> Vec<&'static str> { CAPS.iter().filter(|(_, b)| mask & b == *b).map(|(n, _)| *n).collect() }
 pub fn names_to_caps(names: &[&str]) -> u64 { names.iter().filter_map(|n| CAPS.iter().find(|(k, _)| k == n).map(|(_, v)| v)).fold(0, |a, b| a | b) }
 
-// Protected ops - all system permission checks happen against _system object
+// System permission checks
 pub fn get_system() -> Result<u64> {
     read(|d, tx| d.meta.get(tx, "system").map_err(err)?.and_then(|s| s.parse().ok()).ok_or_else(|| CapbitError("Not bootstrapped".into())))
 }
@@ -256,15 +241,45 @@ fn require_system(actor: u64, req: u64) -> Result<()> {
     else { Err(CapbitError(format!("{} lacks {:x} on _system", actor, req))) }
 }
 
-pub fn protected_grant(actor: u64, subject: u64, object: u64, mask: u64) -> Result<()> {
+// Public API - all write operations require actor with appropriate permission on _system
+pub fn grant(actor: u64, subject: u64, object: u64, mask: u64) -> Result<()> {
     require_system(actor, GRANT)?;
-    grant(subject, object, mask)
+    transact(|tx| tx.grant(subject, object, mask))
 }
-pub fn protected_revoke(actor: u64, subject: u64, object: u64) -> Result<bool> { require_system(actor, GRANT)?; revoke(subject, object) }
-pub fn protected_set_role(actor: u64, object: u64, role: u64, mask: u64) -> Result<()> { require_system(actor, ADMIN)?; set_role(object, role, mask) }
-pub fn protected_set_inherit(actor: u64, object: u64, child: u64, parent: u64) -> Result<()> { require_system(actor, ADMIN)?; set_inherit(object, child, parent) }
-pub fn protected_remove_inherit(actor: u64, object: u64, child: u64) -> Result<bool> { require_system(actor, ADMIN)?; remove_inherit(object, child) }
-pub fn protected_list_for_object(actor: u64, object: u64) -> Result<Vec<(u64, u64)>> { require_system(actor, VIEW)?; list_for_object(object) }
+pub fn grant_set(actor: u64, subject: u64, object: u64, mask: u64) -> Result<()> {
+    require_system(actor, GRANT)?;
+    transact(|tx| tx.grant_set(subject, object, mask))
+}
+pub fn revoke(actor: u64, subject: u64, object: u64) -> Result<bool> {
+    require_system(actor, GRANT)?;
+    transact(|tx| tx.revoke(subject, object))
+}
+pub fn set_role(actor: u64, object: u64, role: u64, mask: u64) -> Result<()> {
+    require_system(actor, ADMIN)?;
+    transact(|tx| tx.set_role(object, role, mask))
+}
+pub fn set_inherit(actor: u64, object: u64, child: u64, parent: u64) -> Result<()> {
+    require_system(actor, ADMIN)?;
+    transact(|tx| tx.set_inherit(object, child, parent))
+}
+pub fn remove_inherit(actor: u64, object: u64, child: u64) -> Result<bool> {
+    require_system(actor, ADMIN)?;
+    transact(|tx| tx.remove_inherit(object, child))
+}
+pub fn list_for_object(actor: u64, object: u64) -> Result<Vec<(u64, u64)>> {
+    require_system(actor, VIEW)?;
+    read(|d, tx| d.caps.list_rev(tx, object))
+}
+
+// Batch operations
+pub fn batch_grant(actor: u64, grants: &[(u64, u64, u64)]) -> Result<()> {
+    require_system(actor, GRANT)?;
+    transact(|tx| { for &(s, o, m) in grants { tx.grant(s, o, m)?; } Ok(()) })
+}
+pub fn batch_revoke(actor: u64, revokes: &[(u64, u64)]) -> Result<usize> {
+    require_system(actor, GRANT)?;
+    transact(|tx| { let mut c = 0; for &(s, o) in revokes { if tx.revoke(s, o)? { c += 1; } } Ok(c) })
+}
 
 // Bootstrap - creates _system, _root_role, _root_user
 pub fn is_bootstrapped() -> Result<bool> { read(|d, tx| Ok(d.meta.get(tx, "boot").map_err(err)?.is_some())) }

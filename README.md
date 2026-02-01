@@ -70,70 +70,91 @@ use capbit::*;
 
 init("/path/to/db")?;
 
+// Bootstrap creates _system and _root_user
+let (system, root) = bootstrap()?;
+
 // Create named entities
 let alice = create_entity("alice")?;
 let bob = create_entity("bob")?;
 let doc = create_entity("quarterly-report")?;
 
-// Grant permissions
-grant(alice, doc, READ | WRITE)?;
-grant(bob, doc, READ)?;
+// Grant permissions (requires actor with GRANT on _system)
+grant(root, alice, doc, READ | WRITE)?;
+grant(root, bob, doc, READ)?;
 
-// Check access
+// Check access (no actor needed for reads)
 if check(alice, doc, WRITE)? {
     println!("{} can write", get_label(alice)?.unwrap());
 }
+
+// Delegate: give alice GRANT permission on _system
+grant(root, alice, system, GRANT)?;
+// Now alice can grant permissions too
+grant(alice, bob, doc, WRITE)?;
 ```
 
 ## API
 
-### Core
+All write operations require an `actor` with appropriate permissions on `_system`.
+
+### Core (require GRANT on `_system`)
 
 ```rust
-grant(subject, object, mask)?;      // Add permissions (OR)
-grant_set(subject, object, mask)?;  // Set exact permissions
-revoke(subject, object)?;           // Remove all
+grant(actor, subject, object, mask)?;      // Add permissions (OR)
+grant_set(actor, subject, object, mask)?;  // Set exact permissions
+revoke(actor, subject, object)?;           // Remove all
+```
+
+### Reads (no actor needed)
+
+```rust
 check(subject, object, required)?;  // (mask & required) == required
 get_mask(subject, object)?;         // Get current mask
+list_for_subject(subject)?;         // Vec<(object, mask)>
+count_for_subject(subject)?;
+count_for_object(object)?;
 ```
 
-### Roles
+### Roles (require ADMIN on `_system`)
 
 ```rust
-set_role(object, role_id, mask)?;   // Define role -> mask
-grant(subject, object, role_id)?;   // Assign role
-get_role(object, role_id)?;
+set_role(actor, object, role_id, mask)?;   // Define role -> mask
+get_role(object, role_id)?;                // Read (no actor)
 ```
 
-### Inheritance
+### Inheritance (require ADMIN on `_system`)
 
 ```rust
-set_inherit(object, child, parent)?;
-remove_inherit(object, child)?;
-get_inherit(object, child)?;
+set_inherit(actor, object, child, parent)?;
+remove_inherit(actor, object, child)?;
+get_inherit(object, child)?;               // Read (no actor)
 ```
 
-### Batch
+### List for object (requires VIEW on `_system`)
+
+```rust
+list_for_object(actor, object)?;           // Vec<(subject, mask)>
+```
+
+### Batch (require GRANT on `_system`)
+
+```rust
+batch_grant(actor, &[(subject, object, mask), ...])?;
+batch_revoke(actor, &[(subject, object), ...])?;
+```
+
+### Internal batch (bypasses protection)
 
 ```rust
 transact(|tx| {
-    tx.grant(a, b, READ)?;
-    tx.set_role(b, EDITOR, READ | WRITE)?;
+    tx.grant(subject, object, READ)?;
+    tx.set_role(object, EDITOR, READ | WRITE)?;
     tx.create_entity("alice")?;
     Ok(())
 })?;
 ```
 
-### Query
-
-```rust
-list_for_subject(subject)?;   // Vec<(object, mask)>
-list_for_object(object)?;     // Vec<(subject, mask)>
-count_for_subject(subject)?;
-count_for_object(object)?;
-```
-
-### Entities (optional)
+### Entities (no protection)
 
 ```rust
 create_entity(name)?;         // Auto-increment ID
@@ -144,37 +165,13 @@ get_label(id)?;
 get_id_by_label(name)?;
 ```
 
-### Bootstrap & Protected API
-
-System permissions are scoped to a special `_system` object. All system-level privileges (ADMIN, GRANT, etc.) are checked against this entity, preventing users from granting themselves global powers on arbitrary objects.
+### Bootstrap
 
 ```rust
-// Initialize the system (creates _system and _root_user entities)
-let (system, root_user) = bootstrap()?;
-
-// root_user has all bits on _system
-assert!(check(root_user, system, u64::MAX)?);
-
-// Protected operations check actor's permissions on _system
-protected_grant(actor, subject, object, mask)?;   // Requires GRANT on _system
-protected_revoke(actor, subject, object)?;        // Requires GRANT on _system
-protected_set_role(actor, object, role, mask)?;   // Requires ADMIN on _system
-protected_set_inherit(actor, obj, child, parent)?; // Requires ADMIN on _system
-protected_remove_inherit(actor, object, child)?;  // Requires ADMIN on _system
-protected_list_for_object(actor, object)?;        // Requires VIEW on _system
-
-// Query bootstrap state
-is_bootstrapped()?;           // true if bootstrap() was called
-get_system()?;                // Returns _system entity ID
-get_root_user()?;             // Returns _root_user entity ID
-```
-
-**User freedom:** Users can use any bit on their own objects. The system only enforces permissions when you use `protected_*` functions, and only checks against `_system`:
-
-```rust
-const MY_CUSTOM: u64 = 1 << 50;
-grant(alice, my_doc, ADMIN | MY_CUSTOM)?;  // No system permission needed
-// ADMIN bit here is just data—system doesn't intercept it
+let (system, root_user) = bootstrap()?;  // Creates _system and _root_user
+is_bootstrapped()?;                       // true if bootstrap() was called
+get_system()?;                            // Returns _system entity ID
+get_root_user()?;                         // Returns _root_user entity ID
 ```
 
 ## Constants
