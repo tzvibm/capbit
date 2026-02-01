@@ -25,6 +25,7 @@ fn wrap<T: Serialize>(r: Result<T>) -> Json<R<T>> { match r { Ok(v) => ok(v), Er
 #[derive(Deserialize)] struct EntityUpdate { id: u64, name: String }
 #[derive(Deserialize)] struct EntityDelete { id: u64 }
 #[derive(Deserialize)] struct Bootstrap { root_id: u64 }
+#[derive(Deserialize)] struct Reset { actor: u64 }
 
 // Responses
 #[derive(Serialize)] struct Status { bootstrapped: bool, root: Option<u64> }
@@ -45,7 +46,12 @@ async fn h_label(Json(r): Json<Label>) -> Json<R<bool>> { wrap(set_label(r.id, &
 async fn h_entity(Json(r): Json<Entity>) -> Json<R<u64>> { wrap(create_entity(&r.name)) }
 async fn h_entity_update(Json(r): Json<EntityUpdate>) -> Json<R<bool>> { wrap(rename_entity(r.id, &r.name).map(|_| true)) }
 async fn h_entity_delete(Json(r): Json<EntityDelete>) -> Json<R<bool>> { wrap(delete_entity(r.id)) }
-async fn h_reset() -> Json<R<bool>> { wrap(clear_all().map(|_| true)) }
+async fn h_reset(Json(r): Json<Reset>) -> Json<R<bool>> {
+    match get_root() {
+        Ok(Some(root)) if root == r.actor => wrap(clear_all().map(|_| true)),
+        _ => err("Only root can reset")
+    }
+}
 
 async fn h_check(Query(q): Query<Check>) -> Json<R<CheckRes>> {
     wrap(get_mask(q.subject, q.object).map(|mask| {
