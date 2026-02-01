@@ -76,11 +76,17 @@ get_id_by_label(name) -> Option<u64>
 
 | Bit | Constant | System capability (on `_system`) |
 |-----|----------|----------------------------------|
+| 0 | `READ` | — |
+| 1 | `WRITE` | — |
+| 2 | `DELETE` | — |
+| 3 | `CREATE` | — |
 | 4 | `GRANT` | `protected_grant`, `protected_revoke` |
+| 5 | `EXECUTE` | — |
+| 6–61 | — | — |
 | 62 | `VIEW` | `protected_list_for_object` |
 | 63 | `ADMIN` | `protected_set_role`, `protected_set_inherit` |
 
-Other bits (READ, WRITE, DELETE, CREATE, EXECUTE) have no special system meaning.
+**On user objects, all 64 bits are free to use.** System only checks against `_system`.
 
 ## Testing
 
