@@ -5,7 +5,11 @@
 
 **Minimal capability-based access control for Rust** — 199 lines.
 
-This is a library, not a framework. Embed it directly in your application. The included server/demo are for testing only.
+Most ACL libraries are bloated with ORMs, policy languages, and framework dependencies. Capbit is just the math: subjects, objects, and 64-bit capability masks. O(1) permission checks via bitwise AND. LMDB for persistence. No dependencies beyond that.
+
+**Everything is relative.** Subjects and objects are just u64 IDs — they can represent users, files, APIs, devices, anything. Roles are defined per-object, so "admin" on document A can mean something different than "admin" on document B. Capability masks are relative to each subject-object pair. You define the semantics.
+
+This is a library, not a framework. Embed it directly in your application.
 
 ## Usage
 
