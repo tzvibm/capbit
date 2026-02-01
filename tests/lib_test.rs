@@ -349,3 +349,273 @@ fn test_constants_are_distinct() {
         }
     }
 }
+
+#[test]
+fn test_constant_values() {
+    assert_eq!(READ, 1);
+    assert_eq!(WRITE, 2);
+    assert_eq!(DELETE, 4);
+    assert_eq!(CREATE, 8);
+    assert_eq!(GRANT, 16);
+    assert_eq!(EXECUTE, 32);
+    assert_eq!(VIEW, 1 << 62);
+    assert_eq!(ADMIN, 1 << 63);
+}
+
+// === Edge Cases ===
+
+#[test]
+fn test_edge_case_ids() {
+    let _lock = setup();
+    let ids: &[u64] = &[0, 1, 2, 100, 1000, u64::MAX / 2, u64::MAX - 1, u64::MAX];
+    for &s in ids {
+        for &o in ids {
+            grant(s, o, READ).unwrap();
+            assert!(check(s, o, READ).unwrap(), "s={s} o={o}");
+        }
+    }
+}
+
+#[test]
+fn test_check_zero_required() {
+    let _lock = setup();
+    // 0 required = always true (no permissions needed)
+    assert!(check(1, 100, 0).unwrap());
+}
+
+#[test]
+fn test_get_mask_empty() {
+    let _lock = setup();
+    assert_eq!(get_mask(999, 999).unwrap(), 0);
+}
+
+#[test]
+fn test_grant_idempotent() {
+    let _lock = setup();
+    grant(1, 100, READ | WRITE).unwrap();
+    grant(1, 100, READ | WRITE).unwrap();
+    assert_eq!(get_mask(1, 100).unwrap(), READ | WRITE);
+}
+
+#[test]
+fn test_revoke_nonexistent() {
+    let _lock = setup();
+    assert!(!revoke(999, 999).unwrap());
+}
+
+// === Isolation ===
+
+#[test]
+fn test_isolation_subjects() {
+    let _lock = setup();
+    for s in 1..=10 {
+        grant(s, 100, s).unwrap();
+    }
+    for s in 1..=10 {
+        assert_eq!(get_mask(s, 100).unwrap(), s);
+    }
+}
+
+#[test]
+fn test_isolation_objects() {
+    let _lock = setup();
+    for o in 100..=110 {
+        grant(1, o, o - 99).unwrap();
+    }
+    for o in 100..=110 {
+        assert_eq!(get_mask(1, o).unwrap(), o - 99);
+    }
+}
+
+#[test]
+fn test_isolation_pairs() {
+    let _lock = setup();
+    grant(1, 100, READ).unwrap();
+    grant(2, 101, WRITE).unwrap();
+    assert!(!check(1, 101, READ).unwrap());
+    assert!(!check(2, 100, WRITE).unwrap());
+}
+
+// === Table-Driven Cap Combos ===
+
+#[test]
+fn test_cap_bit_combinations() {
+    let _lock = setup();
+    let cases: &[(u64, u64, bool)] = &[
+        (READ, READ, true),
+        (READ, WRITE, false),
+        (READ | WRITE, READ, true),
+        (READ | WRITE, WRITE, true),
+        (READ | WRITE, DELETE, false),
+        (READ | WRITE | DELETE, READ | WRITE, true),
+        (0xFF, 0x0F, true),
+        (0x0F, 0xFF, false),
+        (ADMIN, ADMIN, true),
+        (ADMIN, READ, false),
+        (u64::MAX, u64::MAX, true),
+        (u64::MAX, 1, true),
+        (1, u64::MAX, false),
+        (0, 0, true),
+        (0, 1, false),
+    ];
+    for (i, &(mask, req, exp)) in cases.iter().enumerate() {
+        grant(1, 100 + i as u64, mask).unwrap();
+        assert_eq!(
+            check(1, 100 + i as u64, req).unwrap(),
+            exp,
+            "case {i}: mask={mask:x} req={req:x}"
+        );
+    }
+}
+
+// === More Role Tests ===
+
+#[test]
+fn test_role_fallback_to_mask() {
+    let _lock = setup();
+    // No role defined, uses mask directly
+    grant(1, 100, READ | WRITE).unwrap();
+    assert!(check(1, 100, READ | WRITE).unwrap());
+}
+
+#[test]
+fn test_role_per_object_scoped() {
+    let _lock = setup();
+    set_role(100, 1, READ | WRITE | DELETE).unwrap();
+    set_role(101, 1, READ).unwrap();
+    grant(1, 100, 1).unwrap();
+    grant(1, 101, 1).unwrap();
+    assert!(check(1, 100, DELETE).unwrap());
+    assert!(!check(1, 101, DELETE).unwrap());
+}
+
+#[test]
+fn test_get_role_undefined() {
+    let _lock = setup();
+    // Undefined role returns role ID itself
+    assert_eq!(get_role(100, 99).unwrap(), 99);
+}
+
+// === More Inheritance Tests ===
+
+#[test]
+fn test_inherit_combines_with_direct() {
+    let _lock = setup();
+    grant(1, 100, READ).unwrap();
+    grant(1000, 100, WRITE).unwrap();
+    set_inherit(100, 1, 1000).unwrap();
+    assert_eq!(get_mask(1, 100).unwrap(), READ | WRITE);
+}
+
+#[test]
+fn test_inherit_dynamic_updates() {
+    let _lock = setup();
+    grant(1000, 100, READ | WRITE).unwrap();
+    set_inherit(100, 1, 1000).unwrap();
+    assert!(check(1, 100, READ | WRITE).unwrap());
+
+    // Revoke parent's permission
+    revoke(1000, 100).unwrap();
+    assert!(!check(1, 100, READ).unwrap());
+}
+
+#[test]
+fn test_inherit_per_object_scoped() {
+    let _lock = setup();
+    grant(1000, 100, READ).unwrap();
+    grant(1000, 101, WRITE).unwrap();
+    set_inherit(100, 1, 1000).unwrap();
+    // Inheritance only on object 100, not 101
+    assert!(check(1, 100, READ).unwrap());
+    assert!(!check(1, 101, WRITE).unwrap());
+}
+
+#[test]
+fn test_cycle_allowed_different_objects() {
+    let _lock = setup();
+    set_inherit(100, 1, 2).unwrap();
+    // Different object = ok
+    set_inherit(101, 2, 1).unwrap();
+}
+
+#[test]
+fn test_cycle_allowed_after_remove() {
+    let _lock = setup();
+    set_inherit(100, 1, 2).unwrap();
+    set_inherit(100, 2, 3).unwrap();
+    remove_inherit(100, 1).unwrap();
+    // Now 3 -> 1 is ok
+    set_inherit(100, 3, 1).unwrap();
+}
+
+// === Labels ===
+
+#[test]
+fn test_label_unicode() {
+    let _lock = setup();
+    set_label(1, "日本語").unwrap();
+    set_label(2, "🎉").unwrap();
+    assert_eq!(get_label(1).unwrap(), Some("日本語".to_string()));
+    assert_eq!(get_label(2).unwrap(), Some("🎉".to_string()));
+}
+
+#[test]
+fn test_label_update() {
+    let _lock = setup();
+    set_label(1, "alice").unwrap();
+    set_label(1, "alicia").unwrap();
+    assert_eq!(get_label(1).unwrap(), Some("alicia".to_string()));
+}
+
+#[test]
+fn test_list_labels() {
+    let _lock = setup();
+    set_label(1, "alice").unwrap();
+    set_label(2, "bob").unwrap();
+    assert_eq!(list_labels().unwrap().len(), 2);
+}
+
+// === Batch Edge Cases ===
+
+#[test]
+fn test_batch_grant_empty() {
+    let _lock = setup();
+    batch_grant(&[]).unwrap();
+}
+
+#[test]
+fn test_batch_revoke_empty() {
+    let _lock = setup();
+    assert_eq!(batch_revoke(&[]).unwrap(), 0);
+}
+
+#[test]
+fn test_batch_grant_accumulates() {
+    let _lock = setup();
+    batch_grant(&[(1, 100, READ), (1, 100, WRITE), (1, 100, DELETE)]).unwrap();
+    assert_eq!(get_mask(1, 100).unwrap(), READ | WRITE | DELETE);
+}
+
+// === Scale Tests ===
+
+#[test]
+fn test_scale_100_users() {
+    let _lock = setup();
+    for u in 0..100 {
+        grant(u, 1000, u + 1).unwrap();
+    }
+    for u in 0..100 {
+        assert_eq!(get_mask(u, 1000).unwrap(), u + 1);
+    }
+}
+
+#[test]
+fn test_scale_100_objects() {
+    let _lock = setup();
+    for o in 0..100 {
+        grant(1, o + 1000, o + 1).unwrap();
+    }
+    for o in 0..100 {
+        assert_eq!(get_mask(1, o + 1000).unwrap(), o + 1);
+    }
+}
