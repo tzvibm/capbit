@@ -26,7 +26,7 @@ Summary:
 ## Data Structure
 
 ```
-caps:     (subject, object) → role          // relationship tuple
+grants:     (subject, object) → role          // relationship tuple
 roles:    (object, role) → mask             // semantic tuple
 inherit:  (object, child) → parent          // inheritance tuple
 ```
@@ -37,7 +37,7 @@ Three independent tuples. Each queryable on its own.
 
 ```rust
 fn check(subject, object, required) -> bool {
-    let role = caps.get(subject, object);      // relationship tuple
+    let role = grants.get(subject, object);      // relationship tuple
     let mask = roles.get(object, role);        // semantic tuple
     mask & required == required
 }
@@ -49,7 +49,7 @@ fn get_mask(subject, object) -> u64 {
     let mut mask = 0;
     let mut current = subject;
     loop {
-        let role = caps.get(current, object);
+        let role = grants.get(current, object);
         mask |= roles.get(object, role);
         match inherit.get(object, current) {
             Some(parent) => current = parent,

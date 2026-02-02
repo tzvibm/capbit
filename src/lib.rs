@@ -48,7 +48,7 @@ impl BiPair {
     }
 }
 
-struct Dbs { caps: BiPair, roles: Db, inh: Db, meta: Database<Str, Str>, labels: DbStr, names: DbU64 }
+struct Dbs { grants: BiPair, roles: Db, inh: Db, meta: Database<Str, Str>, labels: DbStr, names: DbU64 }
 
 static ENV: OnceLock<Env> = OnceLock::new();
 static DBS: OnceLock<Dbs> = OnceLock::new();
@@ -69,13 +69,13 @@ impl Tx {
     fn commit(mut self) -> Result<()> { self.0.take().unwrap().commit().map_err(err) }
 
     pub fn grant(&mut self, subject: u64, object: u64, mask: u64) -> Result<()> {
-        self.1.caps.put_or(self.tx(), subject, object, mask)
+        self.1.grants.put_or(self.tx(), subject, object, mask)
     }
     pub fn grant_set(&mut self, subject: u64, object: u64, mask: u64) -> Result<()> {
-        self.1.caps.put(self.tx(), subject, object, mask)
+        self.1.grants.put(self.tx(), subject, object, mask)
     }
     pub fn revoke(&mut self, subject: u64, object: u64) -> Result<bool> {
-        let r = self.1.caps.del(self.tx(), subject, object)?;
+        let r = self.1.grants.del(self.tx(), subject, object)?;
         self.1.inh.delete(self.tx(), &key(object, subject)).map_err(err)?;
         Ok(r)
     }
@@ -151,8 +151,8 @@ pub fn init(path: &str) -> Result<()> {
     let e = unsafe { EnvOpenOptions::new().map_size(1<<30).max_dbs(7).open(Path::new(path)).map_err(err)? };
     let mut tx = e.write_txn().map_err(err)?;
     let d = Dbs {
-        caps: BiPair {
-            fwd: e.create_database(&mut tx, Some("caps")).map_err(err)?,
+        grants: BiPair {
+            fwd: e.create_database(&mut tx, Some("grants")).map_err(err)?,
             rev: e.create_database(&mut tx, Some("rev")).map_err(err)?,
         },
         roles: e.create_database(&mut tx, Some("roles")).map_err(err)?,
@@ -168,8 +168,8 @@ pub fn init(path: &str) -> Result<()> {
 
 pub fn clear_all() -> Result<()> {
     transact(|tx| {
-        tx.1.caps.fwd.clear(tx.tx()).map_err(err)?;
-        tx.1.caps.rev.clear(tx.tx()).map_err(err)?;
+        tx.1.grants.fwd.clear(tx.tx()).map_err(err)?;
+        tx.1.grants.rev.clear(tx.tx()).map_err(err)?;
         tx.1.roles.clear(tx.tx()).map_err(err)?;
         tx.1.inh.clear(tx.tx()).map_err(err)?;
         tx.1.meta.clear(tx.tx()).map_err(err)?;
@@ -189,7 +189,7 @@ pub fn set_label(id: u64, name: &str) -> Result<()> { transact(|tx| tx.set_label
 fn resolve(d: &Dbs, tx: &RoTxn, mut s: u64, o: u64) -> Result<u64> {
     let mut mask = 0u64;
     for _ in 0..=10 {
-        let role = d.caps.get(tx, s, o)?;
+        let role = d.grants.get(tx, s, o)?;
         mask |= if role == 0 { 0 } else { d.roles.get(tx, &key(o, role)).map_err(err)?.unwrap_or(role) };
         match d.inh.get(tx, &key(o, s)).map_err(err)? { Some(p) => s = p, None => break }
     }
@@ -197,13 +197,13 @@ fn resolve(d: &Dbs, tx: &RoTxn, mut s: u64, o: u64) -> Result<u64> {
 }
 
 pub fn get_mask(subject: u64, object: u64) -> Result<u64> { read(|d, tx| resolve(d, tx, subject, object)) }
-pub fn get_role_id(subject: u64, object: u64) -> Result<u64> { read(|d, tx| d.caps.get(tx, subject, object)) }
+pub fn get_role_id(subject: u64, object: u64) -> Result<u64> { read(|d, tx| d.grants.get(tx, subject, object)) }
 pub fn check(subject: u64, object: u64, required: u64) -> Result<bool> { Ok((get_mask(subject, object)? & required) == required) }
 pub fn get_role(object: u64, role: u64) -> Result<u64> { read(|d, tx| Ok(d.roles.get(tx, &key(object, role)).map_err(err)?.unwrap_or(role))) }
 pub fn get_inherit(object: u64, child: u64) -> Result<Option<u64>> { read(|d, tx| Ok(d.inh.get(tx, &key(object, child)).map_err(err)?)) }
-pub fn list_for_subject(subject: u64) -> Result<Vec<(u64, u64)>> { read(|d, tx| d.caps.list_fwd(tx, subject)) }
-pub fn count_for_subject(subject: u64) -> Result<usize> { read(|d, tx| d.caps.count_fwd(tx, subject)) }
-pub fn count_for_object(object: u64) -> Result<usize> { read(|d, tx| d.caps.count_rev(tx, object)) }
+pub fn list_for_subject(subject: u64) -> Result<Vec<(u64, u64)>> { read(|d, tx| d.grants.list_fwd(tx, subject)) }
+pub fn count_for_subject(subject: u64) -> Result<usize> { read(|d, tx| d.grants.count_fwd(tx, subject)) }
+pub fn count_for_object(object: u64) -> Result<usize> { read(|d, tx| d.grants.count_rev(tx, object)) }
 pub fn get_label(id: u64) -> Result<Option<String>> { read(|d, tx| Ok(d.labels.get(tx, &id.to_be_bytes()).map_err(err)?.map(|s| s.to_string()))) }
 pub fn get_id_by_label(name: &str) -> Result<Option<u64>> { read(|d, tx| Ok(d.names.get(tx, name).map_err(err)?)) }
 pub fn list_labels() -> Result<Vec<(u64, String)>> {
@@ -268,7 +268,7 @@ pub fn remove_inherit(actor: u64, object: u64, child: u64) -> Result<bool> {
 }
 pub fn list_for_object(actor: u64, object: u64) -> Result<Vec<(u64, u64)>> {
     require_system(actor, VIEW)?;
-    read(|d, tx| d.caps.list_rev(tx, object))
+    read(|d, tx| d.grants.list_rev(tx, object))
 }
 
 // Batch operations

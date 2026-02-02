@@ -64,8 +64,8 @@ Relationships atomized. Semantics atomized. Independent tuples.
 
 ```
 Relationships (atomized):
-  caps[(alice, doc:100)] → EDITOR
-  caps[(bob, doc:100)] → VIEWER
+  grants[(alice, doc:100)] → EDITOR
+  grants[(bob, doc:100)] → VIEWER
 
 Semantics (atomized):
   roles[(doc:100, EDITOR)] → READ|WRITE|DELETE
@@ -95,7 +95,7 @@ roles.get(doc_100, EDITOR)  // O(1) - it's just a tuple
 roles.put(doc_100, EDITOR, READ)  // O(1) - just write a tuple
 
 // Explain: "Why can alice write to doc:100?"
-caps.get(alice, doc_100)  // → EDITOR
+grants.get(alice, doc_100)  // → EDITOR
 roles.get(doc_100, EDITOR)  // → READ|WRITE
 // Two tuple lookups. No schema needed.
 ```
@@ -103,7 +103,7 @@ roles.get(doc_100, EDITOR)  // → READ|WRITE
 ## Data Structure
 
 ```
-caps:     (subject, object) → role          // relationship tuple
+grants:   (subject, object) → role          // relationship tuple
 roles:    (object, role) → mask             // semantic tuple
 inherit:  (object, child) → parent          // inheritance tuple
 ```
@@ -115,7 +115,7 @@ Three independent tuples. Each queryable on its own.
 ```
 check(alice, doc:100, WRITE):
 
-1. caps.get(alice, doc:100) → EDITOR           // relationship lookup
+1. grants.get(alice, doc:100) → EDITOR           // relationship lookup
 2. roles.get(doc:100, EDITOR) → READ|WRITE     // semantic lookup
 3. (READ|WRITE) & WRITE == WRITE               // bitmask check
 ```
@@ -128,7 +128,7 @@ With inheritance:
 current = alice
 mask = 0
 loop:
-  role = caps.get(current, doc:100)
+  role = grants.get(current, doc:100)
   if role: mask |= roles.get(doc:100, role)
   parent = inherit.get(doc:100, current)  // does current inherit from someone on this object?
   if parent: current = parent             // walk up the inheritance chain
