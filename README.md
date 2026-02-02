@@ -69,18 +69,24 @@ check(alice, doc:100, WRITE):
 
 Two index lookups. No schema parsing, no rule evaluation.
 
-## Trade-offs
+## Zanzibar Semantics on Capbit
 
-| | Zanzibar | Capbit |
-|---|---|---|
-| Authorization storage | Encoded (schema) | Atomic (index) |
-| Expressiveness | Yes | Yes |
-| Query/mutate/explain | No | Yes |
-| Shared semantics | Automatic | Manual |
-| Central governance | Yes | No |
+Anything Zanzibar expresses can be expressed in Capbit. The difference is Zanzibar provides schema skeleton out of the box - Capbit provides primitives.
 
-Zanzibar trades atomicity for central governance.
-Capbit trades central governance for atomicity.
+```rust
+// Zanzibar: "all documents share editor semantics" (built-in)
+// Capbit: implement as tooling
+
+fn create_document(actor, doc_id) {
+    // Copy role definitions from document type template
+    let template = get_type_template("document");
+    for (role, mask) in template.roles {
+        set_role(actor, doc_id, role, mask)?;
+    }
+}
+```
+
+Central governance, shared semantics, type enforcement - all buildable on atomic primitives.
 
 ## API
 

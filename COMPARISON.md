@@ -144,27 +144,36 @@ roles.get(doc:100, EDITOR)   // → READ|WRITE
 // Alice has EDITOR. EDITOR means READ|WRITE on doc:100.
 ```
 
-### Ensure shared semantics
+## Zanzibar Semantics on Capbit
 
-**ReBAC:** Rules are shared. Automatic.
+Anything Zanzibar expresses can be expressed in Capbit. The difference:
 
-**Zanzibar:** Schema is shared. Automatic.
+- **Zanzibar**: Provides schema skeleton out of the box
+- **Capbit**: Provides atomic primitives, you build the skeleton
 
-**Capbit:** Must copy role definitions or inherit from type object. Manual.
+```rust
+// Central governance: all documents share same role definitions
+fn create_document(actor, doc_id) {
+    let template = get_type_template("document");
+    for (role, mask) in template.roles {
+        set_role(actor, doc_id, role, mask)?;
+    }
+}
 
-## Trade-offs
+// Type enforcement: validate before mutation
+fn set_role_checked(actor, obj, role, mask) {
+    let type_id = get_type(obj);
+    if !type_allows_role_override(type_id) {
+        return Err("type does not allow role override");
+    }
+    set_role(actor, obj, role, mask)
+}
+```
 
-| | Zanzibar | Capbit |
-|---|---|---|
-| Authorization atomicity | No | Yes |
-| Expressiveness | Yes | Yes |
-| Query/mutate/explain | No | Yes |
-| Central governance | Yes | No |
-| Shared semantics | Automatic | Manual |
-
-Zanzibar trades atomicity for central governance.
-Capbit trades central governance for atomicity.
+Simple if/else tooling. Not a fundamental limitation.
 
 ## Summary
 
 Capbit brings atomicity, queryability, and manipulability to the authorization layer itself, completing what ReBAC started and Zanzibar partially solved.
+
+Zanzibar provides schema tooling. Capbit provides primitives. Anything expressible in Zanzibar is expressible in Capbit - with the right tooling on top.

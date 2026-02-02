@@ -22,6 +22,8 @@ Authorization as first-class data. Both relationships and authorization stored a
 
 Capbit makes authorization first-class data.
 
+Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton out of the box - Capbit provides primitives and you build the skeleton (simple if/else tooling).
+
 ## Data Structure
 
 ```
