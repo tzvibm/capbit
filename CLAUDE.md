@@ -10,25 +10,29 @@ Authorization as first-class data.
 
 |  | Relationships | Semantics |
 |---|---|---|
-| **ReBAC** | Decoupled | Computed |
+| **ReBAC** | Stored | Computed |
 | **Zanzibar** | Atomized | Coupled |
 | **Capbit** | Atomized | Atomized |
 
-- **ReBAC**: Decoupled relationships, computed semantics (expensive)
-- **Zanzibar**: Atomized relationships, coupled semantics
-- **Capbit**: Atomized relationships, atomized semantics
+- **Stored**: Facts exist but joined at query time
+- **Atomized**: Single tuple, queryable as one unit
+- **Computed**: Derived from rules
+- **Coupled**: Tied to schema
 
-Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton - Capbit provides decoupled tuples.
+Summary:
+- **ReBAC**: Relationships stored, semantics computed (expensive)
+- **Zanzibar**: Relationships atomized, semantics coupled to schema
+- **Capbit**: Both atomized into independent tuples
 
 ## Data Structure
 
 ```
 caps:     (subject, object) → role          // relationship tuple
-roles:    (object, role) → mask             // semantic tuple (separate!)
-inherit:  (object, child) → parent          // inheritance tuple (separate!)
+roles:    (object, role) → mask             // semantic tuple
+inherit:  (object, child) → parent          // inheritance tuple
 ```
 
-All tuples. All atomic. All decoupled.
+Three independent tuples. Each queryable on its own.
 
 ## Permission Check Flow
 

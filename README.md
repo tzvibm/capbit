@@ -6,44 +6,43 @@ Authorization as first-class data.
 
 |  | Relationships | Semantics |
 |---|---|---|
-| **ReBAC** | Decoupled | Computed |
+| **ReBAC** | Stored | Computed |
 | **Zanzibar** | Atomized | Coupled |
 | **Capbit** | Atomized | Atomized |
+
+- **Stored**: Relationship facts exist but joined at query time
+- **Atomized**: Combined into single tuple, queryable as one unit
+- **Computed**: Derived from rules at query time
+- **Coupled**: Tied to schema - can't query without it
 
 ## The Progression
 
 ### ReBAC
 
-Decoupled relationships, computed semantics.
+Relationships stored as facts. Semantics computed from rules.
 
 ```
-Relationships (decoupled):
-  (alice, owner, doc:100)
-  (bob, member, engineering)
+Relationships (stored):
+  owns(alice, doc:100)
+  member_of(bob, engineering)
 
-Computed (rules):
+Semantics (computed):
   can_write(U, D) :- owns(U, D).
   can_write(U, D) :- member_of(U, G), team_access(G, D).
 ```
 
-To get full expressiveness, need to compute:
-- All roles per subject
-- All roles per object
-- All permissions per role per object
-- All users per group
-
-Expensive. Complex queries require rule evaluation.
+To resolve: evaluate rules against facts. Expensive.
 
 ### Zanzibar
 
-Atomized relationships, coupled semantics.
+Relationships atomized into tuples. Semantics coupled to schema.
 
 ```
 Relationships (atomized):
   (doc:100, owner, alice)
   (doc:100, editor, bob)
 
-Semantics (coupled):
+Semantics (coupled to schema):
   type document {
     relation owner: user
     relation editor: user
@@ -51,35 +50,34 @@ Semantics (coupled):
   }
 ```
 
-Relationship tuple is atomized - but coupled to schema for meaning. You need both to resolve.
+To resolve: lookup tuple + parse schema. Tuple is cheap, schema is expensive.
 
 ### Capbit
 
-Atomized relationships, atomized semantics.
+Relationships atomized. Semantics atomized. Independent tuples.
 
 ```
 Relationships (atomized):
   caps[(alice, doc:100)] → EDITOR
   caps[(bob, doc:100)] → VIEWER
 
-Semantics (atomic, separate):
+Semantics (atomized):
   roles[(doc:100, EDITOR)] → READ|WRITE|DELETE
   roles[(doc:100, VIEWER)] → READ
 
-Inheritance (atomic, separate):
+Inheritance (atomized):
   inherit[(doc:100, alice)] → admin_group
 ```
 
-Semantic relationships are their own tuples, not embedded in schema.
+To resolve: two tuple lookups. No schema, no rules.
 
 ## Why It Matters
 
 |  | ReBAC | Zanzibar | Capbit |
 |---|---|---|---|
 | Query relationships | Expensive | Cheap | Cheap |
-| Query semantics | Expensive | Expensive (parse schema) | Cheap |
+| Query semantics | Expensive | Expensive (schema) | Cheap |
 | Mutate semantics | Rules change | Schema change | Data write |
-| Semantics | Computed | Coupled | Atomized |
 
 ```rust
 // Query: "What does EDITOR mean on doc:100?"
@@ -98,11 +96,11 @@ roles.get(doc_100, EDITOR)  // → READ|WRITE
 
 ```
 caps:     (subject, object) → role          // relationship tuple
-roles:    (object, role) → mask             // semantic tuple (separate!)
-inherit:  (object, child) → parent          // inheritance tuple (separate!)
+roles:    (object, role) → mask             // semantic tuple
+inherit:  (object, child) → parent          // inheritance tuple
 ```
 
-All tuples. All atomic. All decoupled.
+Three independent tuples. Each queryable on its own.
 
 ## Permission Resolution
 
@@ -118,7 +116,7 @@ Two tuple lookups. No schema parsing, no rule evaluation.
 
 ## Zanzibar Semantics on Capbit
 
-Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton out of the box - Capbit provides decoupled primitives.
+Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton out of the box - Capbit provides independent tuples.
 
 ```rust
 // Central governance: all documents share same semantics
@@ -130,7 +128,7 @@ fn create_document(actor, doc_id) {
 }
 ```
 
-Central governance, shared semantics, type enforcement - all buildable on decoupled tuples with simple if/else tooling.
+Central governance, shared semantics, type enforcement - all buildable with simple if/else tooling.
 
 ## API
 
