@@ -12,12 +12,12 @@ Authorization as atomized data.
 
 **Zanzibar's insight**: Authorization semantics belong in data, not application code. It delivered by storing semantics as a schema manifest.
 
-**Capbit's refinement**: Authorization semantics should be atomized data - independent tuples, not a schema blob.
+**Capbit's refinement**: Authorization semantics should be atomized data - independent tuples, not a schema blob. Both relationships and semantics are stored as independent, atomized tuples.
 
 Definitions:
 - **Stored**: Facts exist but joined at query time
-- **Atomized**: Single tuple, queryable as one unit
-- **Computed**: Derived from rules
+- **Atomized**: Single tuple - queryable, mutable, and addressable independently
+- **Computed**: Derived from rules at runtime
 - **Data (schema)**: Stored in manifest, interpreted at runtime
 
 ## The Progression
@@ -84,7 +84,8 @@ To resolve: two tuple lookups. No schema parsing.
 |---|---|---|---|
 | Query relationships | Expensive | Cheap | Cheap |
 | Query semantics | Expensive | Expensive (schema) | Cheap |
-| Mutate semantics | Rules change | Schema change | Data write |
+| Mutate relationships | Rules change | Tuple write | Tuple write |
+| Mutate semantics | Rules change | Schema change | Tuple write |
 
 ```rust
 // Query: "What does EDITOR mean on doc:100?"
