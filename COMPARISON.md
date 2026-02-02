@@ -13,7 +13,7 @@ Capbit and Google's Zanzibar are both authorization systems, but with fundamenta
 | Local check latency | Graph traversal + lookups | ~500ns (bitmask AND) |
 | Update propagation | Cache invalidation | Instant |
 | Graph restructuring | Update many tuples | Single inheritance change |
-| Embedding | Bundled with distribution | ~280 lines, embeddable |
+| Embedding | Bundled with distribution | ~340 lines, embeddable |
 
 ---
 
@@ -336,7 +336,7 @@ Requires:
 
 Requires:
 - One file (LMDB database)
-- ~280 lines of authorization logic
+- ~340 lines of authorization logic
 - Embed directly in your application
 
 ```rust
@@ -503,7 +503,7 @@ set_role(operator, doc, 1, READ)?;  // Fails
 | Derived state | Computed from relations | None (direct masks) | **Capbit** |
 | Permission bit freedom | Reserved bits | Full 64 bits for users | **Capbit** |
 | System permission scope | Global/implicit | Explicit (`_system` object) | **Capbit** |
-| Embedding | Bundled with distribution | ~280 lines, embeddable | **Capbit** |
+| Embedding | Bundled with distribution | ~340 lines, embeddable | **Capbit** |
 | Global distribution | Bundled | Add as needed | Tie* |
 | Ecosystem maturity | Established | New | Zanzibar |
 
@@ -514,7 +514,7 @@ set_role(operator, doc, 1, READ)?;  // Fails
 For everyone else, Capbit offers:
 - **More power** (64-bit masks, unlimited roles, instant updates)
 - **Simpler engine** (bitmask AND vs graph traversal)
-- **Cheap embedding** (decoupled from distribution, ~280 lines of authorization logic)
+- **Cheap embedding** (decoupled from distribution, ~340 lines of authorization logic)
 - **Deployment flexibility** (add distribution only when needed)
 
 ---
@@ -537,11 +537,15 @@ let id = get_id_by_label("alice")?;         // Lookup by name
 let name = get_label(alice)?;               // Get name from ID
 
 // Write operations (require actor with permission on _system)
+// Writes are auto-batched by the engine
 grant(actor, subject, object, mask)?;       // Requires GRANT
 revoke(actor, subject, object)?;            // Requires GRANT
 set_role(actor, object, role_id, mask)?;    // Requires ADMIN
 set_inherit(actor, object, child, parent)?; // Requires ADMIN
 list_for_object(actor, object)?;            // Requires VIEW
+
+// Explicit durability
+sync()?;  // Block until all pending writes are committed
 
 // Read operations (no actor needed)
 check(subject, object, required)?;
@@ -566,7 +570,7 @@ pub const READ: u64    = 1;
 pub const WRITE: u64   = 1 << 1;
 pub const DELETE: u64  = 1 << 2;
 pub const CREATE: u64  = 1 << 3;
-pub const GRANT: u64   = 1 << 4;   // grant, revoke, batch_grant, batch_revoke
+pub const GRANT: u64   = 1 << 4;   // grant, revoke
 pub const EXECUTE: u64 = 1 << 5;
 pub const VIEW: u64    = 1 << 62;  // list_for_object
 pub const ADMIN: u64   = 1 << 63;  // set_role, set_inherit, remove_inherit

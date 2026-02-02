@@ -1,6 +1,6 @@
 # Capbit
 
-Minimal capability-based access control. ~280 lines of Rust.
+Minimal capability-based access control. ~340 lines of Rust.
 
 ## Why Capbit?
 
@@ -79,8 +79,12 @@ let bob = create_entity("bob")?;
 let doc = create_entity("quarterly-report")?;
 
 // Grant permissions (requires actor with GRANT on _system)
+// Writes are auto-batched by the engine
 grant(root, alice, doc, READ | WRITE)?;
 grant(root, bob, doc, READ)?;
+
+// sync() ensures all pending writes are committed
+sync()?;
 
 // Check access (no actor needed for reads)
 if check(alice, doc, WRITE)? {
@@ -89,6 +93,7 @@ if check(alice, doc, WRITE)? {
 
 // Delegate: give alice GRANT permission on _system
 grant(root, alice, system, GRANT)?;
+sync()?;
 // Now alice can grant permissions too
 grant(alice, bob, doc, WRITE)?;
 ```
@@ -136,11 +141,10 @@ get_inherit(object, child)?;               // Read (no actor)
 list_for_object(actor, object)?;           // Vec<(subject, mask)>
 ```
 
-### Batch (require GRANT on `_system`)
+### Explicit Durability
 
 ```rust
-batch_grant(actor, &[(subject, object, mask), ...])?;
-batch_revoke(actor, &[(subject, object), ...])?;
+sync()?;  // Block until all pending writes are committed
 ```
 
 ### Internal batch (bypasses protection)
@@ -184,7 +188,7 @@ These constants define system capabilities when checked against `_system`:
 | 1 | `WRITE` | — |
 | 2 | `DELETE` | — |
 | 3 | `CREATE` | — |
-| 4 | `GRANT` | Can use `grant`, `revoke`, `batch_grant`, `batch_revoke` |
+| 4 | `GRANT` | Can use `grant`, `revoke` |
 | 5 | `EXECUTE` | — |
 | 6–61 | — | — |
 | 62 | `VIEW` | Can use `list_for_object` |

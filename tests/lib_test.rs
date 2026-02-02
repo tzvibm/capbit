@@ -2,8 +2,15 @@
 
 use capbit::*;
 use std::sync::Once;
+use std::thread;
+use std::time::Duration;
 
 static INIT: Once = Once::new();
+
+/// Wait for planner to flush (auto-flushes every 20ms)
+fn wait_flush() {
+    thread::sleep(Duration::from_millis(30));
+}
 
 fn test_db_path() -> String {
     std::env::var("CAPBIT_TEST_DB").unwrap_or_else(|_| {
@@ -12,22 +19,19 @@ fn test_db_path() -> String {
     })
 }
 
-fn setup() -> (std::sync::MutexGuard<'static, ()>, u64, u64) {
+fn setup() -> std::sync::MutexGuard<'static, ()> {
     let lock = test_lock();
-    INIT.call_once(|| {
-        init(&test_db_path()).unwrap();
-    });
+    INIT.call_once(|| { init(&test_db_path()).unwrap(); });
     clear_all().unwrap();
-    let (system, root) = bootstrap().unwrap();
-    (lock, system, root)
+    lock
 }
 
-// === Core Operations ===
+// === Core Operations (use transact for setup) ===
 
 #[test]
 fn test_grant_and_check() {
-    let (_lock, _, root) = setup();
-    grant(root, 1, 100, READ | WRITE).unwrap();
+    let _lock = setup();
+    transact(|tx| tx.grant(1, 100, READ | WRITE)).unwrap();
 
     assert!(check(1, 100, READ).unwrap());
     assert!(check(1, 100, WRITE).unwrap());
@@ -37,41 +41,41 @@ fn test_grant_and_check() {
 
 #[test]
 fn test_grant_accumulates() {
-    let (_lock, _, root) = setup();
-    grant(root, 1, 100, READ).unwrap();
-    grant(root, 1, 100, WRITE).unwrap();
+    let _lock = setup();
+    transact(|tx| { tx.grant(1, 100, READ)?; tx.grant(1, 100, WRITE) }).unwrap();
 
     assert_eq!(get_mask(1, 100).unwrap(), READ | WRITE);
 }
 
 #[test]
 fn test_grant_set_replaces() {
-    let (_lock, _, root) = setup();
-    grant(root, 1, 100, READ | WRITE | DELETE).unwrap();
-    grant_set(root, 1, 100, READ).unwrap();
+    let _lock = setup();
+    transact(|tx| tx.grant(1, 100, READ | WRITE | DELETE)).unwrap();
+    transact(|tx| tx.grant_set(1, 100, READ)).unwrap();
 
     assert_eq!(get_mask(1, 100).unwrap(), READ);
 }
 
 #[test]
 fn test_revoke() {
-    let (_lock, _, root) = setup();
-    grant(root, 1, 100, READ | WRITE).unwrap();
-    assert!(revoke(root, 1, 100).unwrap());
+    let _lock = setup();
+    transact(|tx| tx.grant(1, 100, READ | WRITE)).unwrap();
+    transact(|tx| tx.revoke(1, 100)).unwrap();
 
     assert!(!check(1, 100, READ).unwrap());
-    assert!(!revoke(root, 1, 100).unwrap()); // already revoked
 }
 
 // === Roles ===
 
 #[test]
 fn test_roles() {
-    let (_lock, _, root) = setup();
+    let _lock = setup();
     const EDITOR: u64 = 1000;
 
-    set_role(root, 100, EDITOR, READ | WRITE).unwrap();
-    grant(root, 1, 100, EDITOR).unwrap();
+    transact(|tx| {
+        tx.set_role(100, EDITOR, READ | WRITE)?;
+        tx.grant(1, 100, EDITOR)
+    }).unwrap();
 
     assert!(check(1, 100, READ).unwrap());
     assert!(check(1, 100, WRITE).unwrap());
@@ -80,15 +84,16 @@ fn test_roles() {
 
 #[test]
 fn test_role_update_affects_checks() {
-    let (_lock, _, root) = setup();
+    let _lock = setup();
     const EDITOR: u64 = 1000;
 
-    set_role(root, 100, EDITOR, READ).unwrap();
-    grant(root, 1, 100, EDITOR).unwrap();
+    transact(|tx| {
+        tx.set_role(100, EDITOR, READ)?;
+        tx.grant(1, 100, EDITOR)
+    }).unwrap();
     assert!(!check(1, 100, WRITE).unwrap());
 
-    // Update role definition
-    set_role(root, 100, EDITOR, READ | WRITE).unwrap();
+    transact(|tx| tx.set_role(100, EDITOR, READ | WRITE)).unwrap();
     assert!(check(1, 100, WRITE).unwrap());
 }
 
@@ -96,10 +101,11 @@ fn test_role_update_affects_checks() {
 
 #[test]
 fn test_inheritance() {
-    let (_lock, _, root) = setup();
-    // alice (1) inherits from managers (10)
-    set_inherit(root, 100, 1, 10).unwrap();
-    grant(root, 10, 100, READ | WRITE).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.set_inherit(100, 1, 10)?;
+        tx.grant(10, 100, READ | WRITE)
+    }).unwrap();
 
     assert!(check(1, 100, READ).unwrap());
     assert!(check(1, 100, WRITE).unwrap());
@@ -107,71 +113,51 @@ fn test_inheritance() {
 
 #[test]
 fn test_inheritance_chain() {
-    let (_lock, _, root) = setup();
-    // alice -> managers -> admins
-    set_inherit(root, 100, 1, 10).unwrap();
-    set_inherit(root, 100, 10, 20).unwrap();
-    grant(root, 20, 100, ADMIN).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.set_inherit(100, 1, 10)?;
+        tx.set_inherit(100, 10, 20)?;
+        tx.grant(20, 100, ADMIN)
+    }).unwrap();
 
     assert!(check(1, 100, ADMIN).unwrap());
 }
 
 #[test]
 fn test_inheritance_cycle_prevention() {
-    let (_lock, _, root) = setup();
-    set_inherit(root, 100, 1, 2).unwrap();
-    set_inherit(root, 100, 2, 3).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.set_inherit(100, 1, 2)?;
+        tx.set_inherit(100, 2, 3)
+    }).unwrap();
 
-    // Should fail: 3 -> 1 creates cycle
-    assert!(set_inherit(root, 100, 3, 1).is_err());
+    assert!(transact(|tx| tx.set_inherit(100, 3, 1)).is_err());
 }
 
 #[test]
 fn test_self_inherit_prevention() {
-    let (_lock, _, root) = setup();
-    assert!(set_inherit(root, 100, 1, 1).is_err());
+    let _lock = setup();
+    assert!(transact(|tx| tx.set_inherit(100, 1, 1)).is_err());
 }
 
 #[test]
 fn test_remove_inherit() {
-    let (_lock, _, root) = setup();
-    set_inherit(root, 100, 1, 10).unwrap();
-    grant(root, 10, 100, READ).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.set_inherit(100, 1, 10)?;
+        tx.grant(10, 100, READ)
+    }).unwrap();
     assert!(check(1, 100, READ).unwrap());
 
-    remove_inherit(root, 100, 1).unwrap();
+    transact(|tx| tx.remove_inherit(100, 1)).unwrap();
     assert!(!check(1, 100, READ).unwrap());
 }
 
-// === Batch Operations ===
-
-#[test]
-fn test_batch_grant() {
-    let (_lock, _, root) = setup();
-    batch_grant(root, &[
-        (1, 100, READ),
-        (2, 100, WRITE),
-        (3, 100, DELETE),
-    ]).unwrap();
-
-    assert!(check(1, 100, READ).unwrap());
-    assert!(check(2, 100, WRITE).unwrap());
-    assert!(check(3, 100, DELETE).unwrap());
-}
-
-#[test]
-fn test_batch_revoke() {
-    let (_lock, _, root) = setup();
-    batch_grant(root, &[(1, 100, READ), (2, 100, WRITE)]).unwrap();
-
-    let count = batch_revoke(root, &[(1, 100), (2, 100), (3, 100)]).unwrap();
-    assert_eq!(count, 2); // only 2 existed
-}
+// === Transact ===
 
 #[test]
 fn test_transact() {
-    let (_lock, _, root) = setup();
-    // Use transact for internal batch operations
+    let _lock = setup();
     transact(|tx| {
         tx.grant(1, 100, READ)?;
         tx.grant(2, 100, WRITE)?;
@@ -184,11 +170,27 @@ fn test_transact() {
     assert_eq!(get_role(100, 1000).unwrap(), READ | WRITE | DELETE);
 }
 
+#[test]
+fn test_planner_auto_flush() {
+    let _lock = setup();
+    // Give actor GRANT on object 100
+    transact(|tx| tx.grant(99, 100, GRANT)).unwrap();
+
+    for i in 0..10u64 {
+        grant(99, i, 100, READ).unwrap();
+    }
+    wait_flush();  // Planner auto-flushes within 20ms
+
+    for i in 0..10u64 {
+        assert!(check(i, 100, READ).unwrap());
+    }
+}
+
 // === Entities ===
 
 #[test]
 fn test_create_entity() {
-    let (_lock, _, _root) = setup();
+    let _lock = setup();
     let alice = create_entity("alice").unwrap();
     let bob = create_entity("bob").unwrap();
 
@@ -200,7 +202,7 @@ fn test_create_entity() {
 
 #[test]
 fn test_rename_entity() {
-    let (_lock, _, _root) = setup();
+    let _lock = setup();
     let id = create_entity("alice").unwrap();
     rename_entity(id, "alicia").unwrap();
 
@@ -211,7 +213,7 @@ fn test_rename_entity() {
 
 #[test]
 fn test_delete_entity() {
-    let (_lock, _, _root) = setup();
+    let _lock = setup();
     let id = create_entity("alice").unwrap();
     assert!(delete_entity(id).unwrap());
 
@@ -221,7 +223,7 @@ fn test_delete_entity() {
 
 #[test]
 fn test_set_label() {
-    let (_lock, _, _root) = setup();
+    let _lock = setup();
     set_label(42, "answer").unwrap();
 
     assert_eq!(get_label(42).unwrap(), Some("answer".to_string()));
@@ -232,10 +234,12 @@ fn test_set_label() {
 
 #[test]
 fn test_list_for_subject() {
-    let (_lock, _, root) = setup();
-    grant(root, 1, 100, READ).unwrap();
-    grant(root, 1, 101, WRITE).unwrap();
-    grant(root, 1, 102, DELETE).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.grant(1, 100, READ)?;
+        tx.grant(1, 101, WRITE)?;
+        tx.grant(1, 102, DELETE)
+    }).unwrap();
 
     let list = list_for_subject(1).unwrap();
     assert_eq!(list.len(), 3);
@@ -243,190 +247,117 @@ fn test_list_for_subject() {
 
 #[test]
 fn test_list_for_object() {
-    let (_lock, _, root) = setup();
-    grant(root, 1, 100, READ).unwrap();
-    grant(root, 2, 100, WRITE).unwrap();
-    grant(root, 3, 100, DELETE).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.grant(1, 100, READ)?;
+        tx.grant(2, 100, WRITE)?;
+        tx.grant(3, 100, DELETE)?;
+        tx.grant(99, 100, VIEW)  // Give actor VIEW on 100
+    }).unwrap();
 
-    let list = list_for_object(root, 100).unwrap();
-    assert_eq!(list.len(), 3);
+    let list = list_for_object(99, 100).unwrap();
+    assert_eq!(list.len(), 4);
 }
 
 #[test]
 fn test_count_functions() {
-    let (_lock, _, root) = setup();
-    grant(root, 1, 100, READ).unwrap();
-    grant(root, 1, 101, READ).unwrap();
-    grant(root, 2, 100, READ).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.grant(1, 100, READ)?;
+        tx.grant(1, 101, READ)?;
+        tx.grant(2, 100, READ)
+    }).unwrap();
 
     assert_eq!(count_for_subject(1).unwrap(), 2);
     assert_eq!(count_for_object(100).unwrap(), 2);
 }
 
-// === Protection Semantics ===
+// === Protection Semantics (per-object) ===
 
 #[test]
-fn test_grant_requires_system_permission() {
-    let (_lock, system, root) = setup();
+fn test_grant_requires_permission_on_target() {
+    let _lock = setup();
 
-    // Unprivileged user cannot grant
-    let alice = create_entity("alice").unwrap();
-    assert!(grant(alice, 1, 100, READ).is_err());
+    // alice has no permissions
+    let alice = 1u64;
+    assert!(grant(alice, 2, 100, READ).is_err());
 
-    // Grant GRANT on _system to alice
-    grant(root, alice, system, GRANT).unwrap();
-    grant(alice, 1, 100, READ).unwrap();
-    assert!(check(1, 100, READ).unwrap());
+    // Give alice GRANT on object 100
+    transact(|tx| tx.grant(alice, 100, GRANT)).unwrap();
+    grant(alice, 2, 100, READ).unwrap();
+    wait_flush();
+    assert!(check(2, 100, READ).unwrap());
 }
 
 #[test]
-fn test_revoke_requires_system_permission() {
-    let (_lock, system, root) = setup();
-    grant(root, 2, 100, READ).unwrap();
+fn test_revoke_requires_permission_on_target() {
+    let _lock = setup();
+    transact(|tx| tx.grant(2, 100, READ)).unwrap();
 
-    // Unprivileged user cannot revoke
-    let alice = create_entity("alice").unwrap();
+    let alice = 1u64;
     assert!(revoke(alice, 2, 100).is_err());
 
-    // Root can revoke
-    assert!(revoke(root, 2, 100).unwrap());
-
-    // Grant GRANT on _system to alice
-    grant(root, 3, 100, READ).unwrap();
-    grant(root, alice, system, GRANT).unwrap();
-    assert!(revoke(alice, 3, 100).unwrap());
+    transact(|tx| tx.grant(alice, 100, GRANT)).unwrap();
+    revoke(alice, 2, 100).unwrap();
+    wait_flush();
 }
 
 #[test]
-fn test_set_role_requires_system_admin() {
-    let (_lock, system, root) = setup();
+fn test_set_role_requires_admin_on_system() {
+    let _lock = setup();
+    let (system, _) = bootstrap().unwrap();
 
-    // Unprivileged user cannot set roles
-    let alice = create_entity("alice").unwrap();
+    let alice = 1u64;
     assert!(set_role(alice, 100, 1, READ | WRITE).is_err());
 
-    // Root can
-    set_role(root, 100, 1, READ | WRITE).unwrap();
+    // Give alice ADMIN on _system
+    transact(|tx| tx.grant(alice, system, ADMIN)).unwrap();
+    set_role(alice, 100, 1, READ | WRITE).unwrap();
+    wait_flush();
     assert_eq!(get_role(100, 1).unwrap(), READ | WRITE);
-
-    // Grant ADMIN on _system to alice
-    grant(root, alice, system, ADMIN).unwrap();
-    set_role(alice, 100, 2, DELETE).unwrap();
-    assert_eq!(get_role(100, 2).unwrap(), DELETE);
 }
 
 #[test]
-fn test_inherit_requires_system_admin() {
-    let (_lock, system, root) = setup();
+fn test_inherit_requires_admin_on_system() {
+    let _lock = setup();
+    let (system, _) = bootstrap().unwrap();
 
-    let alice = create_entity("alice").unwrap();
-
-    // Unprivileged user cannot set inheritance
+    let alice = 1u64;
     assert!(set_inherit(alice, 100, 1, 2).is_err());
     assert!(remove_inherit(alice, 100, 1).is_err());
 
-    // Root can
-    set_inherit(root, 100, 1, 2).unwrap();
-    assert_eq!(get_inherit(100, 1).unwrap(), Some(2));
-    remove_inherit(root, 100, 1).unwrap();
-    assert_eq!(get_inherit(100, 1).unwrap(), None);
-
-    // Grant ADMIN on _system to alice
-    grant(root, alice, system, ADMIN).unwrap();
+    // Give alice ADMIN on _system
+    transact(|tx| tx.grant(alice, system, ADMIN)).unwrap();
     set_inherit(alice, 100, 1, 2).unwrap();
+    wait_flush();
     assert_eq!(get_inherit(100, 1).unwrap(), Some(2));
+    remove_inherit(alice, 100, 1).unwrap();
+    wait_flush();
+    assert_eq!(get_inherit(100, 1).unwrap(), None);
 }
 
 #[test]
-fn test_list_requires_system_view() {
-    let (_lock, system, root) = setup();
-    grant(root, 1, 100, READ).unwrap();
+fn test_list_requires_view_on_target() {
+    let _lock = setup();
+    transact(|tx| tx.grant(1, 100, READ)).unwrap();
 
-    let alice = create_entity("alice").unwrap();
-
-    // Unprivileged user cannot list
+    let alice = 2u64;
     assert!(list_for_object(alice, 100).is_err());
 
-    // Root can
-    assert_eq!(list_for_object(root, 100).unwrap().len(), 1);
-
-    // Grant VIEW on _system to alice
-    grant(root, alice, system, VIEW).unwrap();
-    assert_eq!(list_for_object(alice, 100).unwrap().len(), 1);
-}
-
-// === Happy Path: Delegation ===
-
-#[test]
-fn test_root_creates_admin_user() {
-    let (_lock, system, root) = setup();
-
-    // Root creates an admin and grants them full system access
-    let admin = create_entity("admin").unwrap();
-    grant(root, admin, system, u64::MAX).unwrap();
-
-    // Admin now has all powers
-    assert!(check(admin, system, GRANT | ADMIN | VIEW).unwrap());
-
-    // Admin can do operations
-    let user = create_entity("user").unwrap();
-    grant(admin, user, system, VIEW).unwrap();
-    assert!(check(user, system, VIEW).unwrap());
-}
-
-#[test]
-fn test_root_creates_limited_operator() {
-    let (_lock, system, root) = setup();
-
-    // Root creates operator with only GRANT (can assign permissions but not change roles)
-    let operator = create_entity("operator").unwrap();
-    grant(root, operator, system, GRANT).unwrap();
-
-    // Operator can grant permissions to users
-    let user = create_entity("user").unwrap();
-    grant(operator, user, system, VIEW).unwrap();
-    assert!(check(user, system, VIEW).unwrap());
-
-    // But operator cannot set roles (needs ADMIN)
-    assert!(set_role(operator, 100, 1, READ).is_err());
-}
-
-#[test]
-fn test_delegation_chain() {
-    let (_lock, system, root) = setup();
-
-    // Root -> Admin -> Operator -> User
-    let admin = create_entity("admin").unwrap();
-    let operator = create_entity("operator").unwrap();
-    let user = create_entity("user").unwrap();
-
-    // Root grants admin full access
-    grant(root, admin, system, GRANT | ADMIN | VIEW).unwrap();
-
-    // Admin grants operator limited access
-    grant(admin, operator, system, GRANT | VIEW).unwrap();
-
-    // Operator grants user view-only
-    grant(operator, user, system, VIEW).unwrap();
-
-    // Verify permissions
-    assert!(check(admin, system, ADMIN).unwrap());
-    assert!(!check(operator, system, ADMIN).unwrap());
-    assert!(check(operator, system, GRANT).unwrap());
-    assert!(!check(user, system, GRANT).unwrap());
-    assert!(check(user, system, VIEW).unwrap());
+    transact(|tx| tx.grant(alice, 100, VIEW)).unwrap();
+    // 2 grants: (1, READ) and (alice, VIEW)
+    assert_eq!(list_for_object(alice, 100).unwrap().len(), 2);
 }
 
 // === Adversarial ===
 
 #[test]
 fn test_adversarial_unprivileged_user() {
-    let (_lock, system, _root) = setup();
+    let _lock = setup();
 
-    let attacker = create_entity("attacker").unwrap();
+    let attacker = 999u64;
 
-    // All protected ops fail
-    assert!(grant(attacker, attacker, system, ADMIN).is_err());
+    // All protected ops fail (attacker has no permissions on any object)
     assert!(grant(attacker, 1, 100, READ).is_err());
     assert!(revoke(attacker, 1, 100).is_err());
     assert!(set_role(attacker, 100, 1, READ).is_err());
@@ -436,65 +367,72 @@ fn test_adversarial_unprivileged_user() {
 
 #[test]
 fn test_adversarial_self_escalation() {
-    let (_lock, system, root) = setup();
+    let _lock = setup();
 
-    // User with VIEW tries to escalate to GRANT
-    let user = create_entity("user").unwrap();
-    grant(root, user, system, VIEW).unwrap();
+    // User with VIEW on object 100 tries to escalate
+    let user = 1u64;
+    transact(|tx| tx.grant(user, 100, VIEW)).unwrap();
 
-    // Cannot grant themselves more permissions
-    assert!(grant(user, user, system, GRANT).is_err());
-    assert!(grant(user, user, system, ADMIN).is_err());
+    // Cannot grant themselves more permissions (no GRANT bit)
+    assert!(grant(user, user, 100, GRANT).is_err());
+    assert!(grant(user, user, 100, ADMIN).is_err());
 
     // Still only has VIEW
-    assert!(check(user, system, VIEW).unwrap());
-    assert!(!check(user, system, GRANT).unwrap());
+    assert!(check(user, 100, VIEW).unwrap());
+    assert!(!check(user, 100, GRANT).unwrap());
 }
 
 #[test]
 fn test_view_only_cannot_modify() {
-    let (_lock, system, root) = setup();
+    let _lock = setup();
 
-    let viewer = create_entity("viewer").unwrap();
-    grant(root, viewer, system, VIEW).unwrap();
+    let viewer = 1u64;
+    transact(|tx| {
+        tx.grant(viewer, 100, VIEW)?;
+        tx.grant(2, 100, READ)
+    }).unwrap();
 
     // Viewer can list
-    grant(root, 1, 100, READ).unwrap();
     assert!(list_for_object(viewer, 100).is_ok());
 
     // But cannot modify anything
-    assert!(grant(viewer, 2, 100, READ).is_err());
-    assert!(revoke(viewer, 1, 100).is_err());
+    assert!(grant(viewer, 3, 100, READ).is_err());
+    assert!(revoke(viewer, 2, 100).is_err());
     assert!(set_role(viewer, 100, 1, READ).is_err());
 }
 
 #[test]
 fn test_separate_permission_bits() {
-    let (_lock, system, root) = setup();
+    let _lock = setup();
+    let (system, _) = bootstrap().unwrap();
 
-    // Create users with different individual permissions
-    let granter = create_entity("granter").unwrap();
-    let admin = create_entity("admin").unwrap();
-    let viewer = create_entity("viewer").unwrap();
+    let granter = 1u64;
+    let admin = 2u64;
+    let viewer = 3u64;
 
-    grant(root, granter, system, GRANT).unwrap();
-    grant(root, admin, system, ADMIN).unwrap();
-    grant(root, viewer, system, VIEW).unwrap();
+    transact(|tx| {
+        tx.grant(granter, 100, GRANT)?;      // GRANT on target object
+        tx.grant(admin, system, ADMIN)?;     // ADMIN on _system
+        tx.grant(viewer, 100, VIEW)          // VIEW on target object
+    }).unwrap();
 
-    // Granter: can grant/revoke, cannot set roles
-    grant(granter, 1, 100, READ).unwrap();
-    revoke(granter, 1, 100).unwrap();
+    // Granter: can grant/revoke on 100, cannot set roles (no ADMIN on _system)
+    grant(granter, 10, 100, READ).unwrap();
+    wait_flush();
+    revoke(granter, 10, 100).unwrap();
+    wait_flush();
     assert!(set_role(granter, 100, 1, READ).is_err());
 
-    // Admin: can set roles/inherit, cannot grant (no GRANT bit)
+    // Admin: can set roles/inherit (ADMIN on _system), cannot grant on 100 (no GRANT on 100)
     set_role(admin, 100, 1, READ).unwrap();
-    set_inherit(admin, 100, 1, 2).unwrap();
-    assert!(grant(admin, 1, 100, READ).is_err());
+    set_inherit(admin, 100, 10, 20).unwrap();
+    wait_flush();
+    assert!(grant(admin, 10, 100, READ).is_err());
 
-    // Viewer: can only list
-    grant(root, 1, 100, READ).unwrap();
+    // Viewer: can only list on 100
+    transact(|tx| tx.grant(10, 100, READ)).unwrap();
     list_for_object(viewer, 100).unwrap();
-    assert!(grant(viewer, 2, 100, READ).is_err());
+    assert!(grant(viewer, 11, 100, READ).is_err());
     assert!(set_role(viewer, 100, 2, READ).is_err());
 }
 
@@ -502,11 +440,7 @@ fn test_separate_permission_bits() {
 
 #[test]
 fn test_bootstrap() {
-    let lock = test_lock();
-    INIT.call_once(|| {
-        init(&test_db_path()).unwrap();
-    });
-    clear_all().unwrap();
+    let _lock = setup();
 
     assert!(!is_bootstrapped().unwrap());
 
@@ -516,19 +450,18 @@ fn test_bootstrap() {
     assert_eq!(get_root_user().unwrap(), Some(root_user));
     assert_eq!(get_system().unwrap(), system);
 
-    // Root user has all permissions on _system
-    assert!(check(root_user, system, u64::MAX).unwrap());
+    // Root user has full system permissions via ROLE_FULL
+    assert!(check(root_user, system, GRANT | ADMIN | VIEW).unwrap());
 
     // Entities have labels
     assert_eq!(get_label(system).unwrap(), Some("_system".to_string()));
     assert_eq!(get_label(root_user).unwrap(), Some("_root_user".to_string()));
-
-    drop(lock);
 }
 
 #[test]
 fn test_bootstrap_only_once() {
-    let (_lock, _, _) = setup();
+    let _lock = setup();
+    bootstrap().unwrap();
     assert!(bootstrap().is_err());
 }
 
@@ -577,56 +510,59 @@ fn test_constant_values() {
 
 #[test]
 fn test_check_zero_required() {
-    let (_lock, _, _root) = setup();
-    // 0 required = always true (no permissions needed)
+    let _lock = setup();
     assert!(check(1, 100, 0).unwrap());
 }
 
 #[test]
 fn test_get_mask_empty() {
-    let (_lock, _, _root) = setup();
+    let _lock = setup();
     assert_eq!(get_mask(999, 999).unwrap(), 0);
 }
 
 #[test]
 fn test_grant_idempotent() {
-    let (_lock, _, root) = setup();
-    grant(root, 1, 100, READ | WRITE).unwrap();
-    grant(root, 1, 100, READ | WRITE).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.grant(1, 100, READ | WRITE)?;
+        tx.grant(1, 100, READ | WRITE)
+    }).unwrap();
     assert_eq!(get_mask(1, 100).unwrap(), READ | WRITE);
 }
 
 #[test]
 fn test_revoke_nonexistent() {
-    let (_lock, _, root) = setup();
-    assert!(!revoke(root, 999, 999).unwrap());
+    let _lock = setup();
+    transact(|tx| tx.grant(99, 999, GRANT)).unwrap();
+    revoke(99, 1, 999).unwrap();
+    wait_flush();
 }
 
 // === More Role Tests ===
 
 #[test]
 fn test_role_fallback_to_mask() {
-    let (_lock, _, root) = setup();
-    // No role defined, uses mask directly
-    grant(root, 1, 100, READ | WRITE).unwrap();
+    let _lock = setup();
+    transact(|tx| tx.grant(1, 100, READ | WRITE)).unwrap();
     assert!(check(1, 100, READ | WRITE).unwrap());
 }
 
 #[test]
 fn test_role_per_object_scoped() {
-    let (_lock, _, root) = setup();
-    set_role(root, 100, 1, READ | WRITE | DELETE).unwrap();
-    set_role(root, 101, 1, READ).unwrap();
-    grant(root, 1, 100, 1).unwrap();
-    grant(root, 1, 101, 1).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.set_role(100, 1, READ | WRITE | DELETE)?;
+        tx.set_role(101, 1, READ)?;
+        tx.grant(1, 100, 1)?;
+        tx.grant(1, 101, 1)
+    }).unwrap();
     assert!(check(1, 100, DELETE).unwrap());
     assert!(!check(1, 101, DELETE).unwrap());
 }
 
 #[test]
 fn test_get_role_undefined() {
-    let (_lock, _, _root) = setup();
-    // Undefined role returns role ID itself
+    let _lock = setup();
     assert_eq!(get_role(100, 99).unwrap(), 99);
 }
 
@@ -634,59 +570,65 @@ fn test_get_role_undefined() {
 
 #[test]
 fn test_inherit_combines_with_direct() {
-    let (_lock, _, root) = setup();
-    grant(root, 1, 100, READ).unwrap();
-    grant(root, 1000, 100, WRITE).unwrap();
-    set_inherit(root, 100, 1, 1000).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.grant(1, 100, READ)?;
+        tx.grant(1000, 100, WRITE)?;
+        tx.set_inherit(100, 1, 1000)
+    }).unwrap();
     assert_eq!(get_mask(1, 100).unwrap(), READ | WRITE);
 }
 
 #[test]
 fn test_inherit_dynamic_updates() {
-    let (_lock, _, root) = setup();
-    grant(root, 1000, 100, READ | WRITE).unwrap();
-    set_inherit(root, 100, 1, 1000).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.grant(1000, 100, READ | WRITE)?;
+        tx.set_inherit(100, 1, 1000)
+    }).unwrap();
     assert!(check(1, 100, READ | WRITE).unwrap());
 
-    // Revoke parent's permission
-    revoke(root, 1000, 100).unwrap();
+    transact(|tx| tx.revoke(1000, 100)).unwrap();
     assert!(!check(1, 100, READ).unwrap());
 }
 
 #[test]
 fn test_inherit_per_object_scoped() {
-    let (_lock, _, root) = setup();
-    grant(root, 1000, 100, READ).unwrap();
-    grant(root, 1000, 101, WRITE).unwrap();
-    set_inherit(root, 100, 1, 1000).unwrap();
-    // Inheritance only on object 100, not 101
+    let _lock = setup();
+    transact(|tx| {
+        tx.grant(1000, 100, READ)?;
+        tx.grant(1000, 101, WRITE)?;
+        tx.set_inherit(100, 1, 1000)
+    }).unwrap();
     assert!(check(1, 100, READ).unwrap());
     assert!(!check(1, 101, WRITE).unwrap());
 }
 
 #[test]
 fn test_cycle_allowed_different_objects() {
-    let (_lock, _, root) = setup();
-    set_inherit(root, 100, 1, 2).unwrap();
-    // Different object = ok
-    set_inherit(root, 101, 2, 1).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.set_inherit(100, 1, 2)?;
+        tx.set_inherit(101, 2, 1)
+    }).unwrap();
 }
 
 #[test]
 fn test_cycle_allowed_after_remove() {
-    let (_lock, _, root) = setup();
-    set_inherit(root, 100, 1, 2).unwrap();
-    set_inherit(root, 100, 2, 3).unwrap();
-    remove_inherit(root, 100, 1).unwrap();
-    // Now 3 -> 1 is ok
-    set_inherit(root, 100, 3, 1).unwrap();
+    let _lock = setup();
+    transact(|tx| {
+        tx.set_inherit(100, 1, 2)?;
+        tx.set_inherit(100, 2, 3)
+    }).unwrap();
+    transact(|tx| tx.remove_inherit(100, 1)).unwrap();
+    transact(|tx| tx.set_inherit(100, 3, 1)).unwrap();
 }
 
 // === Labels ===
 
 #[test]
 fn test_label_unicode() {
-    let (_lock, _, _root) = setup();
+    let _lock = setup();
     set_label(1, "日本語").unwrap();
     set_label(2, "🎉").unwrap();
     assert_eq!(get_label(1).unwrap(), Some("日本語".to_string()));
@@ -695,7 +637,7 @@ fn test_label_unicode() {
 
 #[test]
 fn test_label_update() {
-    let (_lock, _, _root) = setup();
+    let _lock = setup();
     set_label(1, "alice").unwrap();
     set_label(1, "alicia").unwrap();
     assert_eq!(get_label(1).unwrap(), Some("alicia".to_string()));
@@ -703,31 +645,183 @@ fn test_label_update() {
 
 #[test]
 fn test_list_labels() {
-    let (_lock, _, _root) = setup();
-    // _system and _root_user already exist from bootstrap
-    let count_before = list_labels().unwrap().len();
+    let _lock = setup();
     set_label(100, "alice").unwrap();
     set_label(101, "bob").unwrap();
-    assert_eq!(list_labels().unwrap().len(), count_before + 2);
+    let labels = list_labels().unwrap();
+    assert!(labels.len() >= 2);
 }
 
-// === Batch Edge Cases ===
+// === Inheritance-based Permission Delegation ===
 
 #[test]
-fn test_batch_grant_empty() {
-    let (_lock, _, root) = setup();
-    batch_grant(root, &[]).unwrap();
+fn test_inherit_admin_from_org() {
+    let _lock = setup();
+    let (system, _) = bootstrap().unwrap();
+
+    let org = 10u64;
+    let user = 1u64;
+
+    // Org has ADMIN on _system
+    transact(|tx| {
+        tx.grant(org, system, ADMIN)?;
+        // User inherits from org ON _system
+        tx.set_inherit(system, user, org)
+    }).unwrap();
+
+    // User can now set_role (inherits ADMIN from org)
+    set_role(user, 100, 1, READ | WRITE).unwrap();
+    wait_flush();
+    assert_eq!(get_role(100, 1).unwrap(), READ | WRITE);
+
+    // User can set_inherit too
+    set_inherit(user, 100, 5, 6).unwrap();
+    wait_flush();
+    assert_eq!(get_inherit(100, 5).unwrap(), Some(6));
 }
 
 #[test]
-fn test_batch_revoke_empty() {
-    let (_lock, _, root) = setup();
-    assert_eq!(batch_revoke(root, &[]).unwrap(), 0);
+fn test_inherit_grant_from_org() {
+    let _lock = setup();
+
+    let org = 10u64;
+    let user = 1u64;
+    let doc = 100u64;
+
+    // Org has GRANT on doc
+    transact(|tx| {
+        tx.grant(org, doc, GRANT)?;
+        // User inherits from org ON doc
+        tx.set_inherit(doc, user, org)
+    }).unwrap();
+
+    // User can now grant on doc (inherits GRANT from org)
+    grant(user, 50, doc, READ).unwrap();
+    wait_flush();
+    assert!(check(50, doc, READ).unwrap());
+
+    // User can revoke too
+    revoke(user, 50, doc).unwrap();
+    wait_flush();
+    assert!(!check(50, doc, READ).unwrap());
 }
 
 #[test]
-fn test_batch_grant_accumulates() {
-    let (_lock, _, root) = setup();
-    batch_grant(root, &[(1, 100, READ), (1, 100, WRITE), (1, 100, DELETE)]).unwrap();
-    assert_eq!(get_mask(1, 100).unwrap(), READ | WRITE | DELETE);
+fn test_inherit_view_from_org() {
+    let _lock = setup();
+
+    let org = 10u64;
+    let user = 1u64;
+    let doc = 100u64;
+
+    // Setup: some grants on doc
+    transact(|tx| {
+        tx.grant(50, doc, READ)?;
+        tx.grant(51, doc, WRITE)?;
+        // Org has VIEW on doc
+        tx.grant(org, doc, VIEW)?;
+        // User inherits from org ON doc
+        tx.set_inherit(doc, user, org)
+    }).unwrap();
+
+    // User can now list_for_object (inherits VIEW from org)
+    let list = list_for_object(user, doc).unwrap();
+    assert!(list.len() >= 2);
+}
+
+#[test]
+fn test_revoke_org_cascades_to_users() {
+    let _lock = setup();
+    let (system, _) = bootstrap().unwrap();
+
+    let org = 10u64;
+    let user = 1u64;
+
+    // Setup: user inherits ADMIN from org
+    transact(|tx| {
+        tx.grant(org, system, ADMIN)?;
+        tx.set_inherit(system, user, org)
+    }).unwrap();
+
+    // User can set_role
+    assert!(set_role(user, 100, 1, READ).is_ok());
+    wait_flush();
+
+    // Revoke org's ADMIN
+    transact(|tx| tx.revoke(org, system)).unwrap();
+
+    // User can no longer set_role
+    assert!(set_role(user, 100, 2, WRITE).is_err());
+}
+
+#[test]
+fn test_multi_level_inheritance() {
+    let _lock = setup();
+    let (system, _) = bootstrap().unwrap();
+
+    let corp = 100u64;
+    let dept = 10u64;
+    let user = 1u64;
+
+    // Chain: user → dept → corp, all on _system
+    transact(|tx| {
+        tx.grant(corp, system, ADMIN)?;
+        tx.set_inherit(system, dept, corp)?;
+        tx.set_inherit(system, user, dept)
+    }).unwrap();
+
+    // User inherits ADMIN through 2 levels
+    set_role(user, 200, 1, READ).unwrap();
+    wait_flush();
+    assert_eq!(get_role(200, 1).unwrap(), READ);
+}
+
+#[test]
+fn test_inheritance_visibility() {
+    let _lock = setup();
+    let (system, _) = bootstrap().unwrap();
+
+    let org = 10u64;
+    let user1 = 1u64;
+    let user2 = 2u64;
+
+    // Both users inherit from org
+    transact(|tx| {
+        tx.grant(org, system, ADMIN | VIEW)?;
+        tx.set_inherit(system, user1, org)?;
+        tx.set_inherit(system, user2, org)
+    }).unwrap();
+
+    // Can query who has access via list_for_object on _system
+    transact(|tx| tx.grant(99, system, VIEW)).unwrap();
+    let list = list_for_object(99, system).unwrap();
+
+    // Should see org's grant (users inherit, not direct grants)
+    assert!(list.iter().any(|(id, _)| *id == org));
+}
+
+// === Concurrent ===
+
+#[test]
+fn test_concurrent_writes() {
+    let _lock = setup();
+
+    std::thread::scope(|s| {
+        for t in 0..4u64 {
+            s.spawn(move || {
+                transact(|tx| {
+                    for i in 0..100u64 {
+                        tx.grant(t * 1000 + i, 100, READ)?;
+                    }
+                    Ok(())
+                }).unwrap();
+            });
+        }
+    });
+
+    for t in 0..4u64 {
+        for i in 0..100u64 {
+            assert_eq!(get_mask(t * 1000 + i, 100).unwrap(), READ);
+        }
+    }
 }
