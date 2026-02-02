@@ -12,7 +12,7 @@ Authorization as atomized data.
 
 **Zanzibar's insight**: Authorization semantics belong in data, not application code. It delivered by storing semantics as a schema manifest.
 
-**Capbit's refinement**: Authorization semantics should be atomized data - independent tuples, not a schema blob. Both relationships and semantics are stored as independent, atomized tuples.
+**Capbit's refinement**: Authorization semantics should be atomized data - independent tuples, not a schema blob. Both relationships and authorization semantics are stored as independent, atomized tuples—fully queryable and mutable.
 
 Definitions:
 - **Stored**: Facts exist but joined at query time
@@ -121,6 +121,20 @@ check(alice, doc:100, WRITE):
 ```
 
 Two tuple lookups. No schema parsing, no rule evaluation.
+
+With inheritance:
+
+```
+current = alice
+mask = 0
+loop:
+  role = caps.get(current, doc:100)
+  if role: mask |= roles.get(doc:100, role)
+  parent = inherit.get(doc:100, current)  // does current inherit from someone on this object?
+  if parent: current = parent             // walk up the inheritance chain
+  else: break
+return mask & WRITE == WRITE
+```
 
 ## Zanzibar Semantics on Capbit
 
