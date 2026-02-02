@@ -1,204 +1,137 @@
 # Capbit
 
-Minimal capability-based access control. ~280 lines of Rust.
+Schema-free authorization with indexed role definitions.
 
-## Why Capbit?
+## Core Idea
 
-Most authorization systems (including Google's Zanzibar) use **boolean relations**: "alice IS a viewer". Each relation is one bit of information. Adding permission types requires schema changes.
+Authorization systems like Zanzibar separate **schema** (what roles mean) from **data** (who has what role):
 
-Capbit uses **64-bit masks**: each grant carries 2^64 possible permission combinations. Define new permission types at runtime. No schema.
-
-**Not just numbers:** While IDs are u64 internally for speed, you can use human-readable labels:
-
-```rust
-let alice = create_entity("alice")?;    // returns u64 ID
-let doc = create_entity("quarterly-report")?;
-grant(alice, doc, READ | WRITE)?;
-
-// Or look up by name
-let alice = get_id_by_label("alice")?.unwrap();
+```
+Schema (parsed manifest):     "editor" implies write permission
+Data (indexed tuples):        (doc:100, editor, alice)
 ```
 
-| | Traditional (Zanzibar-style) | Capbit |
+Capbit stores both as **indexed data**:
+
+```
+roles index:    (doc:100, EDITOR) → READ|WRITE    // what roles mean
+caps index:     (alice, doc:100) → EDITOR          // who has what role
+```
+
+Role semantics are just another indexed lookup, not a separate manifest.
+
+## Data Structure
+
+```
+caps:     (subject, object) → role_id       // who has what
+caps_rev: (object, subject) → role_id       // reverse index
+roles:    (object, role_id) → mask          // what roles mean (per object)
+inherit:  (object, child) → parent          // permission inheritance
+```
+
+All pointer-based index lookups. O(1) with bloom filters, O(log n) worst case.
+
+## Permission Resolution
+
+```
+check(alice, doc:100, WRITE):
+
+1. caps.get(alice, doc:100) → EDITOR           // O(1) lookup
+2. roles.get(doc:100, EDITOR) → READ|WRITE     // O(1) lookup
+3. (READ|WRITE) & WRITE == WRITE               // bitmask AND
+4. return true
+```
+
+With inheritance:
+
+```
+check(alice, doc:100, WRITE):
+
+current = alice
+mask = 0
+
+loop:
+  role = caps.get(current, doc:100)
+  mask |= roles.get(doc:100, role)
+
+  parent = inherit.get(doc:100, current)
+  if parent: current = parent
+  else: break
+
+return mask & WRITE == WRITE
+```
+
+## Per-Object Role Semantics
+
+Same role ID, different meanings per object:
+
+```rust
+// doc:100 - full access editor
+set_role(root, doc_100, EDITOR, READ | WRITE | DELETE)?;
+
+// doc:200 - restricted editor (read only)
+set_role(root, doc_200, EDITOR, READ)?;
+
+// Alice is EDITOR on both
+grant(root, alice, doc_100, EDITOR)?;
+grant(root, alice, doc_200, EDITOR)?;
+
+check(alice, doc_100, DELETE)?  // true
+check(alice, doc_200, DELETE)?  // false - same role, different meaning
+```
+
+This is a data write in Capbit. In Zanzibar, you'd need separate types.
+
+## Queryability
+
+Since role definitions are indexed data:
+
+```rust
+// "What does EDITOR mean on doc:100?"
+roles.get(doc_100, EDITOR)  // O(1)
+
+// "Which objects let EDITOR delete?"
+roles.scan()
+  .filter(|(obj, role, mask)| role == EDITOR && mask & DELETE)
+
+// "Who can access doc:100?"
+caps_rev.prefix_scan(doc_100)  // O(k) where k = number of grants
+```
+
+In Zanzibar, querying role semantics means parsing the schema manifest.
+
+## Trade-offs vs Zanzibar
+
+| | Zanzibar | Capbit |
 |---|---|---|
-| Permissions per grant | 1 (boolean) | 64 bits |
-| Roles per object | Fixed by schema | Unlimited (any u64) |
-| New permission type | Schema migration | Runtime, instant |
-| Permission check | Graph traversal | Single AND operation |
-| Entity model | Typed namespaces | Unified u64 IDs |
+| Role definitions | Schema (type-level) | Index (instance-level) |
+| Shared semantics | Natural (one schema) | Manual (copy or inherit) |
+| Unique semantics | Awkward (type per object) | Natural (just data) |
+| Query role meanings | Parse schema | Index lookup |
+| Modify role meanings | Schema change | Data write |
 
-### Unified Entity Model
-
-Subject and object are the same concept—just u64 IDs. This means inheritance works in any direction:
-
-```rust
-// User inherits from group (traditional)
-set_inherit(doc, alice, engineering)?;
-
-// Object inherits from object (folder hierarchy)
-set_inherit(policy, doc, folder)?;
-set_inherit(policy, folder, workspace)?;
-
-// Any entity inherits from any entity
-// No artificial type system limits your model
-```
-
-### Cheap Restructuring
-
-One inheritance change restructures entire subtrees instantly:
-
-```rust
-// Move entire engineering org under new VP
-set_inherit(company, engineering, new_vp)?;
-// Done. Thousands of users inherit through new_vp.
-```
-
-No tuple updates. No cache invalidation. Computed at read time.
-
-### No Derived State
-
-Permissions are stored directly as bitmasks. No "computed" permissions that could be stale. Every check reads current data.
-
-See [COMPARISON.md](COMPARISON.md) for detailed analysis vs Zanzibar.
-
----
-
-## Usage
-
-```rust
-use capbit::*;
-
-init("/path/to/db")?;
-
-// Bootstrap creates _system and _root_user
-let (system, root) = bootstrap()?;
-
-// Create named entities
-let alice = create_entity("alice")?;
-let bob = create_entity("bob")?;
-let doc = create_entity("quarterly-report")?;
-
-// Grant permissions (requires actor with GRANT on _system)
-grant(root, alice, doc, READ | WRITE)?;
-grant(root, bob, doc, READ)?;
-
-// Check access (no actor needed for reads)
-if check(alice, doc, WRITE)? {
-    println!("{} can write", get_label(alice)?.unwrap());
-}
-
-// Delegate: give alice GRANT permission on _system
-grant(root, alice, system, GRANT)?;
-// Now alice can grant permissions too
-grant(alice, bob, doc, WRITE)?;
-```
+**Zanzibar**: Better when objects are homogeneous.
+**Capbit**: Better when objects are heterogeneous.
 
 ## API
 
-All write operations require an `actor` with appropriate permissions on `_system`.
-
-### Core (require GRANT on `_system`)
-
 ```rust
-grant(actor, subject, object, mask)?;      // Add permissions (OR)
-grant_set(actor, subject, object, mask)?;  // Set exact permissions
-revoke(actor, subject, object)?;           // Remove all
-```
+// Bootstrap
+let (system, root) = bootstrap()?;
 
-### Reads (no actor needed)
+// Define role semantics (ADMIN required)
+set_role(actor, object, role_id, mask)?;
 
-```rust
-check(subject, object, required)?;  // (mask & required) == required
-get_mask(subject, object)?;         // Get current mask
-list_for_subject(subject)?;         // Vec<(object, mask)>
-count_for_subject(subject)?;
-count_for_object(object)?;
-```
+// Grant roles (GRANT required)
+grant(actor, subject, object, role_id)?;
+revoke(actor, subject, object)?;
 
-### Roles (require ADMIN on `_system`)
+// Check permissions
+check(subject, object, required)?;
+get_mask(subject, object)?;
 
-```rust
-set_role(actor, object, role_id, mask)?;   // Define role -> mask
-get_role(object, role_id)?;                // Read (no actor)
-```
-
-### Inheritance (require ADMIN on `_system`)
-
-```rust
+// Inheritance (ADMIN required)
 set_inherit(actor, object, child, parent)?;
-remove_inherit(actor, object, child)?;
-get_inherit(object, child)?;               // Read (no actor)
-```
-
-### List for object (requires VIEW on `_system`)
-
-```rust
-list_for_object(actor, object)?;           // Vec<(subject, mask)>
-```
-
-### Batch (require GRANT on `_system`)
-
-```rust
-batch_grant(actor, &[(subject, object, mask), ...])?;
-batch_revoke(actor, &[(subject, object), ...])?;
-```
-
-### Internal batch (bypasses protection)
-
-```rust
-transact(|tx| {
-    tx.grant(subject, object, READ)?;
-    tx.set_role(object, EDITOR, READ | WRITE)?;
-    tx.create_entity("alice")?;
-    Ok(())
-})?;
-```
-
-### Entities (no protection)
-
-```rust
-create_entity(name)?;         // Auto-increment ID
-rename_entity(id, name)?;
-delete_entity(id)?;
-set_label(id, name)?;
-get_label(id)?;
-get_id_by_label(name)?;
-```
-
-### Bootstrap
-
-```rust
-let (system, root_user) = bootstrap()?;  // Creates _system and _root_user
-is_bootstrapped()?;                       // true if bootstrap() was called
-get_system()?;                            // Returns _system entity ID
-get_root_user()?;                         // Returns _root_user entity ID
-```
-
-## Constants
-
-These constants define system capabilities when checked against `_system`:
-
-| Bit | Constant | Meaning on `_system` |
-|-----|----------|----------------------|
-| 0 | `READ` | — |
-| 1 | `WRITE` | — |
-| 2 | `DELETE` | — |
-| 3 | `CREATE` | — |
-| 4 | `GRANT` | Can use `grant`, `revoke`, `batch_grant`, `batch_revoke` |
-| 5 | `EXECUTE` | — |
-| 6–61 | — | — |
-| 62 | `VIEW` | Can use `list_for_object` |
-| 63 | `ADMIN` | Can use `set_role`, `set_inherit`, `remove_inherit` |
-
-**On your own objects, all 64 bits are free to use however you want.** The system only checks bits against `_system`. On any other object, you can reuse `READ`, `ADMIN`, or any bit for your own meanings.
-
-## Performance
-
-```
-Single check:         ~500 ns
-Batch grants:         400-650K/sec
-Inheritance depth 10: ~5 us
-Concurrent reads:     6M/sec (8 threads)
 ```
 
 ## Testing
@@ -206,8 +139,6 @@ Concurrent reads:     6M/sec (8 threads)
 ```bash
 cargo test -- --test-threads=1
 ```
-
-Tests must run single-threaded (LMDB limitation).
 
 ## License
 
