@@ -1,19 +1,24 @@
 # Capbit
 
-Authorization as first-class data.
+Authorization as atomized data.
 
 ## Core Idea
 
 |  | Relationships | Semantics |
 |---|---|---|
-| **ReBAC** | Stored | Computed |
-| **Zanzibar** | Atomized | Coupled |
-| **Capbit** | Atomized | Atomized |
+| **ReBAC** | Stored | Computed (code) |
+| **Zanzibar** | Atomized | Data (schema) |
+| **Capbit** | Atomized | Atomized data |
 
-- **Stored**: Relationship facts exist but joined at query time
-- **Atomized**: Combined into single tuple, queryable as one unit
-- **Computed**: Derived from rules at query time
-- **Coupled**: Tied to schema - can't query without it
+**Zanzibar's insight**: Authorization semantics belong in data, not application code. It delivered by storing semantics as a schema manifest.
+
+**Capbit's refinement**: Authorization semantics should be atomized data - independent tuples, not a schema blob.
+
+Definitions:
+- **Stored**: Facts exist but joined at query time
+- **Atomized**: Single tuple, queryable as one unit
+- **Computed**: Derived from rules
+- **Data (schema)**: Stored in manifest, interpreted at runtime
 
 ## The Progression
 
@@ -35,14 +40,14 @@ To resolve: evaluate rules against facts. Expensive.
 
 ### Zanzibar
 
-Relationships atomized into tuples. Semantics coupled to schema.
+Relationships atomized. Semantics moved from code to data (schema manifest).
 
 ```
 Relationships (atomized):
   (doc:100, owner, alice)
   (doc:100, editor, bob)
 
-Semantics (coupled to schema):
+Semantics (data, but schema):
   type document {
     relation owner: user
     relation editor: user
@@ -50,7 +55,8 @@ Semantics (coupled to schema):
   }
 ```
 
-To resolve: lookup tuple + parse schema. Tuple is cheap, schema is expensive.
+Zanzibar's win: semantics are data, not application code.
+Zanzibar's limitation: schema is not atomized - must parse to query.
 
 ### Capbit
 
@@ -69,7 +75,8 @@ Inheritance (atomized):
   inherit[(doc:100, alice)] → admin_group
 ```
 
-To resolve: two tuple lookups. No schema, no rules.
+Capbit's delta: semantics are atomized data, not schema blob.
+To resolve: two tuple lookups. No schema parsing.
 
 ## Why It Matters
 

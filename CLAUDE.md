@@ -4,24 +4,23 @@ Project context for Claude Code.
 
 ## What is Capbit?
 
-Authorization as first-class data.
+Authorization as atomized data.
 
 ## Core Framing
 
 |  | Relationships | Semantics |
 |---|---|---|
-| **ReBAC** | Stored | Computed |
-| **Zanzibar** | Atomized | Coupled |
-| **Capbit** | Atomized | Atomized |
+| **ReBAC** | Stored | Computed (code) |
+| **Zanzibar** | Atomized | Data (schema) |
+| **Capbit** | Atomized | Atomized data |
 
-- **Stored**: Facts exist but joined at query time
-- **Atomized**: Single tuple, queryable as one unit
-- **Computed**: Derived from rules
-- **Coupled**: Tied to schema
+**Zanzibar's insight**: Semantics belong in data, not code. Stored as schema manifest.
+
+**Capbit's refinement**: Semantics should be atomized data, not schema blob.
 
 Summary:
-- **ReBAC**: Relationships stored, semantics computed (expensive)
-- **Zanzibar**: Relationships atomized, semantics coupled to schema
+- **ReBAC**: Relationships stored, semantics computed
+- **Zanzibar**: Relationships atomized, semantics in schema (data, not atomized)
 - **Capbit**: Both atomized into independent tuples
 
 ## Data Structure
