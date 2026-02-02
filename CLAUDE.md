@@ -6,19 +6,17 @@ Project context for Claude Code.
 
 Authorization as first-class data.
 
-Zanzibar stored relationships. Capbit decouples them from schema.
-
 ## Core Framing
 
 |  | Relationships | Semantics |
 |---|---|---|
-| **ReBAC** | Stored | Computed |
-| **Zanzibar** | Atomic tuple | Coupled to schema |
-| **Capbit** | Atomic tuple | Atomic tuple |
+| **ReBAC** | Decoupled | Computed |
+| **Zanzibar** | Atomized | Coupled |
+| **Capbit** | Atomized | Atomized |
 
-- **ReBAC**: Relationships stored, semantic relationships computed (expensive)
-- **Zanzibar**: Relationship tuple atomic, but coupled to schema for meaning
-- **Capbit**: Three separate atomic tuples - relationship, semantic, inheritance
+- **ReBAC**: Decoupled relationships, computed semantics (expensive)
+- **Zanzibar**: Atomized relationships, coupled semantics
+- **Capbit**: Atomized relationships, atomized semantics
 
 Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton - Capbit provides decoupled tuples.
 

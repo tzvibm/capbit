@@ -4,22 +4,20 @@ Authorization as first-class data.
 
 ## Core Idea
 
-Zanzibar stored relationships. Capbit decouples them from schema.
-
 |  | Relationships | Semantics |
 |---|---|---|
-| **ReBAC** | Stored | Computed |
-| **Zanzibar** | Atomic tuple | Coupled to schema |
-| **Capbit** | Atomic tuple | Atomic tuple |
+| **ReBAC** | Decoupled | Computed |
+| **Zanzibar** | Atomized | Coupled |
+| **Capbit** | Atomized | Atomized |
 
 ## The Progression
 
 ### ReBAC
 
-Relationships exist but semantic relationships are computed.
+Decoupled relationships, computed semantics.
 
 ```
-Stored:
+Relationships (decoupled):
   (alice, owner, doc:100)
   (bob, member, engineering)
 
@@ -38,14 +36,14 @@ Expensive. Complex queries require rule evaluation.
 
 ### Zanzibar
 
-Made (subject, role, object) an atomic tuple. Relationships stored, not computed.
+Atomized relationships, coupled semantics.
 
 ```
-Relationship tuples (atomic):
+Relationships (atomized):
   (doc:100, owner, alice)
   (doc:100, editor, bob)
 
-Schema blob (coupled):
+Semantics (coupled):
   type document {
     relation owner: user
     relation editor: user
@@ -53,14 +51,14 @@ Schema blob (coupled):
   }
 ```
 
-Relationship tuple is atomic - but coupled to schema for meaning. You need both to resolve.
+Relationship tuple is atomized - but coupled to schema for meaning. You need both to resolve.
 
 ### Capbit
 
-Three separate atomic tuples. Each stands alone.
+Atomized relationships, atomized semantics.
 
 ```
-Relationships (atomic):
+Relationships (atomized):
   caps[(alice, doc:100)] → EDITOR
   caps[(bob, doc:100)] → VIEWER
 
@@ -81,7 +79,7 @@ Semantic relationships are their own tuples, not embedded in schema.
 | Query relationships | Expensive | Cheap | Cheap |
 | Query semantics | Expensive | Expensive (parse schema) | Cheap |
 | Mutate semantics | Rules change | Schema change | Data write |
-| Coupling | Computed | Tuple + schema | Decoupled |
+| Semantics | Computed | Coupled | Atomized |
 
 ```rust
 // Query: "What does EDITOR mean on doc:100?"
