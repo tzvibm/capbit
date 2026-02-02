@@ -1,137 +1,170 @@
-# Capbit vs Zanzibar
+# Capbit vs Zanzibar vs ReBAC
 
-## The Difference
+## The Progression
 
-Both systems store authorization as tuples. The difference is where **role semantics** live.
+### ReBAC: Atomic relationships, computed authorization
 
-### Zanzibar: Schema + Tuples
+Everything is atomic and queryable. But authorization is not expressive - because it's computed, not represented.
 
 ```
-SCHEMA (parsed manifest):
+Relationships (indexed):
+  owns(alice, doc:100)
+  member_of(alice, engineering)
+
+Rules (code):
+  can_write(U, D) :- owns(U, D).
+  can_write(U, D) :- member_of(U, G), team_access(G, D).
+```
+
+You can ask:
+- "Who is related to whom?"
+- "What edges exist?"
+
+You cannot ask:
+- "What permissions exist?"
+- "Why does this permission exist?"
+- "What would change if I removed X?"
+
+Because permissions are not data.
+
+**ReBAC is structurally clean but authorization-poor.**
+
+### Zanzibar: Atomic relationships, encoded authorization
+
+Authorization becomes expressive. But expressiveness is stored as a non-atomic blob:
+- Schema
+- Rewrite rules
+- Traversal semantics
+
+```
+Schema (manifest):
   type document {
+    relation owner: user
     relation editor: user
-    permission write = editor
+    permission write = owner + editor
   }
 
-TUPLES (indexed):
-  (doc:100, editor, alice)
-  (doc:200, editor, bob)
+Relationships (indexed):
+  (doc:100, owner, alice)
+  (doc:100, editor, bob)
 ```
 
-"editor implies write" is defined **once in the schema**, applies to all documents.
+You gain:
+- Conditional permissions
+- Inheritance
+- Composition
 
-### Capbit: Indexed Tuples Only
+You lose:
+- Atomic inspection
+- Atomic mutation
+- Direct queryability
+
+Authorization truth is encoded, not stored.
+
+**Zanzibar moves expressiveness into code-like structures.**
+
+### Capbit: Atomic relationships, atomic authorization
+
+Authorization is:
+- Indexed data
+- Addressable
+- Mutable
+- Composable
+
+Exactly like relationships already were.
 
 ```
-ROLES INDEX:
-  (doc:100, EDITOR) → WRITE
-  (doc:200, EDITOR) → READ      // different!
+Relationships (indexed):
+  caps[(alice, doc:100)] → EDITOR
+  caps[(bob, doc:100)] → VIEWER
 
-CAPS INDEX:
-  (alice, doc:100) → EDITOR
-  (bob, doc:200) → EDITOR
+Authorization (indexed):
+  roles[(doc:100, EDITOR)] → READ|WRITE|DELETE
+  roles[(doc:100, VIEWER)] → READ
 ```
 
-"what EDITOR means" is defined **per object**, stored as indexed data.
+Authorization is no longer:
+- A traversal
+- A derivation
+- A DSL evaluation
 
-## Consequences
+It is data.
 
-### Zanzibar
+**Capbit makes authorization first-class data.**
 
-**Schema is type-level:**
-- All documents share the same role definitions
-- Changing what "editor" means requires schema change
-- To have doc:100 behave differently, create a new type
+## The Key Difference
 
-**Good for:**
-- Homogeneous objects (all docs work the same)
-- Central governance (schema is source of truth)
-- Consistency (same role = same meaning everywhere)
+|  | ReBAC | Zanzibar | Capbit |
+|---|---|---|---|
+| Relationships | Atomic | Atomic | Atomic |
+| Authorization | Computed | Encoded | Atomic |
+| Query permissions | No | No | Yes |
+| Mutate permissions | No | No | Yes |
+| Explain permissions | No | No | Yes |
 
-### Capbit
+This is not incremental - it's categorical.
 
-**Roles are instance-level indexed data:**
-- Each object defines its own role semantics
-- Changing what EDITOR means on doc:100 is an index write
-- No schema to parse or manage
+## What You Can Do
 
-**Good for:**
-- Heterogeneous objects (each doc can be different)
-- Object autonomy (owner controls semantics)
-- Queryability (role definitions are indexed, not parsed)
+### Query: "What does EDITOR mean on doc:100?"
 
-## What Capbit Does NOT Provide
+**ReBAC:** Evaluate rules. No direct answer.
 
-| Capbit lacks | Why it matters |
-|---|---|
-| Shared schemas | Must duplicate role definitions across objects |
-| Type system | No enforcement of "all documents behave alike" |
-| Central governance | No single source of truth for role semantics |
-
-## What Capbit Provides
-
-| Capbit has | Why it matters |
-|---|---|
-| Schema-free | No manifest to parse, version, deploy |
-| Instance-level roles | Each object controls its own semantics |
-| Queryable role definitions | "What does EDITOR mean on X?" is O(1) index lookup |
-| Unified storage | Everything is indexed data, single consistency model |
-
-## Workflow Comparison
-
-### Change what "editor" means for one document
-
-**Zanzibar:**
-```
-Option A: Change schema (affects ALL documents)
-Option B: Create new type "document_restricted"
-Option C: Use different relation name
-```
+**Zanzibar:** Parse schema for document type. Extract editor permissions.
 
 **Capbit:**
 ```
-roles.put(doc_100, EDITOR, READ)  // done, O(1)
+roles.get(doc:100, EDITOR)  // O(1)
 ```
 
-### Ensure all documents have same role semantics
+### Mutate: "Make EDITOR read-only on doc:100"
+
+**ReBAC:** Change rules. Affects everything.
 
 **Zanzibar:**
-```
-Define once in schema. Enforced automatically.
-```
+- Option A: Change schema (affects ALL documents)
+- Option B: Create new type
+- Option C: Different relation name
 
 **Capbit:**
 ```
-Must copy role definitions to each document.
-Or define on a "type" object and inherit/reference.
-No automatic enforcement.
+roles.put(doc:100, EDITOR, READ)  // done
 ```
 
-### Audit: "Which objects let EDITOR delete?"
+### Explain: "Why can alice write to doc:100?"
 
-**Zanzibar:**
-```
-Parse schema, find types where editor implies delete.
-List objects of those types.
-```
+**ReBAC:** Trace rule evaluation. Complex.
+
+**Zanzibar:** Trace schema traversal + tuple expansion.
 
 **Capbit:**
 ```
-roles.scan()
-  .filter(|(obj, role, mask)| role == EDITOR && mask & DELETE)
-
-Single index scan.
+caps.get(alice, doc:100)     // → EDITOR
+roles.get(doc:100, EDITOR)   // → READ|WRITE
+// Alice has EDITOR. EDITOR means READ|WRITE on doc:100.
 ```
+
+### Ensure shared semantics
+
+**ReBAC:** Rules are shared. Automatic.
+
+**Zanzibar:** Schema is shared. Automatic.
+
+**Capbit:** Must copy role definitions or inherit from type object. Manual.
+
+## Trade-offs
+
+| | Zanzibar | Capbit |
+|---|---|---|
+| Authorization atomicity | No | Yes |
+| Expressiveness | Yes | Yes |
+| Query/mutate/explain | No | Yes |
+| Central governance | Yes | No |
+| Shared semantics | Automatic | Manual |
+
+Zanzibar trades atomicity for central governance.
+Capbit trades central governance for atomicity.
 
 ## Summary
 
-```
-Zanzibar = Schema (type-level manifest) + Tuples (instance-level index)
-Capbit   = Index only (everything instance-level)
-```
-
-Zanzibar separates "what roles mean" (schema) from "who has roles" (tuples).
-
-Capbit stores both as indexed data.
-
-Neither is universally better. Choose based on whether your objects are homogeneous (Zanzibar) or heterogeneous (Capbit).
+Capbit brings atomicity, queryability, and manipulability to the authorization layer itself, completing what ReBAC started and Zanzibar partially solved.
