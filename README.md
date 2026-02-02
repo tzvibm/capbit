@@ -4,74 +4,78 @@ Authorization as first-class data.
 
 ## Core Idea
 
-|  | Role Assignments | Role Semantics |
+All three have the base relationship: `(subject, role, object)`
+
+The difference is how role meaning and inheritance are stored.
+
+|  | Relationships | Semantic Relationships |
 |---|---|---|
 | **ReBAC** | Atomic | Computed |
-| **Zanzibar** | Atomic | Encoded |
+| **Zanzibar** | Atomic | Relationships, but blobbed |
 | **Capbit** | Atomic | Atomic |
 
-All three store role assignments (who has what role) as indexed tuples.
+- **ReBAC**: Role meaning computed from rules. Limited expressiveness, expensive to query.
+- **Zanzibar**: Role meaning encoded as relationships in schema blob. Expressive but expensive to query.
+- **Capbit**: Role meaning stored as atomic relationships. Expressive and cheap to query.
 
-The difference is role semantics (what roles mean):
-
-- **ReBAC**: Computes from rules. Limited expressiveness, expensive to query.
-- **Zanzibar**: Encodes in schema blob. Expressive but expensive to query.
-- **Capbit**: Stores as indexed tuples. Expressive and cheap to query.
-
-Capbit makes role semantics first-class data.
+Zanzibar's insight: semantics are relationships too.
+Capbit's insight: store them the same way.
 
 ## The Progression
 
 ### ReBAC
 
 ```
-Assignments (indexed):
-  owns(alice, doc:100)
-  member_of(alice, engineering)
+Relationships (atomic):
+  (alice, owner, doc:100)
+  (alice, member, engineering)
 
-Rules (code):
+Semantics (computed):
   can_write(U, D) :- owns(U, D).
   can_write(U, D) :- member_of(U, G), team_access(G, D).
 ```
 
-Cheap on assignments. Expensive and limited on semantics.
+Relationships are data. Semantics are code.
 
 ### Zanzibar
 
 ```
-Schema (manifest):
+Relationships (atomic):
+  (doc:100, owner, alice)
+  (doc:100, editor, bob)
+
+Semantics (relationships, but blobbed):
   type document {
     relation owner: user
     relation editor: user
     permission write = owner + editor
   }
-
-Assignments (indexed):
-  (doc:100, owner, alice)
-  (doc:100, editor, bob)
 ```
 
-Cheap on assignments. Expressive but expensive on semantics.
+Relationships are data. Semantics are relationships too - but stored as schema blob.
 
 ### Capbit
 
 ```
-Assignments (indexed):
+Relationships (atomic):
   caps[(alice, doc:100)] → EDITOR
   caps[(bob, doc:100)] → VIEWER
 
-Semantics (indexed):
+Semantics (atomic):
   roles[(doc:100, EDITOR)] → READ|WRITE|DELETE
   roles[(doc:100, VIEWER)] → READ
+
+Inheritance (atomic):
+  inherit[(doc:100, alice)] → admin_group
 ```
 
-Cheap on both assignments and semantics.
+All relationships. All atomic. Same storage.
 
 ## Why It Matters
 
 |  | ReBAC | Zanzibar | Capbit |
 |---|---|---|---|
-| Query assignments | Cheap | Cheap | Cheap |
+| Query relationships | Cheap | Cheap | Cheap |
 | Define semantics | Limited | Expressive | Expressive |
 | Query semantics | Expensive | Expensive | Cheap |
 | Mutate semantics | Rules change | Schema change | Data write |
@@ -92,9 +96,9 @@ roles.get(doc_100, EDITOR)  // → READ|WRITE
 ## Data Structure
 
 ```
-caps:     (subject, object) → role_id       // role assignments (atomic)
-roles:    (object, role_id) → mask          // role semantics (atomic)
-inherit:  (object, child) → parent          // inheritance (atomic)
+caps:     (subject, object) → role          // relationships (atomic)
+roles:    (object, role) → mask             // semantic relationships (atomic)
+inherit:  (object, child) → parent          // inheritance relationships (atomic)
 ```
 
 ## Permission Resolution
@@ -102,8 +106,8 @@ inherit:  (object, child) → parent          // inheritance (atomic)
 ```
 check(alice, doc:100, WRITE):
 
-1. caps.get(alice, doc:100) → EDITOR           // assignment lookup
-2. roles.get(doc:100, EDITOR) → READ|WRITE     // semantics lookup
+1. caps.get(alice, doc:100) → EDITOR           // relationship lookup
+2. roles.get(doc:100, EDITOR) → READ|WRITE     // semantic lookup
 3. (READ|WRITE) & WRITE == WRITE               // bitmask check
 ```
 
@@ -114,7 +118,7 @@ Two index lookups. No schema parsing, no rule evaluation.
 Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton out of the box - Capbit provides primitives.
 
 ```rust
-// Central governance: all documents share same role definitions
+// Central governance: all documents share same semantic relationships
 fn create_document(actor, doc_id) {
     let template = get_type_template("document");
     for (role, mask) in template.roles {
@@ -131,12 +135,12 @@ Central governance, shared semantics, type enforcement - all buildable on atomic
 // Bootstrap
 let (system, root) = bootstrap()?;
 
-// Role assignments
-grant(actor, subject, object, role_id)?;
+// Relationships
+grant(actor, subject, object, role)?;
 revoke(actor, subject, object)?;
 
-// Role semantics
-set_role(actor, object, role_id, mask)?;
+// Semantic relationships
+set_role(actor, object, role, mask)?;
 
 // Check
 check(subject, object, required)?;

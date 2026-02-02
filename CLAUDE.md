@@ -4,43 +4,43 @@ Project context for Claude Code.
 
 ## What is Capbit?
 
-Authorization as first-class data. Both role assignments and role semantics stored as indexed tuples.
+Authorization as first-class data.
+
+Zanzibar's insight: semantics are relationships too.
+Capbit's insight: store them the same way.
 
 ## Core Framing
 
-|  | Role Assignments | Role Semantics |
+All three have: `(subject, role, object)`
+
+|  | Relationships | Semantic Relationships |
 |---|---|---|
 | **ReBAC** | Atomic | Computed |
-| **Zanzibar** | Atomic | Encoded |
+| **Zanzibar** | Atomic | Relationships, but blobbed |
 | **Capbit** | Atomic | Atomic |
 
-|  | ReBAC | Zanzibar | Capbit |
-|---|---|---|---|
-| Query assignments | Cheap | Cheap | Cheap |
-| Define semantics | Limited | Expressive | Expressive |
-| Query semantics | Expensive | Expensive | Cheap |
-| Mutate semantics | Rules change | Schema change | Data write |
-
-Capbit makes role semantics first-class data.
+- **ReBAC**: Role meaning computed from rules (limited, expensive)
+- **Zanzibar**: Role meaning encoded as relationships in schema blob (expressive, expensive)
+- **Capbit**: Role meaning stored as atomic relationships (expressive, cheap)
 
 Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton out of the box - Capbit provides primitives and you build the skeleton (simple if/else tooling).
 
 ## Data Structure
 
 ```
-caps:     (subject, object) → role_id       // role assignments (atomic)
-roles:    (object, role_id) → mask          // role semantics (atomic)
-inherit:  (object, child) → parent          // inheritance (atomic)
+caps:     (subject, object) → role          // relationships (atomic)
+roles:    (object, role) → mask             // semantic relationships (atomic)
+inherit:  (object, child) → parent          // inheritance relationships (atomic)
 ```
 
-Key insight: `roles` is keyed by `(object, role_id)`, so semantics are per-object indexed data, not schema.
+All relationships. All atomic. Same storage.
 
 ## Permission Check Flow
 
 ```rust
 fn check(subject, object, required) -> bool {
-    let role_id = caps.get(subject, object);
-    let mask = roles.get(object, role_id);
+    let role = caps.get(subject, object);      // relationship
+    let mask = roles.get(object, role);        // semantic relationship
     mask & required == required
 }
 ```
@@ -51,8 +51,8 @@ fn get_mask(subject, object) -> u64 {
     let mut mask = 0;
     let mut current = subject;
     loop {
-        let role_id = caps.get(current, object);
-        mask |= roles.get(object, role_id);
+        let role = caps.get(current, object);
+        mask |= roles.get(object, role);
         match inherit.get(object, current) {
             Some(parent) => current = parent,
             None => break,
@@ -68,10 +68,14 @@ fn get_mask(subject, object) -> u64 {
 // Bootstrap
 bootstrap() -> (system_id, root_user_id)
 
-// Write (require actor with permission)
-grant(actor, subject, object, role_id)    // GRANT required on object
+// Relationships
+grant(actor, subject, object, role)       // GRANT required on object
 revoke(actor, subject, object)            // GRANT required on object
+
+// Semantic relationships
 set_role(actor, object, role, mask)       // ADMIN required on _system
+
+// Inheritance relationships
 set_inherit(actor, object, child, parent) // ADMIN required on _system
 
 // Read (no actor)
