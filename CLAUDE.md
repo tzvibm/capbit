@@ -6,22 +6,20 @@ Project context for Claude Code.
 
 Authorization as first-class data.
 
-Zanzibar's insight: semantics are relationships too.
-Capbit's insight: store them the same way.
+Zanzibar atomized relationships.
+Capbit atomizes the rest.
 
 ## Core Framing
 
-All three have: `(subject, role, object)`
-
-|  | Relationships | Semantic Relationships |
+|  | Relationships | Semantics |
 |---|---|---|
-| **ReBAC** | Atomic | Computed |
-| **Zanzibar** | Atomic | Relationships, but blobbed |
+| **ReBAC** | Computed | Computed |
+| **Zanzibar** | Atomic | Blobbed |
 | **Capbit** | Atomic | Atomic |
 
-- **ReBAC**: Role meaning computed from rules (limited, expensive)
-- **Zanzibar**: Role meaning encoded as relationships in schema blob (expressive, expensive)
-- **Capbit**: Role meaning stored as atomic relationships (expressive, cheap)
+- **ReBAC**: Everything computed from rules (limited, expensive)
+- **Zanzibar**: Relationships atomic, semantics blobbed (expressive, expensive to query)
+- **Capbit**: Everything atomic (expressive, cheap)
 
 Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton out of the box - Capbit provides primitives and you build the skeleton (simple if/else tooling).
 

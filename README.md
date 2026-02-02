@@ -4,38 +4,32 @@ Authorization as first-class data.
 
 ## Core Idea
 
-All three have the base relationship: `(subject, role, object)`
-
-The difference is how role meaning and inheritance are stored.
-
-|  | Relationships | Semantic Relationships |
+|  | Relationships | Semantics |
 |---|---|---|
-| **ReBAC** | Atomic | Computed |
-| **Zanzibar** | Atomic | Relationships, but blobbed |
+| **ReBAC** | Computed | Computed |
+| **Zanzibar** | Atomic | Blobbed |
 | **Capbit** | Atomic | Atomic |
 
-- **ReBAC**: Role meaning computed from rules. Limited expressiveness, expensive to query.
-- **Zanzibar**: Role meaning encoded as relationships in schema blob. Expressive but expensive to query.
-- **Capbit**: Role meaning stored as atomic relationships. Expressive and cheap to query.
+- **ReBAC**: Everything computed from rules. Limited expressiveness, expensive.
+- **Zanzibar**: Relationships atomic. Semantics encoded as relationships but stored as schema blob. Expressive but expensive to query.
+- **Capbit**: Everything atomic. Expressive and cheap.
 
-Zanzibar's insight: semantics are relationships too.
-Capbit's insight: store them the same way.
+Zanzibar atomized relationships.
+Capbit atomizes the rest.
 
 ## The Progression
 
 ### ReBAC
 
 ```
-Relationships (atomic):
-  (alice, owner, doc:100)
-  (alice, member, engineering)
-
-Semantics (computed):
+Rules (computed):
+  owns(alice, doc:100).
+  member_of(alice, engineering).
   can_write(U, D) :- owns(U, D).
   can_write(U, D) :- member_of(U, G), team_access(G, D).
 ```
 
-Relationships are data. Semantics are code.
+Everything is computed. Relationships and semantics are code.
 
 ### Zanzibar
 
@@ -75,7 +69,7 @@ All relationships. All atomic. Same storage.
 
 |  | ReBAC | Zanzibar | Capbit |
 |---|---|---|---|
-| Query relationships | Cheap | Cheap | Cheap |
+| Query relationships | Expensive | Cheap | Cheap |
 | Define semantics | Limited | Expressive | Expressive |
 | Query semantics | Expensive | Expensive | Cheap |
 | Mutate semantics | Rules change | Schema change | Data write |
