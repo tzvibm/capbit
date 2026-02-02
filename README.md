@@ -110,6 +110,8 @@ inherit:  (object, child) → parent          // inheritance tuple
 
 Three independent tuples. Each queryable on its own.
 
+Implementable with any btree-based database (LMDB, RocksDB, LSM trees).
+
 ## Permission Resolution
 
 ```
