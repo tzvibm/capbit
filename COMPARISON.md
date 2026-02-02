@@ -2,12 +2,12 @@
 
 ## The Progression
 
-### ReBAC: Atomic relationships, computed authorization
+### ReBAC: Atomic assignments, computed semantics
 
-Everything is atomic and queryable. But authorization is not expressive - because it's computed, not represented.
+Role assignments are atomic and cheap to query. But role semantics are computed from rules - limited expressiveness, expensive to query.
 
 ```
-Relationships (indexed):
+Assignments (indexed):
   owns(alice, doc:100)
   member_of(alice, engineering)
 
@@ -16,25 +16,15 @@ Rules (code):
   can_write(U, D) :- member_of(U, G), team_access(G, D).
 ```
 
-You can ask:
-- "Who is related to whom?"
-- "What edges exist?"
+You can ask "what permissions exist?" - but you have to evaluate rules. Expensive.
 
-You cannot ask:
-- "What permissions exist?"
-- "Why does this permission exist?"
-- "What would change if I removed X?"
+You can't easily define complex semantics - rules have limited expressiveness.
 
-Because permissions are not data.
+**ReBAC is cheap on assignments, expensive and limited on semantics.**
 
-**ReBAC is structurally clean but authorization-poor.**
+### Zanzibar: Atomic assignments, encoded semantics
 
-### Zanzibar: Atomic relationships, encoded authorization
-
-Authorization becomes expressive. But expressiveness is stored as a non-atomic blob:
-- Schema
-- Rewrite rules
-- Traversal semantics
+Role assignments are atomic and cheap. Role semantics are encoded in schema blob - expressive but expensive to query.
 
 ```
 Schema (manifest):
@@ -44,77 +34,64 @@ Schema (manifest):
     permission write = owner + editor
   }
 
-Relationships (indexed):
+Assignments (indexed):
   (doc:100, owner, alice)
   (doc:100, editor, bob)
 ```
 
-You gain:
-- Conditional permissions
-- Inheritance
-- Composition
+You can define complex semantics - schema is expressive.
 
-You lose:
-- Atomic inspection
-- Atomic mutation
-- Direct queryability
+You can query semantics - but you have to parse the schema. Expensive.
 
-Authorization truth is encoded, not stored.
+**Zanzibar is cheap on assignments, expressive but expensive on semantics.**
 
-**Zanzibar moves expressiveness into code-like structures.**
+### Capbit: Atomic assignments, atomic semantics
 
-### Capbit: Atomic relationships, atomic authorization
-
-Authorization is:
-- Indexed data
-- Addressable
-- Mutable
-- Composable
-
-Exactly like relationships already were.
+Both role assignments and role semantics are atomic, indexed, cheap.
 
 ```
-Relationships (indexed):
+Assignments (indexed):
   caps[(alice, doc:100)] → EDITOR
   caps[(bob, doc:100)] → VIEWER
 
-Authorization (indexed):
+Semantics (indexed):
   roles[(doc:100, EDITOR)] → READ|WRITE|DELETE
   roles[(doc:100, VIEWER)] → READ
 ```
 
-Authorization is no longer:
-- A traversal
-- A derivation
-- A DSL evaluation
+You can define any semantics - it's just data.
 
-It is data.
+You can query semantics - it's just an index lookup. Cheap.
 
-**Capbit makes authorization first-class data.**
+**Capbit is cheap on both assignments and semantics.**
 
 ## The Key Difference
 
+|  | Role Assignments | Role Semantics |
+|---|---|---|
+| **ReBAC** | Atomic | Computed |
+| **Zanzibar** | Atomic | Encoded |
+| **Capbit** | Atomic | Atomic |
+
 |  | ReBAC | Zanzibar | Capbit |
 |---|---|---|---|
-| Relationships | Atomic | Atomic | Atomic |
-| Authorization | Computed | Encoded | Atomic |
-| Query permissions | No | No | Yes |
-| Mutate permissions | No | No | Yes |
-| Explain permissions | No | No | Yes |
-
-This is not incremental - it's categorical.
+| Query assignments | Cheap | Cheap | Cheap |
+| Mutate assignments | Cheap | Cheap | Cheap |
+| Define semantics | Limited | Expressive | Expressive |
+| Query semantics | Expensive | Expensive | Cheap |
+| Mutate semantics | Rules change | Schema change | Data write |
 
 ## What You Can Do
 
 ### Query: "What does EDITOR mean on doc:100?"
 
-**ReBAC:** Evaluate rules. No direct answer.
+**ReBAC:** Evaluate rules. Expensive, limited answer.
 
-**Zanzibar:** Parse schema for document type. Extract editor permissions.
+**Zanzibar:** Parse schema for document type. Expensive.
 
 **Capbit:**
 ```
-roles.get(doc:100, EDITOR)  // O(1)
+roles.get(doc:100, EDITOR)  // O(1), cheap
 ```
 
 ### Mutate: "Make EDITOR read-only on doc:100"
@@ -128,20 +105,21 @@ roles.get(doc:100, EDITOR)  // O(1)
 
 **Capbit:**
 ```
-roles.put(doc:100, EDITOR, READ)  // done
+roles.put(doc:100, EDITOR, READ)  // O(1), cheap
 ```
 
 ### Explain: "Why can alice write to doc:100?"
 
-**ReBAC:** Trace rule evaluation. Complex.
+**ReBAC:** Trace rule evaluation. Expensive.
 
-**Zanzibar:** Trace schema traversal + tuple expansion.
+**Zanzibar:** Trace schema traversal + tuple expansion. Expensive.
 
 **Capbit:**
 ```
 caps.get(alice, doc:100)     // → EDITOR
 roles.get(doc:100, EDITOR)   // → READ|WRITE
 // Alice has EDITOR. EDITOR means READ|WRITE on doc:100.
+// Two lookups, cheap.
 ```
 
 ## Zanzibar Semantics on Capbit
@@ -174,6 +152,8 @@ Simple if/else tooling. Not a fundamental limitation.
 
 ## Summary
 
-Capbit brings atomicity, queryability, and manipulability to the authorization layer itself, completing what ReBAC started and Zanzibar partially solved.
+Capbit makes role semantics first-class data - atomic, indexed, cheap to query and mutate.
 
-Zanzibar provides schema tooling. Capbit provides primitives. Anything expressible in Zanzibar is expressible in Capbit - with the right tooling on top.
+ReBAC and Zanzibar can do the same things, but semantics are either computed (limited) or encoded (expensive).
+
+Capbit completes the move: both assignments and semantics are cheap.

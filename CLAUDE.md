@@ -4,11 +4,11 @@ Project context for Claude Code.
 
 ## What is Capbit?
 
-Authorization as first-class data. Both relationships and authorization stored as indexed tuples.
+Authorization as first-class data. Both role assignments and role semantics stored as indexed tuples.
 
 ## Core Framing
 
-|  | Relationships | Authorization |
+|  | Role Assignments | Role Semantics |
 |---|---|---|
 | **ReBAC** | Atomic | Computed |
 | **Zanzibar** | Atomic | Encoded |
@@ -16,23 +16,24 @@ Authorization as first-class data. Both relationships and authorization stored a
 
 |  | ReBAC | Zanzibar | Capbit |
 |---|---|---|---|
-| Query permissions | No | No | Yes |
-| Mutate permissions | No | No | Yes |
-| Explain permissions | No | No | Yes |
+| Query assignments | Cheap | Cheap | Cheap |
+| Define semantics | Limited | Expressive | Expressive |
+| Query semantics | Expensive | Expensive | Cheap |
+| Mutate semantics | Rules change | Schema change | Data write |
 
-Capbit makes authorization first-class data.
+Capbit makes role semantics first-class data.
 
 Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton out of the box - Capbit provides primitives and you build the skeleton (simple if/else tooling).
 
 ## Data Structure
 
 ```
-caps:     (subject, object) → role_id       // relationships (atomic)
-roles:    (object, role_id) → mask          // authorization (atomic)
+caps:     (subject, object) → role_id       // role assignments (atomic)
+roles:    (object, role_id) → mask          // role semantics (atomic)
 inherit:  (object, child) → parent          // inheritance (atomic)
 ```
 
-Key insight: `roles` is keyed by `(object, role_id)`, so authorization is per-object indexed data, not schema.
+Key insight: `roles` is keyed by `(object, role_id)`, so semantics are per-object indexed data, not schema.
 
 ## Permission Check Flow
 
