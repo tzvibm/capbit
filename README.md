@@ -193,4 +193,4 @@ get_mask(subject, object)?;
 
 ## License
 
-CNCOSL - See LICENSE
+[PolyForm Noncommercial 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0/) - See LICENSE
