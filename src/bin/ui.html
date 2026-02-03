@@ -54,12 +54,12 @@ button.list:hover{background:#4a4}
 </div>
 <div class="grid">
 <details><summary>🚀 Bootstrap</summary><div class="card"><p style="font-size:11px;color:#666;margin-bottom:8px">Initialize _SYSTEM and _ROOT</p><button onclick="api('bootstrap',{})">Bootstrap</button></div></details>
-<details><summary>🗑️ Clear All</summary><div class="card"><p style="font-size:11px;color:#666;margin-bottom:8px">Wipe all data</p><button class="danger" onclick="api('clear',{})">Clear</button></div></details>
+<details><summary>🗑️ Clear</summary><div class="card"><p style="font-size:11px;color:#666;margin-bottom:8px">Wipe all data</p><button class="danger" onclick="api('clear',{})">Clear</button></div></details>
 </div>
 </div>
 
 <div id="subjects" class="tab">
-<h2>Subjects (Grant / Revoke / Check)</h2>
+<h2>Subjects</h2>
 <div class="grid">
 <details><summary>✅ Grant</summary><div class="card">
 <label>Actor</label><input id="g-actor" value="2">
@@ -81,22 +81,22 @@ button.list:hover{background:#4a4}
 <label>Required (hex ok)</label><input id="ch-req" placeholder="0x4000">
 <button onclick="api('check',{sub:+v('ch-sub'),obj:+v('ch-obj'),req:pm(v('ch-req'))})">Check</button>
 </div></details>
-<details><summary>🎭 Get Mask</summary><div class="card">
+<details><summary>🎭 Mask</summary><div class="card">
 <label>Subject</label><input id="gm-sub">
 <label>Object</label><input id="gm-obj" value="1">
 <button onclick="api('get_mask',{sub:+v('gm-sub'),obj:+v('gm-obj')})">Get Mask</button>
 </div></details>
-<details><summary>📋 List Grants</summary><div class="card">
+<details><summary>📋 List (subject)</summary><div class="card">
 <label>Actor</label><input id="lg-actor" value="2">
 <label>Subject</label><input id="lg-sub">
-<button class="list" onclick="api('list_grants',{actor:+v('lg-actor'),sub:+v('lg-sub')})">→ (obj,role)</button>
+<button class="list" onclick="api('list_grants',{actor:+v('lg-actor'),sub:+v('lg-sub')})">→ (obj, role)</button>
 </div></details>
-<details><summary>👥 List Subjects</summary><div class="card">
+<details><summary>👥 List (object)</summary><div class="card">
 <label>Actor</label><input id="ls-actor" value="2">
 <label>Object</label><input id="ls-obj" value="1">
-<button class="list" onclick="api('list_subjects',{actor:+v('ls-actor'),obj:+v('ls-obj')})">→ (sub,role)</button>
+<button class="list" onclick="api('list_subjects',{actor:+v('ls-actor'),obj:+v('ls-obj')})">→ (sub, role)</button>
 </div></details>
-<details><summary>🏷️ List Roles For</summary><div class="card">
+<details><summary>🏷️ List (sub+obj)</summary><div class="card">
 <label>Actor</label><input id="lrf-actor" value="2">
 <label>Subject</label><input id="lrf-sub">
 <label>Object</label><input id="lrf-obj" value="1">
@@ -106,32 +106,32 @@ button.list:hover{background:#4a4}
 </div>
 
 <div id="objects" class="tab">
-<h2>Objects (Role Definitions)</h2>
+<h2>Objects</h2>
 <div class="grid">
-<details><summary>➕ Create Role</summary><div class="card">
+<details><summary>➕ Create</summary><div class="card">
 <label>Actor</label><input id="c-actor" value="2">
 <label>Object</label><input id="c-obj">
-<label>Role ID</label><input id="c-role">
+<label>Role</label><input id="c-role">
 <label>Mask (hex ok)</label><input id="c-mask" placeholder="0x3FFFFF">
 <button onclick="api('create',{actor:+v('c-actor'),obj:+v('c-obj'),role:+v('c-role'),mask:pm(v('c-mask'))})">Create</button>
 </div></details>
-<details><summary>✏️ Update Role</summary><div class="card">
+<details><summary>✏️ Update</summary><div class="card">
 <label>Actor</label><input id="u-actor" value="2">
 <label>Object</label><input id="u-obj">
-<label>Role ID</label><input id="u-role">
+<label>Role</label><input id="u-role">
 <label>Mask (hex ok)</label><input id="u-mask">
 <button onclick="api('update',{actor:+v('u-actor'),obj:+v('u-obj'),role:+v('u-role'),mask:pm(v('u-mask'))})">Update</button>
 </div></details>
-<details><summary>🗑️ Delete Role</summary><div class="card">
+<details><summary>🗑️ Delete</summary><div class="card">
 <label>Actor</label><input id="d-actor" value="2">
 <label>Object</label><input id="d-obj">
-<label>Role ID</label><input id="d-role">
+<label>Role</label><input id="d-role">
 <button class="danger" onclick="api('delete',{actor:+v('d-actor'),obj:+v('d-obj'),role:+v('d-role')})">Delete</button>
 </div></details>
-<details><summary>📜 List Roles</summary><div class="card">
+<details><summary>📜 List</summary><div class="card">
 <label>Actor</label><input id="lr-actor" value="2">
 <label>Object</label><input id="lr-obj" value="1">
-<button class="list" onclick="api('list_roles',{actor:+v('lr-actor'),obj:+v('lr-obj')})">→ (role,mask)</button>
+<button class="list" onclick="api('list_roles',{actor:+v('lr-actor'),obj:+v('lr-obj')})">→ (role, mask)</button>
 </div></details>
 </div>
 </div>
@@ -139,7 +139,7 @@ button.list:hover{background:#4a4}
 <div id="inherits" class="tab">
 <h2>Inherits</h2>
 <div class="grid">
-<details><summary>🔗 Set Inherit</summary><div class="card">
+<details><summary>🔗 Set</summary><div class="card">
 <label>Actor</label><input id="i-actor" value="2">
 <label>Subject</label><input id="i-sub">
 <label>Object</label><input id="i-obj" value="1">
@@ -147,7 +147,7 @@ button.list:hover{background:#4a4}
 <label>Parent</label><input id="i-parent">
 <button onclick="api('inherit',{actor:+v('i-actor'),sub:+v('i-sub'),obj:+v('i-obj'),role:+v('i-role'),parent:+v('i-parent')})">Set</button>
 </div></details>
-<details><summary>🔓 Remove Inherit</summary><div class="card">
+<details><summary>🔓 Remove</summary><div class="card">
 <label>Actor</label><input id="ri-actor" value="2">
 <label>Subject</label><input id="ri-sub">
 <label>Object</label><input id="ri-obj" value="1">
@@ -158,29 +158,29 @@ button.list:hover{background:#4a4}
 <label>Actor</label><input id="li-actor" value="2">
 <label>Subject</label><input id="li-sub">
 <label>Object</label><input id="li-obj" value="1">
-<button class="list" onclick="api('list_inherits',{actor:+v('li-actor'),sub:+v('li-sub'),obj:+v('li-obj')})">→ (role,parent)</button>
+<button class="list" onclick="api('list_inherits',{actor:+v('li-actor'),sub:+v('li-sub'),obj:+v('li-obj')})">→ (role, parent)</button>
 </div></details>
-<details><summary>📦 List by Object</summary><div class="card">
+<details><summary>📦 List (object)</summary><div class="card">
 <label>Actor</label><input id="lio-actor" value="2">
 <label>Object</label><input id="lio-obj" value="1">
-<button class="list" onclick="api('list_inherits_on_obj',{actor:+v('lio-actor'),obj:+v('lio-obj')})">→ (role,parent,sub)</button>
+<button class="list" onclick="api('list_inherits_on_obj',{actor:+v('lio-actor'),obj:+v('lio-obj')})">→ (role, parent, sub)</button>
 </div></details>
-<details><summary>🎯 List by Obj+Role</summary><div class="card">
+<details><summary>🎯 List (obj+role)</summary><div class="card">
 <label>Actor</label><input id="lior-actor" value="2">
 <label>Object</label><input id="lior-obj" value="1">
 <label>Role</label><input id="lior-role">
-<button class="list" onclick="api('list_inherits_on_obj_role',{actor:+v('lior-actor'),obj:+v('lior-obj'),role:+v('lior-role')})">→ (parent,sub)</button>
+<button class="list" onclick="api('list_inherits_on_obj_role',{actor:+v('lior-actor'),obj:+v('lior-obj'),role:+v('lior-role')})">→ (parent, sub)</button>
 </div></details>
-<details><summary>👆 List by Parent</summary><div class="card">
+<details><summary>👆 List (parent)</summary><div class="card">
 <label>Actor</label><input id="lip-actor" value="2">
 <label>Parent</label><input id="lip-parent">
-<button class="list" onclick="api('list_inherits_from_parent',{actor:+v('lip-actor'),parent:+v('lip-parent')})">→ (obj,role,sub)</button>
+<button class="list" onclick="api('list_inherits_from_parent',{actor:+v('lip-actor'),parent:+v('lip-parent')})">→ (obj, role, sub)</button>
 </div></details>
-<details><summary>🔀 List by Parent+Obj</summary><div class="card">
+<details><summary>🔀 List (parent+obj)</summary><div class="card">
 <label>Actor</label><input id="lipo-actor" value="2">
 <label>Parent</label><input id="lipo-parent">
 <label>Object</label><input id="lipo-obj" value="1">
-<button class="list" onclick="api('list_inherits_from_parent_on_obj',{actor:+v('lipo-actor'),parent:+v('lipo-parent'),obj:+v('lipo-obj')})">→ (role,sub)</button>
+<button class="list" onclick="api('list_inherits_from_parent_on_obj',{actor:+v('lipo-actor'),parent:+v('lipo-parent'),obj:+v('lipo-obj')})">→ (role, sub)</button>
 </div></details>
 </div>
 </div>
