@@ -4,24 +4,26 @@
 <title>Capbit</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font:14px/1.4 system-ui;background:#111;color:#eee;padding:20px;max-width:900px;margin:0 auto}
+body{font:14px/1.4 system-ui;background:#111;color:#eee;padding:20px;max-width:1200px;margin:0 auto}
 h1{font-size:1.5em;margin-bottom:20px;color:#fff}
 h2{font-size:1em;margin:15px 0 10px;color:#888;border-bottom:1px solid #333;padding-bottom:5px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px}
-.card{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:15px}
-.card h3{font-size:.9em;color:#4a9eff;margin-bottom:10px}
-label{display:block;font-size:.75em;color:#666;margin:8px 0 2px}
-input{width:100%;padding:8px;background:#222;border:1px solid #444;border-radius:4px;color:#fff;font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px}
+.card h3{font-size:.85em;color:#4a9eff;margin-bottom:8px}
+label{display:block;font-size:.7em;color:#666;margin:6px 0 2px}
+input{width:100%;padding:6px;background:#222;border:1px solid #444;border-radius:4px;color:#fff;font-size:12px}
 input:focus{outline:none;border-color:#4a9eff}
-button{width:100%;padding:10px;margin-top:12px;background:#4a9eff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600}
+button{width:100%;padding:8px;margin-top:10px;background:#4a9eff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600;font-size:12px}
 button:hover{background:#3a8eef}
 button.danger{background:#c44}
 button.danger:hover{background:#b33}
-#log{background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:15px;margin-top:20px;max-height:300px;overflow-y:auto;font-family:monospace;font-size:12px}
+button.list{background:#5a5}
+button.list:hover{background:#4a4}
+#log{background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:12px;margin-top:20px;max-height:250px;overflow-y:auto;font-family:monospace;font-size:11px}
 .log-ok{color:#4c4}
 .log-err{color:#c44}
-.constants{font-size:.75em;color:#666;margin-bottom:15px;line-height:1.8}
-.constants code{background:#222;padding:2px 6px;border-radius:3px;color:#888}
+.constants{font-size:.7em;color:#666;margin-bottom:15px;line-height:1.8}
+.constants code{background:#222;padding:2px 5px;border-radius:3px;color:#888;font-size:11px}
 </style>
 </head><body>
 <h1>Capbit Test UI</h1>
@@ -39,55 +41,124 @@ button.danger:hover{background:#b33}
 <h2>Subjects (Grants)</h2>
 <div class="grid">
 <div class="card"><h3>Grant Role</h3>
-<label>Actor</label><input id="g-actor" value="2" placeholder="actor id">
-<label>Subject</label><input id="g-sub" placeholder="subject id">
-<label>Object</label><input id="g-obj" value="1" placeholder="object id">
-<label>Role</label><input id="g-role" placeholder="role id (1-4)">
+<label>Actor</label><input id="g-actor" value="2">
+<label>Subject</label><input id="g-sub">
+<label>Object</label><input id="g-obj" value="1">
+<label>Role</label><input id="g-role">
 <button onclick="api('grant',{actor:+$('#g-actor').value,sub:+$('#g-sub').value,obj:+$('#g-obj').value,role:+$('#g-role').value})">Grant</button>
 </div>
-<div class="card"><h3>Revoke</h3>
-<label>Actor</label><input id="r-actor" value="2" placeholder="actor id">
-<label>Subject</label><input id="r-sub" placeholder="subject id">
-<label>Object</label><input id="r-obj" value="1" placeholder="object id">
-<button onclick="api('revoke',{actor:+$('#r-actor').value,sub:+$('#r-sub').value,obj:+$('#r-obj').value})">Revoke</button>
+<div class="card"><h3>Revoke Role</h3>
+<label>Actor</label><input id="r-actor" value="2">
+<label>Subject</label><input id="r-sub">
+<label>Object</label><input id="r-obj" value="1">
+<label>Role</label><input id="r-role">
+<button class="danger" onclick="api('revoke',{actor:+$('#r-actor').value,sub:+$('#r-sub').value,obj:+$('#r-obj').value,role:+$('#r-role').value})">Revoke</button>
+</div>
+<div class="card"><h3>List Grants (by subject)</h3>
+<label>Actor</label><input id="lg-actor" value="2">
+<label>Subject</label><input id="lg-sub">
+<button class="list" onclick="api('list_grants',{actor:+$('#lg-actor').value,sub:+$('#lg-sub').value})">List → (obj,role)</button>
+</div>
+<div class="card"><h3>List Subjects (by object)</h3>
+<label>Actor</label><input id="ls-actor" value="2">
+<label>Object</label><input id="ls-obj" value="1">
+<button class="list" onclick="api('list_subjects',{actor:+$('#ls-actor').value,obj:+$('#ls-obj').value})">List → (sub,role)</button>
+</div>
+<div class="card"><h3>List Roles For (sub+obj)</h3>
+<label>Actor</label><input id="lrf-actor" value="2">
+<label>Subject</label><input id="lrf-sub">
+<label>Object</label><input id="lrf-obj" value="1">
+<button class="list" onclick="api('list_roles_for',{actor:+$('#lrf-actor').value,sub:+$('#lrf-sub').value,obj:+$('#lrf-obj').value})">List → [roles]</button>
 </div>
 </div>
 
-<h2>Objects (Roles)</h2>
+<h2>Objects (Role Definitions)</h2>
 <div class="grid">
 <div class="card"><h3>Create Role</h3>
-<label>Actor</label><input id="c-actor" value="2" placeholder="actor id">
-<label>Object</label><input id="c-obj" placeholder="object id">
-<label>Role ID</label><input id="c-role" placeholder="new role id">
-<label>Mask (hex ok)</label><input id="c-mask" placeholder="e.g. 0x3FFFFF">
+<label>Actor</label><input id="c-actor" value="2">
+<label>Object</label><input id="c-obj">
+<label>Role ID</label><input id="c-role">
+<label>Mask (hex ok)</label><input id="c-mask" placeholder="0x3FFFFF">
 <button onclick="api('create',{actor:+$('#c-actor').value,obj:+$('#c-obj').value,role:+$('#c-role').value,mask:pm($('#c-mask').value)})">Create</button>
 </div>
 <div class="card"><h3>Update Role</h3>
-<label>Actor</label><input id="u-actor" value="2" placeholder="actor id">
-<label>Object</label><input id="u-obj" placeholder="object id">
-<label>Role ID</label><input id="u-role" placeholder="role id">
-<label>Mask (hex ok)</label><input id="u-mask" placeholder="e.g. 0x3FFFFF">
+<label>Actor</label><input id="u-actor" value="2">
+<label>Object</label><input id="u-obj">
+<label>Role ID</label><input id="u-role">
+<label>Mask (hex ok)</label><input id="u-mask">
 <button onclick="api('update',{actor:+$('#u-actor').value,obj:+$('#u-obj').value,role:+$('#u-role').value,mask:pm($('#u-mask').value)})">Update</button>
 </div>
 <div class="card"><h3>Delete Role</h3>
-<label>Actor</label><input id="d-actor" value="2" placeholder="actor id">
-<label>Object</label><input id="d-obj" placeholder="object id">
-<label>Role ID</label><input id="d-role" placeholder="role id">
+<label>Actor</label><input id="d-actor" value="2">
+<label>Object</label><input id="d-obj">
+<label>Role ID</label><input id="d-role">
 <button class="danger" onclick="api('delete',{actor:+$('#d-actor').value,obj:+$('#d-obj').value,role:+$('#d-role').value})">Delete</button>
+</div>
+<div class="card"><h3>List Roles (by object)</h3>
+<label>Actor</label><input id="lr-actor" value="2">
+<label>Object</label><input id="lr-obj" value="1">
+<button class="list" onclick="api('list_roles',{actor:+$('#lr-actor').value,obj:+$('#lr-obj').value})">List → (role,mask)</button>
+</div>
+</div>
+
+<h2>Inheritance</h2>
+<div class="grid">
+<div class="card"><h3>Set Inherit</h3>
+<label>Actor</label><input id="i-actor" value="2">
+<label>Subject</label><input id="i-sub">
+<label>Object</label><input id="i-obj" value="1">
+<label>Role</label><input id="i-role">
+<label>Parent</label><input id="i-parent">
+<button onclick="api('inherit',{actor:+$('#i-actor').value,sub:+$('#i-sub').value,obj:+$('#i-obj').value,role:+$('#i-role').value,parent:+$('#i-parent').value})">Inherit</button>
+</div>
+<div class="card"><h3>Remove Inherit</h3>
+<label>Actor</label><input id="ri-actor" value="2">
+<label>Subject</label><input id="ri-sub">
+<label>Object</label><input id="ri-obj" value="1">
+<label>Role</label><input id="ri-role">
+<button class="danger" onclick="api('remove_inherit',{actor:+$('#ri-actor').value,sub:+$('#ri-sub').value,obj:+$('#ri-obj').value,role:+$('#ri-role').value})">Remove</button>
+</div>
+<div class="card"><h3>List Inherits (sub+obj)</h3>
+<label>Actor</label><input id="li-actor" value="2">
+<label>Subject</label><input id="li-sub">
+<label>Object</label><input id="li-obj" value="1">
+<button class="list" onclick="api('list_inherits',{actor:+$('#li-actor').value,sub:+$('#li-sub').value,obj:+$('#li-obj').value})">List → (role,parent)</button>
+</div>
+<div class="card"><h3>List Inherits on Object</h3>
+<label>Actor</label><input id="lio-actor" value="2">
+<label>Object</label><input id="lio-obj" value="1">
+<button class="list" onclick="api('list_inherits_on_obj',{actor:+$('#lio-actor').value,obj:+$('#lio-obj').value})">List → (role,parent,sub)</button>
+</div>
+<div class="card"><h3>List Inherits on Obj+Role</h3>
+<label>Actor</label><input id="lior-actor" value="2">
+<label>Object</label><input id="lior-obj" value="1">
+<label>Role</label><input id="lior-role">
+<button class="list" onclick="api('list_inherits_on_obj_role',{actor:+$('#lior-actor').value,obj:+$('#lior-obj').value,role:+$('#lior-role').value})">List → (parent,sub)</button>
+</div>
+<div class="card"><h3>List Inherits from Parent</h3>
+<label>Actor</label><input id="lip-actor" value="2">
+<label>Parent</label><input id="lip-parent">
+<button class="list" onclick="api('list_inherits_from_parent',{actor:+$('#lip-actor').value,parent:+$('#lip-parent').value})">List → (obj,role,sub)</button>
+</div>
+<div class="card"><h3>List Inherits Parent+Obj</h3>
+<label>Actor</label><input id="lipo-actor" value="2">
+<label>Parent</label><input id="lipo-parent">
+<label>Object</label><input id="lipo-obj" value="1">
+<button class="list" onclick="api('list_inherits_from_parent_on_obj',{actor:+$('#lipo-actor').value,parent:+$('#lipo-parent').value,obj:+$('#lipo-obj').value})">List → (role,sub)</button>
 </div>
 </div>
 
 <h2>Check Permissions</h2>
 <div class="grid">
 <div class="card"><h3>Check</h3>
-<label>Subject</label><input id="ch-sub" placeholder="subject id">
-<label>Object</label><input id="ch-obj" value="1" placeholder="object id">
-<label>Required (hex ok)</label><input id="ch-req" placeholder="e.g. 0x4000 for GRANT">
+<label>Subject</label><input id="ch-sub">
+<label>Object</label><input id="ch-obj" value="1">
+<label>Required (hex ok)</label><input id="ch-req" placeholder="0x4000">
 <button onclick="api('check',{sub:+$('#ch-sub').value,obj:+$('#ch-obj').value,req:pm($('#ch-req').value)})">Check</button>
 </div>
 <div class="card"><h3>Get Mask</h3>
-<label>Subject</label><input id="gm-sub" placeholder="subject id">
-<label>Object</label><input id="gm-obj" value="1" placeholder="object id">
+<label>Subject</label><input id="gm-sub">
+<label>Object</label><input id="gm-obj" value="1">
 <button onclick="api('get_mask',{sub:+$('#gm-sub').value,obj:+$('#gm-obj').value})">Get Mask</button>
 </div>
 </div>

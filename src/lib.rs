@@ -53,14 +53,34 @@ const _CHECK_INHERIT: u64 = 1 << 21;
 static KS: OnceLock<Keyspace> = OnceLock::new();
 static OBJECTS: OnceLock<PartitionHandle> = OnceLock::new();
 static SUBJECTS: OnceLock<PartitionHandle> = OnceLock::new();
+static SUBJECTS_REV: OnceLock<PartitionHandle> = OnceLock::new();
 static INHERITS: OnceLock<PartitionHandle> = OnceLock::new();
+static INHERITS_BY_OBJ: OnceLock<PartitionHandle> = OnceLock::new();
+static INHERITS_BY_PARENT: OnceLock<PartitionHandle> = OnceLock::new();
 
+// Key builders
 #[inline] fn key(a: u64, b: u64) -> [u8; 16] { let mut x = [0u8; 16]; x[..8].copy_from_slice(&a.to_be_bytes()); x[8..].copy_from_slice(&b.to_be_bytes()); x }
 #[inline] fn key3(a: u64, b: u64, c: u64) -> [u8; 24] { let mut x = [0u8; 24]; x[..8].copy_from_slice(&a.to_be_bytes()); x[8..16].copy_from_slice(&b.to_be_bytes()); x[16..].copy_from_slice(&c.to_be_bytes()); x }
+#[inline] fn key4(a: u64, b: u64, c: u64, d: u64) -> [u8; 32] { let mut x = [0u8; 32]; x[..8].copy_from_slice(&a.to_be_bytes()); x[8..16].copy_from_slice(&b.to_be_bytes()); x[16..24].copy_from_slice(&c.to_be_bytes()); x[24..].copy_from_slice(&d.to_be_bytes()); x }
+
+// Key/value helpers
+#[inline] fn u64_at(k: &[u8], pos: usize) -> u64 { u64::from_be_bytes(k[pos*8..(pos+1)*8].try_into().unwrap()) }
 #[inline] fn val(v: &[u8]) -> u64 { u64::from_be_bytes(v[..8].try_into().unwrap()) }
+
+// CRUD primitives
 fn get(p: &PartitionHandle, k: &[u8]) -> Result<Option<u64>> { Ok(p.get(k).map_err(err)?.map(|v| val(&v))) }
 fn set(p: &PartitionHandle, k: &[u8], v: u64) -> Result<()> { p.insert(k, &v.to_be_bytes()).map_err(err)?; KS.get().unwrap().persist(fjall::PersistMode::Buffer).map_err(err) }
 fn del(p: &PartitionHandle, k: &[u8]) -> Result<()> { p.remove(k).map_err(err)?; KS.get().unwrap().persist(fjall::PersistMode::Buffer).map_err(err) }
+
+// Generic scan with extractor
+fn scan<T>(p: &PartitionHandle, prefix: &[u8], f: impl Fn(&[u8], &[u8]) -> T) -> Result<Vec<T>> {
+    let mut out = Vec::new();
+    for kv in p.prefix(prefix) {
+        let (k, v) = kv.map_err(err)?;
+        out.push(f(&k, &v));
+    }
+    Ok(out)
+}
 
 pub fn init(path: &str) -> Result<()> {
     if KS.get().is_some() { return Ok(()); }
@@ -69,7 +89,11 @@ pub fn init(path: &str) -> Result<()> {
     let o = PartitionCreateOptions::default();
     let _ = (OBJECTS.set(ks.open_partition("objects", o.clone()).map_err(err)?),
              SUBJECTS.set(ks.open_partition("subjects", o.clone()).map_err(err)?),
-             INHERITS.set(ks.open_partition("inherits", o).map_err(err)?), KS.set(ks));
+             SUBJECTS_REV.set(ks.open_partition("subjects_rev", o.clone()).map_err(err)?),
+             INHERITS.set(ks.open_partition("inherits", o.clone()).map_err(err)?),
+             INHERITS_BY_OBJ.set(ks.open_partition("inherits_by_obj", o.clone()).map_err(err)?),
+             INHERITS_BY_PARENT.set(ks.open_partition("inherits_by_parent", o).map_err(err)?),
+             KS.set(ks));
     Ok(())
 }
 
@@ -82,15 +106,18 @@ pub fn get_mask(sub: u64, obj: u64) -> Result<u64> {
     let (sp, op, ip) = (SUBJECTS.get().unwrap(), OBJECTS.get().unwrap(), INHERITS.get().unwrap());
     let (mut mask, mut cur) = (0u64, sub);
     for _ in 0..10 {
-        if let Some(role) = get(sp, &key(cur, obj))? {
+        let mut found = false;
+        for kv in sp.prefix(&key(cur, obj)) {
+            let (k, _) = kv.map_err(err)?;
+            let role = u64_at(&k, 2);
             mask |= get(op, &key(obj, role))?.unwrap_or(role);
-            match get(ip, &key3(cur, obj, role))? {
-                Some(p) => cur = p,
-                None => break
+            found = true;
+            if let Some(p) = get(ip, &key3(cur, obj, role))? {
+                cur = p;
+                break;
             }
-        } else {
-            break
         }
+        if !found { break; }
     }
     Ok(mask)
 }
@@ -124,36 +151,62 @@ pub fn check_object(actor: u64, obj: u64, role: u64) -> Result<bool> {
     Ok(get(OBJECTS.get().unwrap(), &key(obj, role))?.is_some())
 }
 
-// SUBJECTS table
+pub fn list_roles(actor: u64, obj: u64) -> Result<Vec<(u64, u64)>> {
+    auth(actor, obj, _GET_ROLE | _GET_MASK)?;
+    scan(OBJECTS.get().unwrap(), &obj.to_be_bytes(), |k, v| (u64_at(k, 1), val(v)))
+}
+
+// SUBJECTS table - (subject, object, role) with reverse index (object, subject, role)
 pub fn grant(actor: u64, sub: u64, obj: u64, role: u64) -> Result<()> {
     auth(actor, obj, _GRANT)?;
-    set(SUBJECTS.get().unwrap(), &key(sub, obj), role)
+    set(SUBJECTS.get().unwrap(), &key3(sub, obj, role), 1)?;
+    set(SUBJECTS_REV.get().unwrap(), &key3(obj, sub, role), 1)
 }
 
-pub fn revoke(actor: u64, sub: u64, obj: u64) -> Result<()> {
+pub fn revoke(actor: u64, sub: u64, obj: u64, role: u64) -> Result<()> {
     auth(actor, obj, _REVOKE)?;
-    del(SUBJECTS.get().unwrap(), &key(sub, obj))
-}
-
-pub fn get_subject(actor: u64, sub: u64, obj: u64) -> Result<Option<u64>> {
-    auth(actor, obj, _GET_GRANT)?;
-    get(SUBJECTS.get().unwrap(), &key(sub, obj))
+    del(SUBJECTS.get().unwrap(), &key3(sub, obj, role))?;
+    del(SUBJECTS_REV.get().unwrap(), &key3(obj, sub, role))
 }
 
 pub fn check_subject(sub: u64, obj: u64, role: u64) -> Result<bool> {
-    Ok(get(SUBJECTS.get().unwrap(), &key(sub, obj))? == Some(role))
+    Ok(get(SUBJECTS.get().unwrap(), &key3(sub, obj, role))?.is_some())
 }
 
-// INHERITS table
+pub fn list_roles_for(actor: u64, sub: u64, obj: u64) -> Result<Vec<u64>> {
+    auth(actor, obj, _GET_GRANT)?;
+    scan(SUBJECTS.get().unwrap(), &key(sub, obj), |k, _| u64_at(k, 2))
+}
+
+pub fn list_grants(actor: u64, sub: u64) -> Result<Vec<(u64, u64)>> {
+    auth(actor, _SYSTEM, _GET_GRANT)?;
+    scan(SUBJECTS.get().unwrap(), &sub.to_be_bytes(), |k, _| (u64_at(k, 1), u64_at(k, 2)))
+}
+
+pub fn list_subjects(actor: u64, obj: u64) -> Result<Vec<(u64, u64)>> {
+    auth(actor, obj, _GET_GRANT)?;
+    scan(SUBJECTS_REV.get().unwrap(), &obj.to_be_bytes(), |k, _| (u64_at(k, 1), u64_at(k, 2)))
+}
+
+// INHERITS table - (subject, object, role) → parent with reverse indexes
 pub fn inherit(actor: u64, sub: u64, obj: u64, role: u64, parent: u64) -> Result<()> {
     auth(actor, obj, _SET_INHERIT)?;
     if sub == parent { return Err(Error("Self".into())); }
-    set(INHERITS.get().unwrap(), &key3(sub, obj, role), parent)
+    set(INHERITS.get().unwrap(), &key3(sub, obj, role), parent)?;
+    set(INHERITS_BY_OBJ.get().unwrap(), &key4(obj, role, parent, sub), 1)?;
+    set(INHERITS_BY_PARENT.get().unwrap(), &key4(parent, obj, role, sub), 1)
 }
 
 pub fn remove_inherit(actor: u64, sub: u64, obj: u64, role: u64) -> Result<()> {
     auth(actor, obj, _REMOVE_INHERIT)?;
-    del(INHERITS.get().unwrap(), &key3(sub, obj, role))
+    // Get the parent first so we can delete reverse indexes
+    if let Some(parent) = get(INHERITS.get().unwrap(), &key3(sub, obj, role))? {
+        del(INHERITS.get().unwrap(), &key3(sub, obj, role))?;
+        del(INHERITS_BY_OBJ.get().unwrap(), &key4(obj, role, parent, sub))?;
+        del(INHERITS_BY_PARENT.get().unwrap(), &key4(parent, obj, role, sub))
+    } else {
+        Ok(())
+    }
 }
 
 pub fn get_inherit(actor: u64, sub: u64, obj: u64, role: u64) -> Result<Option<u64>> {
@@ -166,23 +219,49 @@ pub fn check_inherit(actor: u64, sub: u64, obj: u64, role: u64) -> Result<bool> 
     Ok(get(INHERITS.get().unwrap(), &key3(sub, obj, role))?.is_some())
 }
 
+pub fn list_inherits(actor: u64, sub: u64, obj: u64) -> Result<Vec<(u64, u64)>> {
+    auth(actor, obj, _GET_INHERIT)?;
+    scan(INHERITS.get().unwrap(), &key(sub, obj), |k, v| (u64_at(k, 2), val(v)))
+}
+
+pub fn list_inherits_on_obj(actor: u64, obj: u64) -> Result<Vec<(u64, u64, u64)>> {
+    auth(actor, obj, _GET_INHERIT)?;
+    scan(INHERITS_BY_OBJ.get().unwrap(), &obj.to_be_bytes(), |k, _| (u64_at(k, 1), u64_at(k, 2), u64_at(k, 3)))
+}
+
+pub fn list_inherits_on_obj_role(actor: u64, obj: u64, role: u64) -> Result<Vec<(u64, u64)>> {
+    auth(actor, obj, _GET_INHERIT)?;
+    scan(INHERITS_BY_OBJ.get().unwrap(), &key(obj, role), |k, _| (u64_at(k, 2), u64_at(k, 3)))
+}
+
+pub fn list_inherits_from_parent(actor: u64, parent: u64) -> Result<Vec<(u64, u64, u64)>> {
+    auth(actor, _SYSTEM, _GET_INHERIT)?;
+    scan(INHERITS_BY_PARENT.get().unwrap(), &parent.to_be_bytes(), |k, _| (u64_at(k, 1), u64_at(k, 2), u64_at(k, 3)))
+}
+
+pub fn list_inherits_from_parent_on_obj(actor: u64, parent: u64, obj: u64) -> Result<Vec<(u64, u64)>> {
+    auth(actor, obj, _GET_INHERIT)?;
+    scan(INHERITS_BY_PARENT.get().unwrap(), &key(parent, obj), |k, _| (u64_at(k, 2), u64_at(k, 3)))
+}
+
 // Bootstrap
 pub fn bootstrap() -> Result<(u64, u64)> {
     let obj = OBJECTS.get().unwrap();
     if get(obj, &key(_SYSTEM, _OWNER))?.is_some() {
         return Err(Error("Already bootstrapped".into()));
     }
-    let sub = SUBJECTS.get().unwrap();
     set(obj, &key(_SYSTEM, _OWNER), ALL_BITS)?;
     set(obj, &key(_SYSTEM, _ADMIN), ADMIN_BITS)?;
     set(obj, &key(_SYSTEM, _EDITOR), EDITOR_BITS)?;
     set(obj, &key(_SYSTEM, _VIEWER), VIEWER_BITS)?;
-    set(sub, &key(_ROOT, _SYSTEM), _OWNER)?;
+    set(SUBJECTS.get().unwrap(), &key3(_ROOT, _SYSTEM, _OWNER), 1)?;
+    set(SUBJECTS_REV.get().unwrap(), &key3(_SYSTEM, _ROOT, _OWNER), 1)?;
     Ok((_SYSTEM, _ROOT))
 }
 
 pub fn clear() -> Result<()> {
-    for p in [OBJECTS.get().unwrap(), SUBJECTS.get().unwrap(), INHERITS.get().unwrap()] {
+    for p in [OBJECTS.get().unwrap(), SUBJECTS.get().unwrap(), SUBJECTS_REV.get().unwrap(),
+              INHERITS.get().unwrap(), INHERITS_BY_OBJ.get().unwrap(), INHERITS_BY_PARENT.get().unwrap()] {
         for kv in p.prefix(&[]) { p.remove(&*kv.map_err(err)?.0).map_err(err)?; }
     }
     KS.get().unwrap().persist(fjall::PersistMode::Buffer).map_err(err)

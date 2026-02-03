@@ -63,12 +63,14 @@ Zanzibar's limitation: schema is not atomized - must parse to query.
 Relationships atomized. Semantics atomized. Independent tuples.
 
 ```
-Relationships (atomized):
-  SUBJECTS[(alice, doc:100)] → EDITOR
-  SUBJECTS[(bob, doc:100)] → VIEWER
+Relationships (atomized, multi-role):
+  SUBJECTS[(alice, doc:100, EDITOR)] → 1
+  SUBJECTS[(alice, doc:100, COMMENTER)] → 1   // alice has two roles
+  SUBJECTS[(bob, doc:100, VIEWER)] → 1
 
 Semantics (atomized):
   OBJECTS[(doc:100, EDITOR)] → READ|WRITE|DELETE
+  OBJECTS[(doc:100, COMMENTER)] → READ|COMMENT
   OBJECTS[(doc:100, VIEWER)] → READ
 
 Inheritance (atomized, role-specific):
@@ -76,7 +78,7 @@ Inheritance (atomized, role-specific):
 ```
 
 Capbit's delta: semantics are atomized data, not schema blob.
-To resolve: two tuple lookups. No schema parsing.
+To resolve: prefix scan + mask lookups. No schema parsing.
 
 ## Why It Matters
 
@@ -103,14 +105,17 @@ OBJECTS.get(doc_100, EDITOR)  // → READ|WRITE
 ## Data Structure
 
 ```
-SUBJECTS: (subject, object) → role           // relationship tuple
-OBJECTS:  (object, role) → mask              // semantic tuple
-INHERITS: (subject, object, role) → parent   // role-specific inheritance
+SUBJECTS:           (subject, object, role) → 1        // grant tuple (multiple roles per subject+object)
+SUBJECTS_REV:       (object, subject, role) → 1        // reverse index
+OBJECTS:            (object, role) → mask              // semantic tuple
+INHERITS:           (subject, object, role) → parent   // role-specific inheritance
+INHERITS_BY_OBJ:    (object, role, parent, subject) → 1   // reverse index
+INHERITS_BY_PARENT: (parent, object, role, subject) → 1   // reverse index
 ```
 
-Three independent tuples. Each queryable on its own.
+Six partitions with reverse indexes for efficient queries in both directions.
 
-Inheritance is role-specific: a subject can inherit from different parents for different roles on the same object.
+A subject can have multiple roles on an object. Inheritance is role-specific.
 
 Implementable with any btree-based database (LMDB, RocksDB, LSM trees).
 
@@ -119,12 +124,12 @@ Implementable with any btree-based database (LMDB, RocksDB, LSM trees).
 ```
 check(alice, doc:100, WRITE):
 
-1. SUBJECTS.get(alice, doc:100) → EDITOR         // relationship lookup
-2. OBJECTS.get(doc:100, EDITOR) → READ|WRITE     // semantic lookup
-3. (READ|WRITE) & WRITE == WRITE                 // bitmask check
+1. SUBJECTS.prefix(alice, doc:100) → [EDITOR, COMMENTER]  // all roles for alice
+2. for each role: mask |= OBJECTS.get(doc:100, role)      // accumulate masks
+3. mask & WRITE == WRITE                                   // bitmask check
 ```
 
-Two tuple lookups. No schema parsing, no rule evaluation.
+Prefix scan + mask lookups. No schema parsing, no rule evaluation.
 
 With inheritance:
 
@@ -132,13 +137,12 @@ With inheritance:
 current = alice
 mask = 0
 loop (max 10):
-  role = SUBJECTS.get(current, doc:100)
-  if role:
+  for role in SUBJECTS.prefix(current, doc:100):
     mask |= OBJECTS.get(doc:100, role)
-    parent = INHERITS.get(current, doc:100, role)  // role-specific inheritance
-    if parent: current = parent
-    else: break
-  else: break
+    if parent = INHERITS.get(current, doc:100, role):
+      current = parent
+      break
+  else: break  // no roles found
 return mask & WRITE == WRITE
 ```
 
@@ -167,11 +171,15 @@ init("data_path")?;
 // Bootstrap
 let (system, root) = bootstrap()?;
 
-// SUBJECTS table (grants)
+// SUBJECTS table (grants) - subject can have multiple roles on object
 grant(actor, subject, object, role)?;
-revoke(actor, subject, object)?;
-get_subject(actor, subject, object)?;
+revoke(actor, subject, object, role)?;          // removes specific role
 check_subject(subject, object, role)?;
+
+// SUBJECTS list queries
+list_roles_for(actor, subject, object)?;        // → Vec<role>
+list_grants(actor, subject)?;                   // → Vec<(object, role)>
+list_subjects(actor, object)?;                  // → Vec<(subject, role)>
 
 // OBJECTS table (role definitions)
 create(actor, object, role, mask)?;
@@ -179,6 +187,7 @@ update(actor, object, role, mask)?;
 delete(actor, object, role)?;
 get_object(actor, object, role)?;
 check_object(actor, object, role)?;
+list_roles(actor, object)?;                     // → Vec<(role, mask)>
 
 // INHERITS table (role-specific inheritance)
 inherit(actor, subject, object, role, parent)?;
@@ -186,9 +195,19 @@ remove_inherit(actor, subject, object, role)?;
 get_inherit(actor, subject, object, role)?;
 check_inherit(actor, subject, object, role)?;
 
+// INHERITS list queries
+list_inherits(actor, subject, object)?;                    // → Vec<(role, parent)>
+list_inherits_on_obj(actor, object)?;                      // → Vec<(role, parent, subject)>
+list_inherits_on_obj_role(actor, object, role)?;           // → Vec<(parent, subject)>
+list_inherits_from_parent(actor, parent)?;                 // → Vec<(object, role, subject)>
+list_inherits_from_parent_on_obj(actor, parent, object)?;  // → Vec<(role, subject)>
+
 // Resolution (no actor required)
 check(subject, object, required)?;
 get_mask(subject, object)?;
+
+// Utility
+clear()?;
 ```
 
 ## License

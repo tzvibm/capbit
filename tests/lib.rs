@@ -24,7 +24,7 @@ fn setup() -> (u64, u64) {
     assert!(check_subject(10, sys, _VIEWER).unwrap());
     assert!(check(10, sys, VIEWER_BITS).unwrap());
     assert!(!check(10, sys, ALL_BITS).unwrap());
-    revoke(root, 10, sys).unwrap();
+    revoke(root, 10, sys, _VIEWER).unwrap();
     assert!(!check_subject(10, sys, _VIEWER).unwrap());
 }
 
