@@ -1,0 +1,2 @@
+[alias]
+t = "test --release -- --test-threads=1 --nocapture"
