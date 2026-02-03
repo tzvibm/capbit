@@ -1,22 +1,33 @@
 [package]
 name = "capbit"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "Minimal capability-based access control with u64 IDs and bitmask permissions"
 license = "LicenseRef-CNCOSL"
 repository = "https://github.com/tzvibm/capbit"
-keywords = ["access-control", "authorization", "permissions", "capabilities", "lmdb"]
+keywords = ["access-control", "authorization", "permissions", "capabilities", "fjall"]
 categories = ["authentication", "database"]
 
 [lib]
 crate-type = ["rlib"]
 
 [dependencies]
-heed = "0.20"
+fjall = "2"
 byteorder = "1.5"
+axum = { version = "0.7", optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"], optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
+
+[features]
+ui = ["axum", "tokio", "serde", "serde_json"]
+
+[[bin]]
+name = "ui"
+required-features = ["ui"]
 
 [profile.release]
 lto = true

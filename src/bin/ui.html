@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Capbit</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:14px/1.4 system-ui;background:#111;color:#eee;padding:20px;max-width:900px;margin:0 auto}
+h1{font-size:1.5em;margin-bottom:20px;color:#fff}
+h2{font-size:1em;margin:15px 0 10px;color:#888;border-bottom:1px solid #333;padding-bottom:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:15px}
+.card h3{font-size:.9em;color:#4a9eff;margin-bottom:10px}
+label{display:block;font-size:.75em;color:#666;margin:8px 0 2px}
+input{width:100%;padding:8px;background:#222;border:1px solid #444;border-radius:4px;color:#fff;font-size:13px}
+input:focus{outline:none;border-color:#4a9eff}
+button{width:100%;padding:10px;margin-top:12px;background:#4a9eff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:600}
+button:hover{background:#3a8eef}
+button.danger{background:#c44}
+button.danger:hover{background:#b33}
+#log{background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:15px;margin-top:20px;max-height:300px;overflow-y:auto;font-family:monospace;font-size:12px}
+.log-ok{color:#4c4}
+.log-err{color:#c44}
+.constants{font-size:.75em;color:#666;margin-bottom:15px;line-height:1.8}
+.constants code{background:#222;padding:2px 6px;border-radius:3px;color:#888}
+</style>
+</head><body>
+<h1>Capbit Test UI</h1>
+<div class="constants">
+<code>_SYSTEM=1</code> <code>_ROOT=2</code> <code>_OWNER=1</code> <code>_ADMIN=2</code> <code>_EDITOR=3</code> <code>_VIEWER=4</code><br>
+<code>ALL_BITS=0x3FFFFF</code> <code>ADMIN_BITS=0x3FCFCF</code> <code>EDITOR_BITS=0x366</code> <code>VIEWER_BITS=0x318</code>
+</div>
+
+<h2>System</h2>
+<div class="grid">
+<div class="card"><h3>Bootstrap</h3><button onclick="api('bootstrap',{})">Bootstrap</button></div>
+<div class="card"><h3>Clear All</h3><button class="danger" onclick="api('clear',{})">Clear</button></div>
+</div>
+
+<h2>Subjects (Grants)</h2>
+<div class="grid">
+<div class="card"><h3>Grant Role</h3>
+<label>Actor</label><input id="g-actor" value="2" placeholder="actor id">
+<label>Subject</label><input id="g-sub" placeholder="subject id">
+<label>Object</label><input id="g-obj" value="1" placeholder="object id">
+<label>Role</label><input id="g-role" placeholder="role id (1-4)">
+<button onclick="api('grant',{actor:+$('#g-actor').value,sub:+$('#g-sub').value,obj:+$('#g-obj').value,role:+$('#g-role').value})">Grant</button>
+</div>
+<div class="card"><h3>Revoke</h3>
+<label>Actor</label><input id="r-actor" value="2" placeholder="actor id">
+<label>Subject</label><input id="r-sub" placeholder="subject id">
+<label>Object</label><input id="r-obj" value="1" placeholder="object id">
+<button onclick="api('revoke',{actor:+$('#r-actor').value,sub:+$('#r-sub').value,obj:+$('#r-obj').value})">Revoke</button>
+</div>
+</div>
+
+<h2>Objects (Roles)</h2>
+<div class="grid">
+<div class="card"><h3>Create Role</h3>
+<label>Actor</label><input id="c-actor" value="2" placeholder="actor id">
+<label>Object</label><input id="c-obj" placeholder="object id">
+<label>Role ID</label><input id="c-role" placeholder="new role id">
+<label>Mask (hex ok)</label><input id="c-mask" placeholder="e.g. 0x3FFFFF">
+<button onclick="api('create',{actor:+$('#c-actor').value,obj:+$('#c-obj').value,role:+$('#c-role').value,mask:pm($('#c-mask').value)})">Create</button>
+</div>
+<div class="card"><h3>Update Role</h3>
+<label>Actor</label><input id="u-actor" value="2" placeholder="actor id">
+<label>Object</label><input id="u-obj" placeholder="object id">
+<label>Role ID</label><input id="u-role" placeholder="role id">
+<label>Mask (hex ok)</label><input id="u-mask" placeholder="e.g. 0x3FFFFF">
+<button onclick="api('update',{actor:+$('#u-actor').value,obj:+$('#u-obj').value,role:+$('#u-role').value,mask:pm($('#u-mask').value)})">Update</button>
+</div>
+<div class="card"><h3>Delete Role</h3>
+<label>Actor</label><input id="d-actor" value="2" placeholder="actor id">
+<label>Object</label><input id="d-obj" placeholder="object id">
+<label>Role ID</label><input id="d-role" placeholder="role id">
+<button class="danger" onclick="api('delete',{actor:+$('#d-actor').value,obj:+$('#d-obj').value,role:+$('#d-role').value})">Delete</button>
+</div>
+</div>
+
+<h2>Check Permissions</h2>
+<div class="grid">
+<div class="card"><h3>Check</h3>
+<label>Subject</label><input id="ch-sub" placeholder="subject id">
+<label>Object</label><input id="ch-obj" value="1" placeholder="object id">
+<label>Required (hex ok)</label><input id="ch-req" placeholder="e.g. 0x4000 for GRANT">
+<button onclick="api('check',{sub:+$('#ch-sub').value,obj:+$('#ch-obj').value,req:pm($('#ch-req').value)})">Check</button>
+</div>
+<div class="card"><h3>Get Mask</h3>
+<label>Subject</label><input id="gm-sub" placeholder="subject id">
+<label>Object</label><input id="gm-obj" value="1" placeholder="object id">
+<button onclick="api('get_mask',{sub:+$('#gm-sub').value,obj:+$('#gm-obj').value})">Get Mask</button>
+</div>
+</div>
+
+<div id="log"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const pm=v=>v.startsWith('0x')?parseInt(v,16):+v;
+const log=(ok,msg)=>{const d=document.createElement('div');d.className=ok?'log-ok':'log-err';d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;$('#log').prepend(d)};
+async function api(ep,body){
+  try{const r=await fetch('/api/'+ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json();log(j.ok,`${ep}: ${j.msg}`);}catch(e){log(false,e.message);}
+}
+</script>
+</body></html>

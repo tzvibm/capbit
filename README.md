@@ -64,15 +64,15 @@ Relationships atomized. Semantics atomized. Independent tuples.
 
 ```
 Relationships (atomized):
-  grants[(alice, doc:100)] → EDITOR
-  grants[(bob, doc:100)] → VIEWER
+  SUBJECTS[(alice, doc:100)] → EDITOR
+  SUBJECTS[(bob, doc:100)] → VIEWER
 
 Semantics (atomized):
-  roles[(doc:100, EDITOR)] → READ|WRITE|DELETE
-  roles[(doc:100, VIEWER)] → READ
+  OBJECTS[(doc:100, EDITOR)] → READ|WRITE|DELETE
+  OBJECTS[(doc:100, VIEWER)] → READ
 
-Inheritance (atomized):
-  inherit[(doc:100, alice)] → admin_group
+Inheritance (atomized, role-specific):
+  INHERITS[(alice, doc:100, EDITOR)] → admin_group
 ```
 
 Capbit's delta: semantics are atomized data, not schema blob.
@@ -89,26 +89,28 @@ To resolve: two tuple lookups. No schema parsing.
 
 ```rust
 // Query: "What does EDITOR mean on doc:100?"
-roles.get(doc_100, EDITOR)  // O(1) - it's just a tuple
+OBJECTS.get(doc_100, EDITOR)  // O(1) - it's just a tuple
 
 // Mutate: "Make EDITOR read-only on doc:100"
-roles.put(doc_100, EDITOR, READ)  // O(1) - just write a tuple
+OBJECTS.put(doc_100, EDITOR, READ)  // O(1) - just write a tuple
 
 // Explain: "Why can alice write to doc:100?"
-grants.get(alice, doc_100)  // → EDITOR
-roles.get(doc_100, EDITOR)  // → READ|WRITE
+SUBJECTS.get(alice, doc_100)  // → EDITOR
+OBJECTS.get(doc_100, EDITOR)  // → READ|WRITE
 // Two tuple lookups. No schema needed.
 ```
 
 ## Data Structure
 
 ```
-grants:   (subject, object) → role          // relationship tuple
-roles:    (object, role) → mask             // semantic tuple
-inherit:  (object, child) → parent          // inheritance tuple
+SUBJECTS: (subject, object) → role           // relationship tuple
+OBJECTS:  (object, role) → mask              // semantic tuple
+INHERITS: (subject, object, role) → parent   // role-specific inheritance
 ```
 
 Three independent tuples. Each queryable on its own.
+
+Inheritance is role-specific: a subject can inherit from different parents for different roles on the same object.
 
 Implementable with any btree-based database (LMDB, RocksDB, LSM trees).
 
@@ -117,9 +119,9 @@ Implementable with any btree-based database (LMDB, RocksDB, LSM trees).
 ```
 check(alice, doc:100, WRITE):
 
-1. grants.get(alice, doc:100) → EDITOR           // relationship lookup
-2. roles.get(doc:100, EDITOR) → READ|WRITE     // semantic lookup
-3. (READ|WRITE) & WRITE == WRITE               // bitmask check
+1. SUBJECTS.get(alice, doc:100) → EDITOR         // relationship lookup
+2. OBJECTS.get(doc:100, EDITOR) → READ|WRITE     // semantic lookup
+3. (READ|WRITE) & WRITE == WRITE                 // bitmask check
 ```
 
 Two tuple lookups. No schema parsing, no rule evaluation.
@@ -129,11 +131,13 @@ With inheritance:
 ```
 current = alice
 mask = 0
-loop:
-  role = grants.get(current, doc:100)
-  if role: mask |= roles.get(doc:100, role)
-  parent = inherit.get(doc:100, current)  // does current inherit from someone on this object?
-  if parent: current = parent             // walk up the inheritance chain
+loop (max 10):
+  role = SUBJECTS.get(current, doc:100)
+  if role:
+    mask |= OBJECTS.get(doc:100, role)
+    parent = INHERITS.get(current, doc:100, role)  // role-specific inheritance
+    if parent: current = parent
+    else: break
   else: break
 return mask & WRITE == WRITE
 ```
@@ -147,7 +151,7 @@ Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema
 fn create_document(actor, doc_id) {
     let template = get_type_template("document");
     for (role, mask) in template.roles {
-        set_role(actor, doc_id, role, mask)?;
+        create(actor, doc_id, role, mask)?;
     }
 }
 ```
@@ -157,22 +161,34 @@ Central governance, shared semantics, type enforcement - all buildable with simp
 ## API
 
 ```rust
+// Initialize
+init("data_path")?;
+
 // Bootstrap
 let (system, root) = bootstrap()?;
 
-// Relationship tuples
+// SUBJECTS table (grants)
 grant(actor, subject, object, role)?;
 revoke(actor, subject, object)?;
+get_subject(actor, subject, object)?;
+check_subject(subject, object, role)?;
 
-// Semantic tuples
-set_role(actor, object, role, mask)?;
+// OBJECTS table (role definitions)
+create(actor, object, role, mask)?;
+update(actor, object, role, mask)?;
+delete(actor, object, role)?;
+get_object(actor, object, role)?;
+check_object(actor, object, role)?;
 
-// Check
+// INHERITS table (role-specific inheritance)
+inherit(actor, subject, object, role, parent)?;
+remove_inherit(actor, subject, object, role)?;
+get_inherit(actor, subject, object, role)?;
+check_inherit(actor, subject, object, role)?;
+
+// Resolution (no actor required)
 check(subject, object, required)?;
 get_mask(subject, object)?;
-
-// Inheritance tuples
-set_inherit(actor, object, child, parent)?;
 ```
 
 ## License
