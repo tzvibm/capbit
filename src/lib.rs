@@ -68,9 +68,18 @@ static INHERITS_BY_PARENT: OnceLock<PartitionHandle> = OnceLock::new();
 #[inline] fn val(v: &[u8]) -> u64 { u64::from_be_bytes(v[..8].try_into().unwrap()) }
 
 // CRUD primitives
+fn ks() -> &'static Keyspace { KS.get().unwrap() }
 fn get(p: &PartitionHandle, k: &[u8]) -> Result<Option<u64>> { Ok(p.get(k).map_err(err)?.map(|v| val(&v))) }
-fn set(p: &PartitionHandle, k: &[u8], v: u64) -> Result<()> { p.insert(k, &v.to_be_bytes()).map_err(err)?; KS.get().unwrap().persist(fjall::PersistMode::Buffer).map_err(err) }
-fn del(p: &PartitionHandle, k: &[u8]) -> Result<()> { p.remove(k).map_err(err)?; KS.get().unwrap().persist(fjall::PersistMode::Buffer).map_err(err) }
+fn set(p: &PartitionHandle, k: &[u8], v: u64) -> Result<()> { p.insert(k, &v.to_be_bytes()).map_err(err)?; ks().persist(fjall::PersistMode::Buffer).map_err(err) }
+fn del(p: &PartitionHandle, k: &[u8]) -> Result<()> { p.remove(k).map_err(err)?; ks().persist(fjall::PersistMode::Buffer).map_err(err) }
+
+// Transaction helper for atomic multi-partition writes
+fn transact(f: impl FnOnce(&mut fjall::Batch)) -> Result<()> {
+    let mut batch = ks().batch();
+    f(&mut batch);
+    batch.commit().map_err(err)?;
+    ks().persist(fjall::PersistMode::Buffer).map_err(err)
+}
 
 // Generic scan with extractor
 fn scan<T>(p: &PartitionHandle, prefix: &[u8], f: impl Fn(&[u8], &[u8]) -> T) -> Result<Vec<T>> {
@@ -159,14 +168,18 @@ pub fn list_roles(actor: u64, obj: u64) -> Result<Vec<(u64, u64)>> {
 // SUBJECTS table - (subject, object, role) with reverse index (object, subject, role)
 pub fn grant(actor: u64, sub: u64, obj: u64, role: u64) -> Result<()> {
     auth(actor, obj, _GRANT)?;
-    set(SUBJECTS.get().unwrap(), &key3(sub, obj, role), 1)?;
-    set(SUBJECTS_REV.get().unwrap(), &key3(obj, sub, role), 1)
+    transact(|b| {
+        b.insert(SUBJECTS.get().unwrap(), &key3(sub, obj, role), &1u64.to_be_bytes());
+        b.insert(SUBJECTS_REV.get().unwrap(), &key3(obj, sub, role), &1u64.to_be_bytes());
+    })
 }
 
 pub fn revoke(actor: u64, sub: u64, obj: u64, role: u64) -> Result<()> {
     auth(actor, obj, _REVOKE)?;
-    del(SUBJECTS.get().unwrap(), &key3(sub, obj, role))?;
-    del(SUBJECTS_REV.get().unwrap(), &key3(obj, sub, role))
+    transact(|b| {
+        b.remove(SUBJECTS.get().unwrap(), &key3(sub, obj, role));
+        b.remove(SUBJECTS_REV.get().unwrap(), &key3(obj, sub, role));
+    })
 }
 
 pub fn check_subject(sub: u64, obj: u64, role: u64) -> Result<bool> {
@@ -192,18 +205,21 @@ pub fn list_subjects(actor: u64, obj: u64) -> Result<Vec<(u64, u64)>> {
 pub fn inherit(actor: u64, sub: u64, obj: u64, role: u64, parent: u64) -> Result<()> {
     auth(actor, obj, _SET_INHERIT)?;
     if sub == parent { return Err(Error("Self".into())); }
-    set(INHERITS.get().unwrap(), &key3(sub, obj, role), parent)?;
-    set(INHERITS_BY_OBJ.get().unwrap(), &key4(obj, role, parent, sub), 1)?;
-    set(INHERITS_BY_PARENT.get().unwrap(), &key4(parent, obj, role, sub), 1)
+    transact(|b| {
+        b.insert(INHERITS.get().unwrap(), &key3(sub, obj, role), &parent.to_be_bytes());
+        b.insert(INHERITS_BY_OBJ.get().unwrap(), &key4(obj, role, parent, sub), &1u64.to_be_bytes());
+        b.insert(INHERITS_BY_PARENT.get().unwrap(), &key4(parent, obj, role, sub), &1u64.to_be_bytes());
+    })
 }
 
 pub fn remove_inherit(actor: u64, sub: u64, obj: u64, role: u64) -> Result<()> {
     auth(actor, obj, _REMOVE_INHERIT)?;
-    // Get the parent first so we can delete reverse indexes
     if let Some(parent) = get(INHERITS.get().unwrap(), &key3(sub, obj, role))? {
-        del(INHERITS.get().unwrap(), &key3(sub, obj, role))?;
-        del(INHERITS_BY_OBJ.get().unwrap(), &key4(obj, role, parent, sub))?;
-        del(INHERITS_BY_PARENT.get().unwrap(), &key4(parent, obj, role, sub))
+        transact(|b| {
+            b.remove(INHERITS.get().unwrap(), &key3(sub, obj, role));
+            b.remove(INHERITS_BY_OBJ.get().unwrap(), &key4(obj, role, parent, sub));
+            b.remove(INHERITS_BY_PARENT.get().unwrap(), &key4(parent, obj, role, sub));
+        })
     } else {
         Ok(())
     }
@@ -250,12 +266,14 @@ pub fn bootstrap() -> Result<(u64, u64)> {
     if get(obj, &key(_SYSTEM, _OWNER))?.is_some() {
         return Err(Error("Already bootstrapped".into()));
     }
-    set(obj, &key(_SYSTEM, _OWNER), ALL_BITS)?;
-    set(obj, &key(_SYSTEM, _ADMIN), ADMIN_BITS)?;
-    set(obj, &key(_SYSTEM, _EDITOR), EDITOR_BITS)?;
-    set(obj, &key(_SYSTEM, _VIEWER), VIEWER_BITS)?;
-    set(SUBJECTS.get().unwrap(), &key3(_ROOT, _SYSTEM, _OWNER), 1)?;
-    set(SUBJECTS_REV.get().unwrap(), &key3(_SYSTEM, _ROOT, _OWNER), 1)?;
+    transact(|b| {
+        b.insert(obj, &key(_SYSTEM, _OWNER), &ALL_BITS.to_be_bytes());
+        b.insert(obj, &key(_SYSTEM, _ADMIN), &ADMIN_BITS.to_be_bytes());
+        b.insert(obj, &key(_SYSTEM, _EDITOR), &EDITOR_BITS.to_be_bytes());
+        b.insert(obj, &key(_SYSTEM, _VIEWER), &VIEWER_BITS.to_be_bytes());
+        b.insert(SUBJECTS.get().unwrap(), &key3(_ROOT, _SYSTEM, _OWNER), &1u64.to_be_bytes());
+        b.insert(SUBJECTS_REV.get().unwrap(), &key3(_SYSTEM, _ROOT, _OWNER), &1u64.to_be_bytes());
+    })?;
     Ok((_SYSTEM, _ROOT))
 }
 
