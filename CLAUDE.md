@@ -21,12 +21,15 @@ Authorization as atomized data. Minimal capability-based access control with u64
 ## Data Structure
 
 ```
-SUBJECTS: (subject, object) → role           // relationship tuple
-OBJECTS:  (object, role) → mask              // semantic tuple
-INHERITS: (subject, object, role) → parent   // role-specific inheritance
+SUBJECTS:           (subject, object, role) → 1        // grant (multi-role per subject+object)
+SUBJECTS_REV:       (object, subject, role) → 1        // reverse index
+OBJECTS:            (object, role) → mask              // semantic tuple
+INHERITS:           (subject, object, role) → parent   // role-specific inheritance
+INHERITS_BY_OBJ:    (object, role, parent, subject) → 1   // reverse index
+INHERITS_BY_PARENT: (parent, object, role, subject) → 1   // reverse index
 ```
 
-Three independent tuples. Each queryable on its own.
+Six partitions. Reverse indexes enable efficient queries in both directions. A subject can have multiple roles on an object. All multi-partition writes use atomic batches.
 
 ## Constants
 
@@ -55,14 +58,12 @@ fn get_mask(subject, object) -> u64 {
     let mut mask = 0;
     let mut current = subject;
     for _ in 0..10 {  // max 10 hops
-        if let Some(role) = SUBJECTS.get(current, object) {
+        for role in SUBJECTS.prefix(current, object) {  // multi-role
             mask |= OBJECTS.get(object, role);
-            match INHERITS.get(current, object, role) {  // role-specific
-                Some(parent) => current = parent,
-                None => break,
+            if let Some(parent) = INHERITS.get(current, object, role) {
+                current = parent;
+                break;
             }
-        } else {
-            break;
         }
     }
     mask
@@ -82,11 +83,15 @@ init("data_path")?;
 // Bootstrap - creates _SYSTEM object with default roles, grants _ROOT owner
 bootstrap() -> Result<(u64, u64)>  // returns (_SYSTEM, _ROOT)
 
-// SUBJECTS table (grants)
-grant(actor, subject, object, role)?;      // requires _GRANT bit
-revoke(actor, subject, object)?;           // requires _REVOKE bit
-get_subject(actor, subject, object)?;      // requires _GET_GRANT bit
+// SUBJECTS table (grants) - subject can have multiple roles on object
+grant(actor, subject, object, role)?;      // requires _GRANT bit (atomic)
+revoke(actor, subject, object, role)?;     // requires _REVOKE bit (atomic)
 check_subject(subject, object, role)?;     // no actor required
+
+// SUBJECTS list queries
+list_roles_for(actor, subject, object)?;   // → Vec<role>
+list_grants(actor, subject)?;              // → Vec<(object, role)>
+list_subjects(actor, object)?;             // → Vec<(subject, role)>
 
 // OBJECTS table (role definitions)
 create(actor, object, role, mask)?;        // requires _CREATE_ROLE | _CREATE_MASK
@@ -94,12 +99,20 @@ update(actor, object, role, mask)?;        // requires _UPDATE_ROLE | _UPDATE_MA
 delete(actor, object, role)?;              // requires _DELETE_ROLE | _DELETE_MASK
 get_object(actor, object, role)?;          // requires _GET_ROLE | _GET_MASK
 check_object(actor, object, role)?;        // requires _CHECK_ROLE | _CHECK_MASK
+list_roles(actor, object)?;                // → Vec<(role, mask)>
 
 // INHERITS table (role-specific inheritance)
-inherit(actor, subject, object, role, parent)?;    // requires _SET_INHERIT
-remove_inherit(actor, subject, object, role)?;     // requires _REMOVE_INHERIT
+inherit(actor, subject, object, role, parent)?;    // requires _SET_INHERIT (atomic)
+remove_inherit(actor, subject, object, role)?;     // requires _REMOVE_INHERIT (atomic)
 get_inherit(actor, subject, object, role)?;        // requires _GET_INHERIT
 check_inherit(actor, subject, object, role)?;      // requires _CHECK_INHERIT
+
+// INHERITS list queries
+list_inherits(actor, subject, object)?;                    // → Vec<(role, parent)>
+list_inherits_on_obj(actor, object)?;                      // → Vec<(role, parent, subject)>
+list_inherits_on_obj_role(actor, object, role)?;           // → Vec<(parent, subject)>
+list_inherits_from_parent(actor, parent)?;                 // → Vec<(object, role, subject)>
+list_inherits_from_parent_on_obj(actor, parent, object)?;  // → Vec<(role, subject)>
 
 // Resolution (no actor required)
 check(subject, object, required) -> Result<bool>
@@ -122,8 +135,10 @@ Opens at http://localhost:3000 - provides forms for all API operations.
 ## Testing
 
 ```bash
-cargo test
+cargo test -- --test-threads=1
 ```
+
+Note: Tests share database state, so must run single-threaded.
 
 ## License
 
