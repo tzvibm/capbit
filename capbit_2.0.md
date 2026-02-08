@@ -16,6 +16,16 @@ Access control reduces to six concerns:
 
 **6. Auditability requires every dimension to be queryable.** "Who has access?", "What policies exist?", "What's mandatory?", "Who inherits from whom?" — every question must be answerable by a prefix scan, not a full table scan or graph walk. Queryable fields belong in keys, not values.
 
+### Inheritance first principles
+
+Inheritance — one entity receiving another entity's relationships — has three concerns of its own:
+
+**Hierarchy.** Inheritance is directional. Entity A inherits from Entity B. Parent-child, not peer-to-peer. This creates a structure between entities on a resource.
+
+**Context.** Inheritance is scoped to a specific context on a specific resource. Alice inherits *editor* on *doc:42* from Bob — not everything Bob has on everything. Blanket inheritance doesn't exist.
+
+**Policy.** The inheritance link carries its own policy, independent of the declaration's policy. A mandatory declaration inherited through a discretionary link produces a discretionary result. The link qualifies the delegation strength. This is the only place a second policy exists in the system.
+
 ### The self-governing recursion
 
 The system as a whole is the first resource. It has actions: create-resource, delete-resource, manage-system. The root entity has relationships to all of those actions, defined by the system resource's policies.
