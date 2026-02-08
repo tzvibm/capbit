@@ -10,7 +10,7 @@ Access control reduces to six concerns:
 
 **3. Entities want to perform actions on resources.** Users, services, agents. These are the actors.
 
-**4. Governance is itself actions on resources.** Defining what actions exist on a resource is itself an action on that resource. Granting a relationship to an entity is itself an action on that resource. Ownership is having all actions, including the meta-actions (grant, revoke, define, delete). There is no separate "admin layer" or "policy engine." The system governs itself through the same mechanism it governs everything else.
+**4. Governance is defining relationships to actions.** The resource declares what relationships can exist on its actions — which entities can perform which actions, under what policy. Granting a relationship, revoking one, defining new contexts — these are themselves actions on the resource, governed by the same relationships. Ownership is having the governance actions (grant, revoke, define, delete). There is no separate "admin layer" or "policy engine." Governance is relationships to actions, all the way down.
 
 **5. Context groups actions under named relationship types with policies.** A resource declares contexts — editor, viewer, denied — each mapping to an action mask and a policy. The context is the resource's way of organizing its actions and saying how strongly each group is governed.
 
@@ -18,9 +18,9 @@ Access control reduces to six concerns:
 
 ### The self-governing recursion
 
-The system as a whole is the first resource. It has actions: create-resource, delete-resource, manage-system. The root entity has all actions on the system resource.
+The system as a whole is the first resource. It has actions: create-resource, delete-resource, manage-system. The root entity has relationships to all of those actions on the system resource.
 
-Creating a new resource is the root entity (or anyone with the create-resource action) exercising an action on the system resource. The new resource then declares its own actions, governed by its own relationships. Granting someone access to that resource is an action on that resource — which requires having the grant action, which is itself governed by the relationship system.
+Creating a new resource is the root entity (or anyone with the create-resource relationship) exercising an action on the system resource. The new resource then declares its own actions and the relationships that can exist on them. Granting someone a relationship to an action on that resource requires having the grant relationship — which is itself defined by the resource.
 
 Bootstrap is: one resource (system) exists, one entity (root) has all actions on it. Everything else follows.
 
@@ -35,7 +35,7 @@ The first principles are simple. Academic models made them complex by starting f
 - **ABAC** made every check an unbounded runtime evaluation of attribute expressions.
 - **RBAC** collapsed relationships into static role assignments, losing the structure entirely.
 
-The domain says: resources have actions, entities have relationships, governance is self-referential, context organizes actions under policies, and everything must be auditable. Capbit 2.0 stores exactly that — with a policy qualifier to express how strongly each fact holds, and every queryable dimension in the key.
+The domain says: resources have actions, entities have relationships to those actions, governance is defining those relationships, context organizes them under policies, and everything must be auditable. Capbit 2.0 stores exactly that — with a policy qualifier to express how strongly each fact holds, and every queryable dimension in the key.
 
 ---
 
