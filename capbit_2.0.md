@@ -10,9 +10,9 @@ Access control reduces to six concerns:
 
 **3. Entities want to perform actions on resources.** Users, services, agents. These are the actors.
 
-**4. Policies define relationships to actions.** The resource declares what relationships can exist on its actions — which entities can perform which actions, under what strength. Granting a relationship, revoking one, defining new contexts — these are themselves actions on the resource, governed by the same policies. Ownership is having the policy actions (grant, revoke, define, delete). There is no separate "admin layer" or "policy engine." Policies are relationships to actions, all the way down.
+**4. Policies define relationships to actions.** The resource declares what relationships can exist on its actions — which entities can perform which actions, under what strength. Granting an entity a role, revoking it, defining new roles — these are themselves actions included in role declarations on the resource. An entity can only grant a role if it holds a role whose action_mask includes the grant action. Ownership means holding a role whose action_mask includes all actions — including the meta-actions (grant, revoke, define, delete). There is no separate "admin layer" or "policy engine." Policies are relationships to actions, all the way down.
 
-**5. Context groups actions under named relationship types with policies.** A resource declares contexts — editor, viewer, denied — each mapping to an action mask and a policy. The context is the resource's way of organizing its actions and saying how strongly each group is governed.
+**5. Roles are named groupings of actions and policies on a resource.** A resource declares roles — editor, viewer, denied — each mapping to an action mask and a policy. A role is a defined type of access to a resource: what you can do and how strongly it's governed.
 
 **6. Auditability requires every dimension to be queryable.** "Who has access?", "What policies exist?", "What's mandatory?", "Who inherits from whom?" — every question must be answerable by a prefix scan, not a full table scan or graph walk. Queryable fields belong in keys, not values.
 
@@ -22,7 +22,7 @@ Inheritance — one entity receiving another entity's relationships — has thre
 
 **Hierarchy.** Inheritance is directional. Entity A inherits from Entity B. Parent-child, not peer-to-peer. This creates a structure between entities on a resource.
 
-**Context.** Inheritance is scoped to a specific context on a specific resource. Alice inherits *editor* on *doc:42* from Bob — not everything Bob has on everything. Blanket inheritance doesn't exist.
+**Role.** Inheritance is scoped to a specific role on a specific resource. Alice inherits *editor* on *doc:42* from Bob — not everything Bob has on everything. Blanket inheritance doesn't exist.
 
 **Policy.** The inheritance link carries its own policy, independent of the declaration's policy. A mandatory declaration inherited through a discretionary link produces a discretionary result. The link qualifies the delegation strength. This is the only place a second policy exists in the system.
 
@@ -30,7 +30,9 @@ Inheritance — one entity receiving another entity's relationships — has thre
 
 The system as a whole is the first resource. It has actions: create-resource, delete-resource, manage-system. The root entity has relationships to all of those actions, defined by the system resource's policies.
 
-Creating a new resource is the root entity (or anyone with the create-resource relationship) exercising an action on the system resource. The new resource then declares its own policies — what actions exist, what relationships can exist on them, and how strongly each is governed. Granting someone a relationship requires having the grant action — which is itself defined by the resource's policies.
+Creating a new resource requires an entity that holds a role on the system resource where that role's declaration includes the create-resource action. Root has the "owner" role on the system resource; the system declares owner with Box policy and an action_mask that includes create-resource. So root can create resources.
+
+The new resource then declares its own roles — what actions each role grants and the policy for each. Granting someone a role on this resource requires an entity that already holds a role on it whose action_mask includes the grant action. The resource's declarations determine who can grant what — it's the same tuple lookup as any other permission check.
 
 Bootstrap is: one resource (system) exists, one entity (root) has all actions on it. Everything else follows.
 
@@ -45,7 +47,7 @@ The first principles are simple. Academic models made them complex by starting f
 - **ABAC** made every check an unbounded runtime evaluation of attribute expressions.
 - **RBAC** collapsed relationships into static role assignments, losing the structure entirely.
 
-The domain says: resources have actions, entities have relationships to those actions, policies define those relationships, context organizes them, and everything must be auditable. Capbit 2.0 stores exactly that — with a policy qualifier to express how strongly each fact holds, and every queryable dimension in the key.
+The domain says: resources have actions, entities have relationships to those actions, policies define those relationships, roles organize them, and everything must be auditable. Capbit 2.0 stores exactly that — with a policy qualifier to express how strongly each fact holds, and every queryable dimension in the key.
 
 ---
 
@@ -110,11 +112,11 @@ Start from first principles: resources have actions, entities have relationships
 Instead of using modal operators as *quantifiers over graph neighbors* (Fong's approach), use them as *qualifiers stored on the resource's declarations*. The operators don't ask "is there a path?" — they state "this resource declares this fact with this strength."
 
 The resource is the sole authority. It declares:
-- What contexts (relationship types) exist on it — including "denied"
-- What actions each context grants (action mask)
-- What policy governs each context (the modal)
+- What roles exist on it — including "denied"
+- What actions each role grants (action mask)
+- What policy governs each role
 
-Entities just have relationships — binary. Either you have the context on the resource or you don't. The resource already declared what that context means and how strongly it's governed.
+Entities just have relationships — binary. Either you have the role on the resource or you don't. The resource already declared what that role means and how strongly it's governed.
 
 The only other place a policy exists is on inheritance links — how strongly one entity's relationship delegates to another.
 
@@ -122,11 +124,11 @@ This sidesteps the graph-topology problems entirely:
 - No Kripke structure to traverse — just indexed tuple lookups
 - No bisimulation barrier — tuples are concrete facts, not graph-indistinguishable structures
 - No formula blowup — counting is a query over stored data, not a formula construction
-- Explicit deny is a resource-declared context type, not inference from absence
+- Explicit deny is a resource-declared role, not inference from absence
 - MAC vs DAC is a policy on the resource's declaration
 - Temporal and environmental conditions are extended policies on the same declaration
 
-The three-tuple model captures everything Fong's ReBAC can express, everything his hybrid logic extension added, and capabilities that neither framework addresses — while staying true to first principles: resources, actions, entities, relationships, self-governance.
+The three-tuple model captures everything Fong's ReBAC can express, everything his hybrid logic extension added, and capabilities that neither framework addresses — while staying true to first principles: resources, actions, entities, policies, roles, auditability.
 
 ---
 
@@ -144,23 +146,23 @@ v0.5 already follows first principles: the system is a resource, ownership is an
 
 ### New (v2.0)
 
-The resource declares contexts (relationship types), actions, and policies together. Relationships are binary. Inheritance carries its own policy. Every queryable field is in the key for prefix scan auditability.
+The resource declares roles (named groupings of actions + policies). Relationships are binary. Inheritance carries its own policy. Every queryable field is in the key for prefix scan auditability.
 
 **Primary partitions:**
 
 ```
-DECLARATIONS:           (resource, context, policy) -> action_mask
-RELATIONSHIPS:          (entity, resource, context) -> 1
-INHERITS:               (entity, resource, context, policy, parent) -> 1
+DECLARATIONS:           (resource, role, policy) -> action_mask
+RELATIONSHIPS:          (entity, resource, role) -> 1
+INHERITS:               (entity, resource, role, policy, parent) -> 1
 ```
 
 **Reverse indexes for auditability:**
 
 ```
-DECLARATIONS_BY_POLICY: (resource, policy, context) -> action_mask
-RELATIONSHIPS_REV:      (resource, context, entity) -> 1
-INHERITS_BY_RESOURCE:   (resource, context, policy, parent, entity) -> 1
-INHERITS_BY_PARENT:     (parent, resource, context, policy, entity) -> 1
+DECLARATIONS_BY_POLICY: (resource, policy, role) -> action_mask
+RELATIONSHIPS_REV:      (resource, role, entity) -> 1
+INHERITS_BY_RESOURCE:   (resource, role, policy, parent, entity) -> 1
+INHERITS_BY_PARENT:     (parent, resource, role, policy, entity) -> 1
 ```
 
 Seven partitions. Every audit question is a prefix scan:
@@ -171,17 +173,17 @@ Seven partitions. Every audit question is a prefix scan:
 - "All Box inheritances on resource X?" — `prefix(resource, *, Box)` on INHERITS_BY_RESOURCE
 
 The three tuples map to first principles:
-- **DECLARATIONS** — the resource declares what contexts exist, what actions they grant, and the policy for each
-- **RELATIONSHIPS** — an entity has a context on a resource. Binary. The resource already declared what that context means.
-- **INHERITS** — an entity inherits a context from another entity, with its own policy qualifying the delegation strength
+- **DECLARATIONS** — the resource declares what roles exist, what actions they grant, and the policy for each
+- **RELATIONSHIPS** — an entity has a role on a resource. Binary. The resource already declared what that role means.
+- **INHERITS** — an entity inherits a role from another entity, with its own policy qualifying the delegation strength
 
-Granting a relationship is itself an action on the resource — "grant" is a bit in the action_mask of a context that includes grant permissions. The system is self-governing.
+Granting a relationship is itself an action on the resource — "grant" is a bit in the action_mask of a role that includes grant permissions. The system is self-governing.
 
-- `role` becomes `context` — the resource-declared relationship type
+- `role` is the resource-declared named grouping of actions + policy
 - `policy` (u16 bitmask) lives on declarations and inheritance only — not on relationships
-- Relationships are binary — the entity has the context or doesn't
+- Relationships are binary — the entity has the role or doesn't
 - `action_mask` (u64 bitmask) is unchanged — capbit keeps bitmask efficiency
-- "Denied" is a context the resource declares with Not policy — deny is resource-centric, not entity-centric
+- "Denied" is a role the resource declares with Not policy — deny is resource-centric, not entity-centric
 
 ---
 
@@ -195,14 +197,14 @@ Not  (deny)        — explicit prohibition, overrides all
 
 ### Where Policies Live
 
-**On declarations — the resource says how strongly each context is governed:**
+**On declarations — the resource says how strongly each role is governed:**
 ```
 (Document1, editor, Box) -> READ|WRITE|COMMENT     editors: mandatory, can rwc
 (Document1, viewer, Diamond) -> READ                viewers: discretionary, can read
 (Document1, denied, Not) -> ALL_ACTIONS             denied: explicit prohibition
 ```
 
-The resource declares three contexts. Each has a policy and an action mask. "Denied" is just another context — with Not policy, it overrides everything.
+The resource declares three roles. Each has a policy and an action mask. "Denied" is just another role — with Not policy, it overrides everything.
 
 **On inheritance — the delegation link carries its own policy:**
 ```
@@ -219,7 +221,7 @@ The resource declares three contexts. Each has a policy and an action mask. "Den
 
 Alice's editor relationship is governed by whatever policy the resource declared for editor (Box). Eve's denied relationship is governed by whatever policy the resource declared for denied (Not). The entity doesn't choose the strength — the resource does.
 
-The distinction between *absence* (no tuple — system has no opinion) and *denial* (entity has "denied" context — system explicitly decided) is preserved. Deny is a context the resource declares, not a flag on a relationship.
+The distinction between *absence* (no tuple — system has no opinion) and *denial* (entity has "denied" role — system explicitly decided) is preserved. Deny is a role the resource declares, not a flag on a relationship.
 
 ---
 
@@ -340,22 +342,22 @@ For inherited access, the inheritance policy can only weaken: a Diamond inherita
 "Does Alice have READ on doc:42?"
 
 ```
-1. Read RELATIONSHIPS(Alice, doc:42, *) -> list of contexts    // prefix scan
-2. For each context, read DECLARATIONS(doc:42, context, *) ->  // key lookup
+1. Read RELATIONSHIPS(Alice, doc:42, *) -> list of roles       // prefix scan
+2. For each role, read DECLARATIONS(doc:42, role, *) ->        // key lookup
    get (policy, action_mask)
 3. Check if any action_mask includes READ
-4. If Not context exists -> deny overrides
+4. If Not role exists -> deny overrides
 ```
 
-**O(contexts) for direct access.** One prefix scan on the entity's relationships, one declaration lookup per context. Typically 1-3 contexts per entity per resource.
+**O(roles) for direct access.** One prefix scan on the entity's relationships, one declaration lookup per role. Typically 1-3 roles per entity per resource.
 
 For inherited access:
 
 ```
 1. Read RELATIONSHIPS(Charlie, doc:42, *) -> miss              // prefix scan
-2. Read INHERITS(Charlie, doc:42, *) -> (context, policy, Alice)  // prefix scan
-3. Read RELATIONSHIPS(Alice, doc:42, context) -> 1             // key lookup
-4. Read DECLARATIONS(doc:42, context, *) -> (decl_policy, mask)   // key lookup
+2. Read INHERITS(Charlie, doc:42, *) -> (role, policy, Alice)     // prefix scan
+3. Read RELATIONSHIPS(Alice, doc:42, role) -> 1                // key lookup
+4. Read DECLARATIONS(doc:42, role, *) -> (decl_policy, mask)      // key lookup
 5. Compose: min(decl_policy, inherit_policy)                   // one min() op
 ```
 
@@ -366,14 +368,14 @@ For inherited access:
 "Who can access doc:42?"
 
 ```
-1. Read DECLARATIONS(doc:42, *) -> all (context, policy, action_mask) entries
-   The resource's declarations tell you what contexts exist and their policies.
-   Not contexts -> collect denied entities separately.
+1. Read DECLARATIONS(doc:42, *) -> all (role, policy, action_mask) entries
+   The resource's declarations tell you what roles exist and their policies.
+   Not roles -> collect denied entities separately.
 
-2. Scan RELATIONSHIPS_REV(doc:42, *) -> all (context, entity) entries
+2. Scan RELATIONSHIPS_REV(doc:42, *) -> all (role, entity) entries
    Direct holders. For each: the declaration's policy IS their policy.
 
-3. Scan INHERITS_BY_RESOURCE(doc:42, *) -> all (context, policy, parent, entity)
+3. Scan INHERITS_BY_RESOURCE(doc:42, *) -> all (role, policy, parent, entity)
    Inherited holders. For each: compose min(decl_policy, inherit_policy).
 ```
 
@@ -383,9 +385,9 @@ Two flat prefix scans. For each result, one declaration lookup. Cost is proporti
 
 The resource's declarations act as a filter before resolution begins:
 
-- **Box declaration:** The context is mandatory. All holders have it at Box strength (direct) or weaker (inherited).
-- **Diamond declaration:** The context is discretionary.
-- **Not declaration:** The context is a deny. Any entity with this context is prohibited — skip further checks.
+- **Box declaration:** The role is mandatory. All holders have it at Box strength (direct) or weaker (inherited).
+- **Diamond declaration:** The role is discretionary.
+- **Not declaration:** The role is a deny. Any entity with this role is prohibited — skip further checks.
 
 The resource tells the resolver what to expect. Every audit question — "who has access?", "what's mandatory?", "who's denied?" — starts from the resource's declarations and fans out through prefix scans on reverse indexes.
 
@@ -512,7 +514,7 @@ Extended modals store parameters in the **value** field. The key contains the u1
 ```
 (Document1, approver, Diamond-geq-3) -> APPROVE
 ```
-Approve permission only activates when at least 3 entities hold the approver context on Document1. The resource declares the quorum — entities just have the relationship or don't.
+Approve permission only activates when at least 3 entities hold the approver role on Document1. The resource declares the quorum — entities just have the relationship or don't.
 
 **On inheritance:**
 ```
@@ -534,21 +536,21 @@ Diamond-geq-1 = Diamond                     at least one = possible
 
 ### And / Or — Conjunction / Disjunction
 
-"Need ALL of these contexts" or "Need ANY of these contexts."
+"Need ALL of these roles" or "Need ANY of these roles."
 
 **Conjunction on declaration:**
 ```
 (Document1, publish, And{editor, reviewer, legal}) -> PUBLISH
 ```
-Publishing requires the entity to hold editor AND reviewer AND legal contexts. System checks RELATIONSHIPS for all three.
+Publishing requires the entity to hold editor AND reviewer AND legal roles. System checks RELATIONSHIPS for all three.
 
 **Disjunction on declaration:**
 ```
 (Document1, access, Or{owner, editor, admin}) -> READ
 ```
-Read access requires owner OR editor OR admin. Any one match suffices.
+Read access requires owner OR editor OR admin role. Any one match suffices.
 
-The resulting modality is the weakest (for And) or strongest (for Or) among matched contexts.
+The resulting modality is the weakest (for And) or strongest (for Or) among matched roles.
 
 **Use cases:**
 - Separation of duties: And{author, reviewer, approver}
@@ -710,8 +712,8 @@ General rule: composition takes the stricter/weaker of the two. Deny always wins
 | Path reachability | Yes | Yes | Schema unions | N/A | Diamond-star / Diamond-leq-n |
 | Counting (at least k) | **No** | Exponential | **No** | **No** | Diamond-geq-k |
 | Named individuals | **No** | @_i nominals | **No** | **No** | At |
-| Conjunction of contexts | In formula | In formula | Schema intersect | Rule combo | And |
-| Disjunction of contexts | In formula | In formula | Schema union | Rule combo | Or |
+| Conjunction of roles | In formula | In formula | Schema intersect | Rule combo | And |
+| Disjunction of roles | In formula | In formula | Schema union | Rule combo | Or |
 | Explicit deny | Formula negation | Formula negation | Exclusion | Deny rule | Not (first-class) |
 | MAC/DAC distinction | **No** | **No** | **No** | Attributes | Box vs Diamond |
 | Temporal constraints | **No** | **No** | Zookies (weak) | Time attrs | Box-until / Diamond-after / Box-during |
@@ -733,11 +735,11 @@ General rule: composition takes the stricter/weaker of the two. Deny always wins
 | Explicit deny | No | Yes (Not) |
 | Conditional/temporary access | No | Yes (Diamond) |
 | MAC/DAC unification | No | Yes (Box vs Diamond) |
-| Multiple delegations per context | No (single parent) | Yes |
+| Multiple delegations per role | No (single parent) | Yes |
 | Policy-qualified delegation | No | Yes |
 | Relationships are binary | No (role encodes strength) | Yes (resource declares strength) |
 | Three-tier permission response | No (binary) | Yes (necessary/possible/denied) |
-| Deny as resource-declared context | No | Yes (Not context type) |
+| Deny as resource-declared role | No | Yes (Not role type) |
 | Quorum/threshold | No | Yes (Diamond-geq-k) |
 | Temporal access | No | Yes (Box-until, Diamond-after, Box-during) |
 | Conditional/environmental | No | Yes (Arrow-condition) |
@@ -762,7 +764,7 @@ General rule: composition takes the stricter/weaker of the two. Deny always wins
 | Exponential formula blowup | Avoided — counting at query layer (Diamond-geq-k) |
 | No MAC/DAC unification | Solved — Box vs Diamond |
 | Single-owner assumption | Solved — tuple multiplicity |
-| RBAC interoperability | Subsumed — RBAC is context assignment + permission lookup |
+| RBAC interoperability | Subsumed — RBAC is role assignment + permission lookup |
 | No temporal semantics | Solved — Box-until, Diamond-after, Box-during |
 | No environmental conditions | Solved — Arrow-condition bridges to ABAC |
 | No compound policies | Solved — compound modal bitmask expressions |
@@ -772,11 +774,11 @@ General rule: composition takes the stricter/weaker of the two. Deny always wins
 
 ## Summary
 
-The domain has six concerns: **resources**, **actions**, **entities**, **governance**, **context**, and **auditability**. Resources exist. Actions can be applied to them. Entities want to perform those actions. Governance — who can grant, revoke, define — is itself actions on resources. Context groups actions under named relationship types with policies. Auditability requires every dimension to be queryable.
+The domain has six concerns: **resources**, **actions**, **entities**, **policies**, **roles**, and **auditability**. Resources exist. Actions can be applied to them. Entities want to perform those actions. Policies define the relationships between entities and actions. Roles are named groupings of actions and policies on a resource. Auditability requires every dimension to be queryable.
 
 Academic models overcomplicated this by starting from formalisms — Kripke structures, schema languages, attribute algebras — and working backward to the problem. Capbit 2.0 starts from first principles and stores exactly what the domain requires.
 
-The resource is the sole authority. It declares contexts (relationship types), the actions each context grants, and the policy governing each — all in one tuple, with policy in the key for prefix-scan auditability. Relationships are binary: an entity has a context on a resource, or doesn't. The only other policy lives on inheritance links, qualifying delegation strength.
+The resource is the sole authority. It declares roles, the actions each role grants, and the policy governing each — all in one tuple, with policy in the key for prefix-scan auditability. Relationships are binary: an entity has a role on a resource, or doesn't. The only other policy lives on inheritance links, qualifying delegation strength.
 
 The core three policies (Box, Diamond, Not) unify MAC, DAC, and deny. Extended policies (Diamond-geq-k, And/Or, Diamond-star/Diamond-leq-n, At, Box-until/Diamond-after/Box-during, Arrow-condition, compound) capture and exceed the expressiveness of Fong's ReBAC, its hybrid logic extension, Zanzibar, and traditional ABAC.
 
