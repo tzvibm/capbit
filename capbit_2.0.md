@@ -2,7 +2,7 @@
 
 ## First Principles
 
-Authorization reduces to five things:
+Access control reduces to six concerns:
 
 **1. Resources exist.** A document, a server, a database, an API endpoint. Anything that actions can be performed on.
 
@@ -10,9 +10,11 @@ Authorization reduces to five things:
 
 **3. Entities want to perform actions on resources.** Users, services, agents. These are the actors.
 
-**4. Relationships connect entities to resources.** An entity has a relationship to a resource that gives them specific actions on it. This is the only authorization primitive.
+**4. Governance is itself actions on resources.** Defining what actions exist on a resource is itself an action on that resource. Granting a relationship to an entity is itself an action on that resource. Ownership is having all actions, including the meta-actions (grant, revoke, define, delete). There is no separate "admin layer" or "policy engine." The system governs itself through the same mechanism it governs everything else.
 
-**5. Everything is an action on a resource — including governance.** Defining what actions exist on a resource is itself an action on that resource. Granting a relationship to an entity is itself an action on that resource. Ownership is having all actions, including the meta-actions (grant, revoke, define, delete). There is no separate "admin layer" or "policy engine." The system governs itself through the same mechanism it governs everything else.
+**5. Context groups actions under named relationship types with policies.** A resource declares contexts — editor, viewer, denied — each mapping to an action mask and a policy. The context is the resource's way of organizing its actions and saying how strongly each group is governed.
+
+**6. Auditability requires every dimension to be queryable.** "Who has access?", "What policies exist?", "What's mandatory?", "Who inherits from whom?" — every question must be answerable by a prefix scan, not a full table scan or graph walk. Queryable fields belong in keys, not values.
 
 ### The self-governing recursion
 
@@ -33,7 +35,7 @@ The first principles are simple. Academic models made them complex by starting f
 - **ABAC** made every check an unbounded runtime evaluation of attribute expressions.
 - **RBAC** collapsed relationships into static role assignments, losing the structure entirely.
 
-The domain says: resources have actions, entities have relationships, governance is self-referential. Capbit 2.0 stores exactly that — with a modal qualifier to express how strongly each fact holds.
+The domain says: resources have actions, entities have relationships, governance is self-referential, context organizes actions under policies, and everything must be auditable. Capbit 2.0 stores exactly that — with a policy qualifier to express how strongly each fact holds, and every queryable dimension in the key.
 
 ---
 
@@ -93,27 +95,28 @@ In plain terms: imagine every user is a node in a graph. Friendship, management,
 
 ### How capbit 2.0 solves it
 
-Start from first principles: resources have actions, entities have relationships, governance is an action on the resource it governs. Now add one thing: a **modal qualifier** on every stored fact, expressing how strongly it holds.
+Start from first principles: resources have actions, entities have relationships, governance is an action on the resource it governs.
 
-Instead of using modal operators as *quantifiers over graph neighbors* (Fong's approach), use them as *qualifiers on stored tuples*. The operators don't ask "is there a path?" — they state "this fact holds with this strength."
+Instead of using modal operators as *quantifiers over graph neighbors* (Fong's approach), use them as *qualifiers stored on the resource's declarations*. The operators don't ask "is there a path?" — they state "this resource declares this fact with this strength."
 
-The three tuples map directly to the first principles:
+The resource is the sole authority. It declares:
+- What contexts (relationship types) exist on it — including "denied"
+- What actions each context grants (action mask)
+- What policy governs each context (the modal)
 
-- **Resource declaration** (what actions exist on this resource, under what modal policy) — Tuple 3
-- **Entity relationship** (this entity has this action on this resource, with this modal strength) — Tuple 1
-- **Inheritance** (this entity inherits actions from another entity, with this modal strength) — Tuple 2
+Entities just have relationships — binary. Either you have the context on the resource or you don't. The resource already declared what that context means and how strongly it's governed.
 
-Granting is an action. Defining actions is an action. Both are governed by the same tuples. The system resource bootstraps the recursion.
+The only other place a policy exists is on inheritance links — how strongly one entity's relationship delegates to another.
 
 This sidesteps the graph-topology problems entirely:
 - No Kripke structure to traverse — just indexed tuple lookups
 - No bisimulation barrier — tuples are concrete facts, not graph-indistinguishable structures
 - No formula blowup — counting is a query over stored data, not a formula construction
-- Explicit deny is a stored tuple, not inference from absence
-- MAC vs DAC is a modal flag on the same tuple
-- Temporal and environmental conditions are extended modal operators on the same tuple
+- Explicit deny is a resource-declared context type, not inference from absence
+- MAC vs DAC is a policy on the resource's declaration
+- Temporal and environmental conditions are extended policies on the same declaration
 
-The three-tuple model with modal qualification captures everything Fong's ReBAC can express, everything his hybrid logic extension added, and capabilities that neither framework addresses — while staying true to first principles: resources, actions, entities, relationships, self-governance.
+The three-tuple model captures everything Fong's ReBAC can express, everything his hybrid logic extension added, and capabilities that neither framework addresses — while staying true to first principles: resources, actions, entities, relationships, self-governance.
 
 ---
 
@@ -131,27 +134,48 @@ v0.5 already follows first principles: the system is a resource, ownership is an
 
 ### New (v2.0)
 
+The resource declares contexts (relationship types), actions, and policies together. Relationships are binary. Inheritance carries its own policy. Every queryable field is in the key for prefix scan auditability.
+
+**Primary partitions:**
+
 ```
-Tuple 1 — RELATIONS:    (entity, resource, action, modal) -> value
-Tuple 2 — DELEGATIONS:  (entity, resource, action, modal, target) -> value
-Tuple 3 — DECLARATIONS: (resource, action, modal) -> mask
+DECLARATIONS:           (resource, context, policy) -> action_mask
+RELATIONSHIPS:          (entity, resource, context) -> 1
+INHERITS:               (entity, resource, context, policy, parent) -> 1
 ```
+
+**Reverse indexes for auditability:**
+
+```
+DECLARATIONS_BY_POLICY: (resource, policy, context) -> action_mask
+RELATIONSHIPS_REV:      (resource, context, entity) -> 1
+INHERITS_BY_RESOURCE:   (resource, context, policy, parent, entity) -> 1
+INHERITS_BY_PARENT:     (parent, resource, context, policy, entity) -> 1
+```
+
+Seven partitions. Every audit question is a prefix scan:
+- "What exists on resource X?" — `prefix(resource)` on DECLARATIONS
+- "All Box policies on resource X?" — `prefix(resource, Box)` on DECLARATIONS_BY_POLICY
+- "Who has editor on resource X?" — `prefix(resource, editor)` on RELATIONSHIPS_REV
+- "Who inherits from Alice?" — `prefix(Alice)` on INHERITS_BY_PARENT
+- "All Box inheritances on resource X?" — `prefix(resource, *, Box)` on INHERITS_BY_RESOURCE
 
 The three tuples map to first principles:
-- **Tuple 3** — the resource declares what actions exist on it and the modal policy for each
-- **Tuple 1** — an entity has a relationship granting them an action on a resource
-- **Tuple 2** — an entity inherits an action from another entity, with its own modal
+- **DECLARATIONS** — the resource declares what contexts exist, what actions they grant, and the policy for each
+- **RELATIONSHIPS** — an entity has a context on a resource. Binary. The resource already declared what that context means.
+- **INHERITS** — an entity inherits a context from another entity, with its own policy qualifying the delegation strength
 
-Granting a relationship (Tuple 1) is itself an action on the resource, governed by the same Tuple 3 declarations and Tuple 1 relationships. The system is self-governing.
+Granting a relationship is itself an action on the resource — "grant" is a bit in the action_mask of a context that includes grant permissions. The system is self-governing.
 
-- `role` becomes `action` — a role is a named bundle of actions, action is the primitive
-- `modal` (u16 bitmask) is new — qualifies every tuple (see Modal Encoding below)
-- Delegation `target` moves into the key, enabling multiple delegations per (entity, resource, action)
-- `mask` (u64 bitmask) is unchanged — capbit keeps bitmask efficiency
+- `role` becomes `context` — the resource-declared relationship type
+- `policy` (u16 bitmask) lives on declarations and inheritance only — not on relationships
+- Relationships are binary — the entity has the context or doesn't
+- `action_mask` (u64 bitmask) is unchanged — capbit keeps bitmask efficiency
+- "Denied" is a context the resource declares with Not policy — deny is resource-centric, not entity-centric
 
 ---
 
-## Core Modals
+## Core Policies
 
 ```
 Box  (necessary)   — structural, mandatory, MAC-like
@@ -159,32 +183,33 @@ Diamond  (possible)    — discretionary, conditional, DAC-like
 Not  (deny)        — explicit prohibition, overrides all
 ```
 
-### What They Mean on Each Tuple
+### Where Policies Live
 
-**Tuple 1 — Relationships:**
+**On declarations — the resource says how strongly each context is governed:**
 ```
-(Alice, Document1, editor, Box)    Alice is necessarily an editor
-(Bob,   Document1, editor, Diamond)    Bob is possibly an editor (conditional)
-(Eve,   Document1, editor, Not)    Eve is explicitly not an editor
-```
-
-Three subjects, same object, same context, different modal strength. The distinction between *absence* (no tuple — system has no opinion) and *negation* (Not tuple — system explicitly decided) is critical.
-
-**Tuple 2 — Delegations:**
-```
-(Alice, Document1, editor, Box, Bob)     Alice necessarily delegates editor to Bob
-(Alice, Document1, editor, Diamond, Carol)   Alice conditionally delegates editor to Carol
-(Alice, Document1, editor, Not, Eve)     Alice explicitly blocks Eve from delegation
+(Document1, editor, Box) -> READ|WRITE|COMMENT     editors: mandatory, can rwc
+(Document1, viewer, Diamond) -> READ                viewers: discretionary, can read
+(Document1, denied, Not) -> ALL_ACTIONS             denied: explicit prohibition
 ```
 
-**Tuple 3 — Permissions:**
+The resource declares three contexts. Each has a policy and an action mask. "Denied" is just another context — with Not policy, it overrides everything.
+
+**On inheritance — the delegation link carries its own policy:**
 ```
-(Document1, editor, Box) -> READ|WRITE|COMMENT     editors necessarily can rwc
-(Document1, editor, Diamond) -> DELETE                  editors possibly can delete
-(Document1, editor, Not) -> ADMIN                   editors necessarily cannot admin
+(Charlie, Document1, editor, Box, Alice)       Charlie inherits editor from Alice, mandatory
+(Charlie, Document1, editor, Diamond, Alice)   Charlie inherits editor from Alice, discretionary
+(Charlie, Document1, editor, Not, Alice)       Charlie's inheritance from Alice is explicitly blocked
 ```
 
-Same bitmask. Different masks per modality. A single (object, context) can have up to three permission entries.
+**NOT on relationships — relationships are binary:**
+```
+(Alice, Document1, editor) -> 1     Alice has editor. Period.
+(Eve, Document1, denied) -> 1       Eve has denied. Period.
+```
+
+Alice's editor relationship is governed by whatever policy the resource declared for editor (Box). Eve's denied relationship is governed by whatever policy the resource declared for denied (Not). The entity doesn't choose the strength — the resource does.
+
+The distinction between *absence* (no tuple — system has no opinion) and *denial* (entity has "denied" context — system explicitly decided) is preserved. Deny is a context the resource declares, not a flag on a relationship.
 
 ---
 
@@ -218,9 +243,9 @@ This means:
 
 ---
 
-## Modal Composition
+## Policy Composition
 
-When access flows through delegation chains or across relationship + permission joins, modalities compose:
+When access flows through inheritance, policies compose:
 
 ```
 Box x Box = Box           necessary through necessary = necessary
@@ -233,57 +258,60 @@ _ x Not = Not           anything through deny = deny
 
 The lattice: `Box > Diamond > Not`. Composition takes the minimum. Deny absorbs everything.
 
-### Three-Layer Composition
+### Two-Layer Composition
 
-This is the critical insight for resolution efficiency. Every access check composes **three modals** — one from each tuple type:
+Since relationships are binary, there are only **two** policies to compose:
 
 ```
-final_modal = min(permission_modal, relationship_modal, inheritance_modal)
+final_policy = min(declaration_policy, inheritance_policy)
 ```
 
-**Layer 1 — Permission tuple modal:** What strength does the *resource* demand?
+**Layer 1 — Declaration policy:** What strength does the *resource* demand for this context?
 ```
 (Document1, editor, Box) -> READ|WRITE
 ```
-The resource says: "READ|WRITE through editor requires Box (mandatory)."
+The resource says: "editor context is mandatory (Box), grants READ|WRITE."
 
-**Layer 2 — Relationship tuple modal:** What strength does the *subject's grant* carry?
+**Layer 2 — Inheritance policy:** How strong is the *delegation link*?
 ```
-(Alice, Document1, editor, Box)       Alice: necessary grant
-(Bob, Document1, editor, Diamond)         Bob: discretionary grant
-```
-
-**Layer 3 — Delegation tuple modal:** What strength does the *inheritance link* carry?
-```
-(Charlie, Document1, editor, Diamond, Alice)   Charlie inherits from Alice, discretionary
+(Charlie, Document1, editor, Diamond, Alice)   discretionary delegation
 ```
 
-**Composition for direct access** (Tuple 1 x Tuple 3):
+**Direct access** — declaration policy only:
 ```
-Alice:  min(Box, Box) = Box       Alice necessarily has READ|WRITE
-Bob:    min(Diamond, Box) = Diamond   Bob possibly has READ|WRITE (permission demands Box, Bob only has Diamond)
-```
-
-**Composition for inherited access** (Tuple 1 x Tuple 2 x Tuple 3):
-```
-Charlie inherits from Alice:
-  Permission modal:    Box   (resource demands necessary)
-  Alice's grant modal: Box   (Alice has necessary)
-  Inheritance modal:   Diamond   (link is discretionary)
-  Final: min(Box, Box, Diamond) = Diamond   Charlie possibly has READ|WRITE
+Alice has editor on Document1.
+Declaration says editor is Box -> READ|WRITE.
+Final: Box READ|WRITE. One lookup.
 ```
 
-The weakest link determines the ceiling. A discretionary inheritance from a mandatory grant produces a discretionary result. A Not anywhere produces denial. Permissions can only weaken through chains, never strengthen.
+**Inherited access** — declaration x inheritance:
+```
+Charlie inherits editor from Alice.
+Declaration policy:  Box   (resource demands mandatory)
+Inheritance policy:  Diamond   (link is discretionary)
+Final: min(Box, Diamond) = Diamond READ|WRITE
+```
+
+The weakest link determines the ceiling. A discretionary inheritance from a mandatory declaration produces a discretionary result. A Not anywhere produces denial. Policies can only weaken through chains, never strengthen.
+
+**Deny resolution:**
+```
+Eve has denied on Document1.
+Declaration says denied is Not -> ALL_ACTIONS.
+Final: Not ALL_ACTIONS. Eve is explicitly prohibited.
+```
+
+Deny doesn't compose with other contexts — it overrides. If an entity has both "editor" (Box) and "denied" (Not), the Not wins.
 
 ### Resolution Result
 
-Resolution returns three buckets instead of one flat mask:
+Resolution returns three buckets based on declaration policies:
 
 ```
-ModalMask {
-    necessary: u64,    Box bits — guaranteed access
-    possible:  u64,    Diamond bits — conditional access
-    denied:    u64,    Not bits — prohibited access
+PolicyMask {
+    necessary: u64,    actions from Box-declared contexts
+    possible:  u64,    actions from Diamond-declared contexts
+    denied:    u64,    actions from Not-declared contexts
 }
 ```
 
@@ -291,64 +319,65 @@ Deny override: `necessary &= !denied; possible &= !denied;`
 
 Backward-compatible flat check: `(necessary | possible) & !denied`
 
+For inherited access, the inheritance policy can only weaken: a Diamond inheritance from a Box declaration produces possible bits, not necessary bits.
+
 ---
 
 ## Resolution Architecture
 
-### Forward Resolution (subject -> permission)
+### Forward Resolution (entity -> permission)
 
 "Does Alice have READ on doc:42?"
 
 ```
-1. Read SUBJECTS(Alice, doc:42) -> context + modal      // one key lookup
-2. Read OBJECTS(doc:42, context) -> permission + modal   // one key lookup
-3. Compose: min(relationship_modal, permission_modal)    // one min() op
-4. If Box: granted. If Diamond: conditional. If Not: denied.
+1. Read RELATIONSHIPS(Alice, doc:42, *) -> list of contexts    // prefix scan
+2. For each context, read DECLARATIONS(doc:42, context, *) ->  // key lookup
+   get (policy, action_mask)
+3. Check if any action_mask includes READ
+4. If Not context exists -> deny overrides
 ```
 
-**O(1) for direct access.** Two key lookups, one integer comparison. No graph walk.
+**O(contexts) for direct access.** One prefix scan on the entity's relationships, one declaration lookup per context. Typically 1-3 contexts per entity per resource.
 
-For inherited access, add one more read:
+For inherited access:
 
 ```
-1. Read SUBJECTS(Charlie, doc:42) -> miss               // one key lookup
-2. Read INHERITS(Charlie, doc:42, context) -> (modal, Alice)  // one key lookup
-3. Read SUBJECTS(Alice, doc:42) -> context + modal       // one key lookup
-4. Read OBJECTS(doc:42, context) -> permission + modal    // one key lookup
-5. Compose: min(perm_modal, alice_modal, inherit_modal)  // one min() op
+1. Read RELATIONSHIPS(Charlie, doc:42, *) -> miss              // prefix scan
+2. Read INHERITS(Charlie, doc:42, *) -> (context, policy, Alice)  // prefix scan
+3. Read RELATIONSHIPS(Alice, doc:42, context) -> 1             // key lookup
+4. Read DECLARATIONS(doc:42, context, *) -> (decl_policy, mask)   // key lookup
+5. Compose: min(decl_policy, inherit_policy)                   // one min() op
 ```
 
-**O(1) for inherited access.** Fixed number of reads regardless of system size.
+**Fixed reads for inherited access.** No graph walk. No recursive expansion.
 
 ### Reverse Resolution (resource -> who has access?)
 
 "Who can access doc:42?"
 
 ```
-1. Read OBJECTS(doc:42, *) -> all (context, modal, permission) entries
-   The resource's own modals tell you what kind of enforcement to expect.
-   Box permission -> only Box grants qualify, skip delegation chains.
-   Not permission -> stop, nothing to resolve.
+1. Read DECLARATIONS(doc:42, *) -> all (context, policy, action_mask) entries
+   The resource's declarations tell you what contexts exist and their policies.
+   Not contexts -> collect denied entities separately.
 
-2. Scan SUBJECTS_REV(doc:42, *) -> all (subject, context, modal) entries
-   Direct holders. For each: compose min(perm_modal, rel_modal).
+2. Scan RELATIONSHIPS_REV(doc:42, *) -> all (context, entity) entries
+   Direct holders. For each: the declaration's policy IS their policy.
 
-3. Scan INHERITS_BY_OBJ(doc:42, *) -> all (child, context, modal, parent) entries
-   Inherited holders. For each: look up parent's relationship modal,
-   compose min(perm_modal, parent_modal, inherit_modal).
+3. Scan INHERITS_BY_RESOURCE(doc:42, *) -> all (context, policy, parent, entity)
+   Inherited holders. For each: compose min(decl_policy, inherit_policy).
 ```
 
-Two flat prefix scans. For each result, one min() operation. Cost is proportional to **number of actual holders**, not graph complexity.
+Two flat prefix scans. For each result, one declaration lookup. Cost is proportional to **number of actual holders**, not graph complexity.
 
-### The Modal as Query Planner
+### The Declaration as Query Planner
 
-The permission tuple's modal acts as a filter before resolution even begins:
+The resource's declarations act as a filter before resolution begins:
 
-- **Box permission:** Only subjects with Box relationships qualify. No need to walk delegation chains — discretionary grants can't satisfy mandatory requirements.
-- **Diamond permission:** Both Box and Diamond grants qualify. Check delegations too.
-- **Not permission:** The permission itself is denied. Return empty immediately.
+- **Box declaration:** The context is mandatory. All holders have it at Box strength (direct) or weaker (inherited).
+- **Diamond declaration:** The context is discretionary.
+- **Not declaration:** The context is a deny. Any entity with this context is prohibited — skip further checks.
 
-The resource tells the resolver which indexes to consult. This is information that Zanzibar's schema-based approach cannot provide without interpreting the schema first.
+The resource tells the resolver what to expect. Every audit question — "who has access?", "what's mandatory?", "who's denied?" — starts from the resource's declarations and fans out through prefix scans on reverse indexes.
 
 ---
 
@@ -403,23 +432,23 @@ What differs is *where* each model pays:
 
 ### Why Capbit 2.0 Has Fixed Check-Time Cost
 
-Capbit pushes evaluation to **write time**. When you store `(Charlie, doc:42, editor, Diamond, Alice)`, the modal Diamond is decided and persisted at grant time. At check time, you read the stored modal — you don't compute it.
+Capbit pushes policy evaluation to **write time**. When you store the declaration `(doc:42, editor, Box) -> READ|WRITE` and the inheritance `(Charlie, doc:42, editor, Diamond, Alice)`, the policies are decided and persisted at grant time. At check time, you read stored policies — you don't compute them.
 
 Compare what each system does for "does Charlie have READ on doc:42 through Alice?":
 
 | Step | Zanzibar | Capbit 2.0 |
 |---|---|---|
-| 1 | Read doc:42 type schema | Read OBJECTS(doc:42, editor) -> Box |
-| 2 | Parse userset_rewrite rules | Read INHERITS(Charlie, doc:42, editor) -> (Diamond, Alice) |
-| 3 | Expand viewer = direct OR member of group | Read SUBJECTS(Alice, doc:42) -> Box |
-| 4 | Check direct -> miss | min(Box, Box, Diamond) = Diamond -> conditional |
+| 1 | Read doc:42 type schema | Read INHERITS(Charlie, doc:42, editor) -> (Diamond, Alice) |
+| 2 | Parse userset_rewrite rules | Read RELATIONSHIPS(Alice, doc:42, editor) -> 1 |
+| 3 | Expand viewer = direct OR member of group | Read DECLARATIONS(doc:42, editor, *) -> (Box, READ\|WRITE) |
+| 4 | Check direct -> miss | min(Box, Diamond) = Diamond -> conditional |
 | 5 | Expand groups Charlie belongs to | done |
 | 6 | For each group, check if group has viewer | — |
 | 7 | Recurse if nested groups | — |
 
 Zanzibar: **variable depth**, depends on group nesting and rewrite rule complexity. Each expansion is a new tuple read. You cannot know the cost without walking the graph.
 
-Capbit 2.0: **3 reads, 1 min() operation.** Always. The modal composition is a single integer comparison on pre-stored values.
+Capbit 2.0: **3 reads, 1 min() operation.** Always. The policy composition is a single integer comparison on pre-stored values.
 
 ### Reverse Query Comparison
 
@@ -430,13 +459,13 @@ Capbit 2.0: **3 reads, 1 min() operation.** Always. The modal composition is a s
 | **Zanzibar** | For every relation type in schema, expand all userset rewrites, recursively resolve groups | O(depth x branching) per type — unbounded |
 | **ABAC** | Evaluate every subject's attributes against policy | O(subjects x attributes) — full scan |
 | **Fong ReBAC** | Walk social graph evaluating modal formula at each node | O(graph size) — depends on topology |
-| **Capbit 2.0** | Prefix scan SUBJECTS_REV(doc:42) + INHERITS_BY_OBJ(doc:42), min() per result | O(holders) — proportional to result count |
+| **Capbit 2.0** | Prefix scan RELATIONSHIPS_REV(doc:42) + INHERITS_BY_RESOURCE(doc:42), min() per result | O(holders) — proportional to result count |
 
 Capbit's reverse query cost is proportional to the number of subjects who actually have access, not the total system size or graph complexity. The reverse indexes make this a flat scan, not a recursive expansion.
 
 ### Where Capbit 2.0 Pays More
 
-- **Write amplification:** Each grant writes to multiple partitions (subjects + subjects_rev, inherits + inherits_by_obj + inherits_by_parent). Zanzibar writes one tuple per relation.
+- **Write amplification:** Each grant writes to multiple partitions (relationships + relationships_rev, inherits + inherits_by_resource + inherits_by_parent). Zanzibar writes one tuple per relation.
 - **Storage:** Reverse indexes duplicate data for query efficiency. The type-as-object pattern mitigates per-object duplication, but reverse indexes remain.
 - **Extended modals:** Operators like Arrow-condition (conditional) and Diamond-geq-k (quorum) add check-time computation. These pull capbit toward ABAC territory for those specific policies. The core Box/Diamond/Not system remains O(1).
 
@@ -469,23 +498,17 @@ Extended modals store parameters in the **value** field. The key contains the u1
 
 "At least k must satisfy this."
 
-**On Tuple 1:**
-```
-(Alice, Document1, reviewer, Diamond-geq-3)
-```
-Alice's reviewer relationship only activates if at least 3 reviewer relations exist on Document1. Quorum on the relationship.
-
-**On Tuple 2:**
-```
-(Alice, Document1, editor, Diamond-geq-2, Bob)
-```
-Bob's delegated access activates only if at least 2 delegations target Bob as editor. Multi-party authorization — no single delegator is sufficient.
-
-**On Tuple 3:**
+**On declarations:**
 ```
 (Document1, approver, Diamond-geq-3) -> APPROVE
 ```
-Approve permission only activates when at least 3 approvers exist.
+Approve permission only activates when at least 3 entities hold the approver context on Document1. The resource declares the quorum — entities just have the relationship or don't.
+
+**On inheritance:**
+```
+(Bob, Document1, editor, Diamond-geq-2, Alice)
+```
+Bob's delegated access activates only if at least 2 delegations target Bob as editor. Multi-party authorization — no single delegator is sufficient.
 
 **Solves Fong's counting problem.** cf_k and clique_k were inexpressible in his modal logic due to the bisimulation barrier. Here, counting is a query over stored tuples, not a formula over graph topology.
 
@@ -503,13 +526,13 @@ Diamond-geq-1 = Diamond                     at least one = possible
 
 "Need ALL of these contexts" or "Need ANY of these contexts."
 
-**Conjunction on Tuple 3:**
+**Conjunction on declaration:**
 ```
 (Document1, publish, And{editor, reviewer, legal}) -> PUBLISH
 ```
-Publishing requires the subject to hold editor AND reviewer AND legal contexts. System checks Tuple 1 for all three.
+Publishing requires the entity to hold editor AND reviewer AND legal contexts. System checks RELATIONSHIPS for all three.
 
-**Disjunction on Tuple 3:**
+**Disjunction on declaration:**
 ```
 (Document1, access, Or{owner, editor, admin}) -> READ
 ```
@@ -528,10 +551,10 @@ The resulting modality is the weakest (for And) or strongest (for Or) among matc
 
 "Reachable through a chain of delegations."
 
-**On Tuple 2:**
+**On inheritance:**
 ```
-(Alice, ProjectX, collaborator, Diamond-star, Bob)     unbounded transitive delegation
-(Alice, ProjectX, collaborator, Diamond-leq-3, Bob)    delegation chain stops after 3 hops
+(Bob, ProjectX, collaborator, Diamond-star, Alice)     unbounded transitive delegation
+(Bob, ProjectX, collaborator, Diamond-leq-3, Alice)    delegation chain stops after 3 hops
 ```
 
 Diamond-star removes the global depth limit. Diamond-leq-n sets it per-edge. This gives per-delegation control over blast radius rather than a single system-wide limit.
@@ -553,17 +576,17 @@ Diamond-leq-j x Diamond-leq-k = Diamond-leq-min(j,k)   bounded through bounded =
 
 This is what hybrid logic added to fix Fong's expressiveness. In Fong's framework, adding nominals required changing the entire logic. Here it's another modal flag.
 
-**On Tuple 2:**
-```
-(Alice, Document1, editor, At{Carol, Dave}, Bob)
-```
-Bob gets editor access through Alice, but only if Carol and Dave also have editor relations on Document1.
-
-**On Tuple 3:**
+**On declarations:**
 ```
 (Document1, release, At{legal_team}) -> APPROVE
 ```
-Approve permission requires legal_team to have a relation on Document1.
+Approve permission requires legal_team to have a relationship on Document1.
+
+**On inheritance:**
+```
+(Bob, Document1, editor, At{Carol, Dave}, Alice)
+```
+Bob gets editor through Alice, but only if Carol and Dave also have editor relationships on Document1.
 
 **Use cases:**
 - "Bob can access only if his manager also has access"
@@ -576,10 +599,15 @@ Approve permission requires legal_team to have a relation on Document1.
 
 "This authorization has a time dimension."
 
+**On declarations:**
 ```
-(Alice, Document1, editor, Box-until(2026-03-01))     necessary until March 1st
-(Bob, Document1, editor, Diamond-after(2026-03-01))       possible after March 1st
-(Document1, maintenance, Box-during(t1, t2)) -> WRITE  write only during interval
+(Document1, editor, Box-until(2026-03-01)) -> READ|WRITE    mandatory until March 1st
+(Document1, maintenance, Box-during(t1, t2)) -> WRITE       write only during interval
+```
+
+**On inheritance:**
+```
+(Bob, Document1, editor, Diamond-after(2026-03-01), Alice)  delegation activates after March 1st
 ```
 
 Evaluated at resolution time: `now < t`, `now >= t`, `t1 <= now < t2`.
@@ -604,10 +632,11 @@ Diamond-after(t1) x Diamond-after(t2) = Diamond-after(max(t1, t2))    later acti
 
 "This authorization applies only when an external condition holds."
 
+**On declarations:**
 ```
 (Document1, editor, Arrow{on_vpn}) -> DELETE
 ```
-Editors can delete only when condition `on_vpn` is satisfied. The condition is a reference to a pluggable evaluator — the authorization model doesn't know what it checks.
+Editors can delete only when condition `on_vpn` is satisfied. The condition is a reference to a pluggable evaluator — the authorization model doesn't know what it checks. The resource declares the gate.
 
 **Examples of conditions:**
 - Subject is on corporate VPN
@@ -678,7 +707,7 @@ General rule: composition takes the stricter/weaker of the two. Deny always wins
 | Temporal constraints | **No** | **No** | Zookies (weak) | Time attrs | Box-until / Diamond-after / Box-during |
 | Environmental conditions | **No** | **No** | **No** | Yes | Arrow-condition |
 | Compound expressions | **No** | **No** | **No** | **No** | Compound modal bitmask |
-| Multi-party authorization | **No** | **No** | **No** | **No** | Diamond-geq-k on Tuple 2 |
+| Multi-party authorization | **No** | **No** | **No** | **No** | Diamond-geq-k on declarations/inheritance |
 | Transitive delegation | Graph walk | Graph walk | Schema computed | N/A | Diamond-star |
 | Bounded delegation | Depth limit | Depth limit | **No** | N/A | Diamond-leq-n per-edge |
 | Per-object override | **No** | **No** | New type needed | Attribute | Direct tuple |
@@ -695,16 +724,18 @@ General rule: composition takes the stricter/weaker of the two. Deny always wins
 | Conditional/temporary access | No | Yes (Diamond) |
 | MAC/DAC unification | No | Yes (Box vs Diamond) |
 | Multiple delegations per context | No (single parent) | Yes |
-| Modal-qualified delegation | No | Yes |
+| Policy-qualified delegation | No | Yes |
+| Relationships are binary | No (role encodes strength) | Yes (resource declares strength) |
 | Three-tier permission response | No (binary) | Yes (necessary/possible/denied) |
-| Deny-override | No | Yes (Not absorbs Box and Diamond) |
+| Deny as resource-declared context | No | Yes (Not context type) |
 | Quorum/threshold | No | Yes (Diamond-geq-k) |
 | Temporal access | No | Yes (Box-until, Diamond-after, Box-during) |
 | Conditional/environmental | No | Yes (Arrow-condition) |
 | Compound policies | No | Yes (bitmask composition) |
 | Type-as-object inheritance | No | Yes |
 | Reverse resolution efficiency | BFS walk (max 10) | O(holders) prefix scan |
-| Modal as query planner | No | Yes (resource modal filters indexes) |
+| Declaration as query planner | No | Yes (resource policy filters indexes) |
+| Full auditability via prefix scans | No | Yes (7 partitions, all key-queryable) |
 | Bitmask efficiency | Yes | Yes (unchanged) |
 | Atomized semantics | Yes | Yes (unchanged) |
 
@@ -731,14 +762,14 @@ General rule: composition takes the stricter/weaker of the two. Deny always wins
 
 ## Summary
 
-The domain is simple: resources exist, actions can be applied to them, entities have relationships that grant them actions, and governance is itself an action on the resource it governs. One recursive pattern, all the way down.
+The domain has six concerns: **resources**, **actions**, **entities**, **governance**, **context**, and **auditability**. Resources exist. Actions can be applied to them. Entities want to perform those actions. Governance — who can grant, revoke, define — is itself actions on resources. Context groups actions under named relationship types with policies. Auditability requires every dimension to be queryable.
 
-Academic models overcomplicated this by starting from formalisms — Kripke structures, schema languages, attribute algebras — and working backward to the problem. Capbit 2.0 starts from first principles and adds one thing: a u16 bitmask modal qualifier on every tuple, expressing how strongly each fact holds.
+Academic models overcomplicated this by starting from formalisms — Kripke structures, schema languages, attribute algebras — and working backward to the problem. Capbit 2.0 starts from first principles and stores exactly what the domain requires.
 
-The core three operators (Box, Diamond, Not) unify MAC, DAC, and deny. The extended operators (Diamond-geq-k, And/Or, Diamond-star/Diamond-leq-n, At, Box-until/Diamond-after/Box-during, Arrow-condition, compound) capture and exceed the expressiveness of Fong's ReBAC, its hybrid logic extension, Zanzibar, and traditional ABAC.
+The resource is the sole authority. It declares contexts (relationship types), the actions each context grants, and the policy governing each — all in one tuple, with policy in the key for prefix-scan auditability. Relationships are binary: an entity has a context on a resource, or doesn't. The only other policy lives on inheritance links, qualifying delegation strength.
 
-The three-layer modal composition — declaration modal x relationship modal x inheritance modal = min() — converts authorization from a graph-walking problem into a fixed-cost lookup problem. The resource's own modal acts as a query planner, telling the resolver which indexes to consult before resolution begins. Reverse queries are flat prefix scans proportional to result count, not recursive graph expansions.
+The core three policies (Box, Diamond, Not) unify MAC, DAC, and deny. Extended policies (Diamond-geq-k, And/Or, Diamond-star/Diamond-leq-n, At, Box-until/Diamond-after/Box-during, Arrow-condition, compound) capture and exceed the expressiveness of Fong's ReBAC, its hybrid logic extension, Zanzibar, and traditional ABAC.
 
-The type-as-object pattern eliminates the storage explosion that per-object tuples would otherwise require, while preserving per-object override capability that schema-based systems like Zanzibar cannot offer without creating new types.
+Two-layer policy composition — declaration policy x inheritance policy = min() — converts authorization from a graph-walking problem into a fixed-cost lookup problem. The resource's declarations act as a query planner. Reverse queries are flat prefix scans across seven partitions, proportional to result count, not graph complexity.
 
-Three tuples. Three first principles. One modal qualifier. Everything else follows.
+Three tuples. Six first principles. Seven partitions. Everything is a prefix scan.
