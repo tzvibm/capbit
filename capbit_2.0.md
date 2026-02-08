@@ -1,5 +1,42 @@
 # Capbit 2.0: Modal Authorization Architecture
 
+## First Principles
+
+Authorization reduces to five things:
+
+**1. Resources exist.** A document, a server, a database, an API endpoint. Anything that actions can be performed on.
+
+**2. Actions can be applied to resources.** Read, write, delete, grant, define-actions, create-resource. These are the verbs.
+
+**3. Entities want to perform actions on resources.** Users, services, agents. These are the actors.
+
+**4. Relationships connect entities to resources.** An entity has a relationship to a resource that gives them specific actions on it. This is the only authorization primitive.
+
+**5. Everything is an action on a resource — including governance.** Defining what actions exist on a resource is itself an action on that resource. Granting a relationship to an entity is itself an action on that resource. Ownership is having all actions, including the meta-actions (grant, revoke, define, delete). There is no separate "admin layer" or "policy engine." The system governs itself through the same mechanism it governs everything else.
+
+### The self-governing recursion
+
+The system as a whole is the first resource. It has actions: create-resource, delete-resource, manage-system. The root entity has all actions on the system resource.
+
+Creating a new resource is the root entity (or anyone with the create-resource action) exercising an action on the system resource. The new resource then declares its own actions, governed by its own relationships. Granting someone access to that resource is an action on that resource — which requires having the grant action, which is itself governed by the relationship system.
+
+Bootstrap is: one resource (system) exists, one entity (root) has all actions on it. Everything else follows.
+
+There is no special case. No separate bootstrap logic. No distinction between "the authorization system" and "the things it authorizes." One recursive pattern: **resources with actions, entities with relationships, all the way down.**
+
+### Why existing models overcomplicate this
+
+The first principles are simple. Academic models made them complex by starting from formalisms and working backward to the problem:
+
+- **Fong's ReBAC** modeled relationships as a Kripke structure and policies as modal formulas. This introduced bisimulation barriers, exponential blowup, and monotonicity constraints — problems that don't exist in the actual domain. They're artifacts of the mathematical lens.
+- **Zanzibar** introduced a schema language with userset rewrites, computed relations, and type hierarchies. Now you need a deployment pipeline for policy changes and can't override one object without inventing a new type.
+- **ABAC** made every check an unbounded runtime evaluation of attribute expressions.
+- **RBAC** collapsed relationships into static role assignments, losing the structure entirely.
+
+The domain says: resources have actions, entities have relationships, governance is self-referential. Capbit 2.0 stores exactly that — with a modal qualifier to express how strongly each fact holds.
+
+---
+
 ## The Problem Space
 
 ### What authorization has always struggled with
@@ -56,7 +93,17 @@ In plain terms: imagine every user is a node in a graph. Friendship, management,
 
 ### How capbit 2.0 solves it
 
-**The key move:** instead of using modal operators as *quantifiers over graph neighbors* (Fong's approach), use them as *qualifiers on stored tuples*. The operators don't ask "is there a path?" — they state "this fact holds with this strength."
+Start from first principles: resources have actions, entities have relationships, governance is an action on the resource it governs. Now add one thing: a **modal qualifier** on every stored fact, expressing how strongly it holds.
+
+Instead of using modal operators as *quantifiers over graph neighbors* (Fong's approach), use them as *qualifiers on stored tuples*. The operators don't ask "is there a path?" — they state "this fact holds with this strength."
+
+The three tuples map directly to the first principles:
+
+- **Resource declaration** (what actions exist on this resource, under what modal policy) — Tuple 3
+- **Entity relationship** (this entity has this action on this resource, with this modal strength) — Tuple 1
+- **Inheritance** (this entity inherits actions from another entity, with this modal strength) — Tuple 2
+
+Granting is an action. Defining actions is an action. Both are governed by the same tuples. The system resource bootstraps the recursion.
 
 This sidesteps the graph-topology problems entirely:
 - No Kripke structure to traverse — just indexed tuple lookups
@@ -66,7 +113,7 @@ This sidesteps the graph-topology problems entirely:
 - MAC vs DAC is a modal flag on the same tuple
 - Temporal and environmental conditions are extended modal operators on the same tuple
 
-The three-tuple model with modal qualification captures everything Fong's ReBAC can express, everything his hybrid logic extension added, and capabilities that neither framework addresses.
+The three-tuple model with modal qualification captures everything Fong's ReBAC can express, everything his hybrid logic extension added, and capabilities that neither framework addresses — while staying true to first principles: resources, actions, entities, relationships, self-governance.
 
 ---
 
@@ -80,21 +127,26 @@ INHERITS:   (subject, object, role) -> parent     single-parent delegation
 OBJECTS:    (object, role) -> mask                permission bitmask
 ```
 
-Three concerns, three partitions, but no modality. Every grant is equally strong. No deny. No conditional access. Inheritance is a parent pointer, not a qualified delegation.
+v0.5 already follows first principles: the system is a resource, ownership is an action, granting is governed by the same permission bits. But every grant is equally strong. No deny. No conditional access. Inheritance is a parent pointer with no qualification.
 
 ### New (v2.0)
 
 ```
-Tuple 1 — RELATIONS:    (subject, object, context, modal) -> value
-Tuple 2 — DELEGATIONS:  (subject, object, context, modal, target) -> value
-Tuple 3 — PERMISSIONS:  (object, context, modal) -> mask
+Tuple 1 — RELATIONS:    (entity, resource, action, modal) -> value
+Tuple 2 — DELEGATIONS:  (entity, resource, action, modal, target) -> value
+Tuple 3 — DECLARATIONS: (resource, action, modal) -> mask
 ```
 
-Same three concerns, same atomized tuples, now with modal qualification at every level.
+The three tuples map to first principles:
+- **Tuple 3** — the resource declares what actions exist on it and the modal policy for each
+- **Tuple 1** — an entity has a relationship granting them an action on a resource
+- **Tuple 2** — an entity inherits an action from another entity, with its own modal
 
-- `role` becomes `context` — a role is one kind of context, context is the broader concept
-- `modal` is new — qualifies every tuple (see Modal Encoding below)
-- Delegation `target` moves into the key, enabling multiple delegations per (subject, object, context)
+Granting a relationship (Tuple 1) is itself an action on the resource, governed by the same Tuple 3 declarations and Tuple 1 relationships. The system is self-governing.
+
+- `role` becomes `action` — a role is a named bundle of actions, action is the primitive
+- `modal` (u16 bitmask) is new — qualifies every tuple (see Modal Encoding below)
+- Delegation `target` moves into the key, enabling multiple delegations per (entity, resource, action)
 - `mask` (u64 bitmask) is unchanged — capbit keeps bitmask efficiency
 
 ---
@@ -679,10 +731,14 @@ General rule: composition takes the stricter/weaker of the two. Deny always wins
 
 ## Summary
 
-Capbit 2.0 adds a u16 bitmask (modal operator) to every tuple. The core three operators (Box, Diamond, Not) unify MAC, DAC, and deny. The extended operators (Diamond-geq-k, And/Or, Diamond-star/Diamond-leq-n, At, Box-until/Diamond-after/Box-during, Arrow-condition, compound) capture and exceed the expressiveness of Fong's ReBAC, its hybrid logic extension, Zanzibar, and traditional ABAC.
+The domain is simple: resources exist, actions can be applied to them, entities have relationships that grant them actions, and governance is itself an action on the resource it governs. One recursive pattern, all the way down.
 
-The three-layer modal composition — permission modal x relationship modal x inheritance modal = min() — converts authorization from a graph-walking problem into a fixed-cost lookup problem. The resource's own modal acts as a query planner, telling the resolver which indexes to consult before resolution begins. Reverse queries are flat prefix scans proportional to result count, not recursive graph expansions.
+Academic models overcomplicated this by starting from formalisms — Kripke structures, schema languages, attribute algebras — and working backward to the problem. Capbit 2.0 starts from first principles and adds one thing: a u16 bitmask modal qualifier on every tuple, expressing how strongly each fact holds.
+
+The core three operators (Box, Diamond, Not) unify MAC, DAC, and deny. The extended operators (Diamond-geq-k, And/Or, Diamond-star/Diamond-leq-n, At, Box-until/Diamond-after/Box-during, Arrow-condition, compound) capture and exceed the expressiveness of Fong's ReBAC, its hybrid logic extension, Zanzibar, and traditional ABAC.
+
+The three-layer modal composition — declaration modal x relationship modal x inheritance modal = min() — converts authorization from a graph-walking problem into a fixed-cost lookup problem. The resource's own modal acts as a query planner, telling the resolver which indexes to consult before resolution begins. Reverse queries are flat prefix scans proportional to result count, not recursive graph expansions.
 
 The type-as-object pattern eliminates the storage explosion that per-object tuples would otherwise require, while preserving per-object override capability that schema-based systems like Zanzibar cannot offer without creating new types.
 
-All within the same three-tuple structure, all composable through the same lattice, all queryable as bitmask operations on flat indexes.
+Three tuples. Three first principles. One modal qualifier. Everything else follows.
