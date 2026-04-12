@@ -44,10 +44,11 @@ outcome.
 
 The user MUST always be able to obtain a usable sequence, via either:
 
-- the **marketplace** (pre-authored tools), or
-- the **AI agent** (dynamically generated).
+- the **vault** (curated marketplace sequences served from the backend), or
+- the **AI agent** (dynamically generated, optionally composed from vault
+  content).
 
-This is the justification for having both a marketplace and an agent.
+This is the justification for having both a curated vault and an agent.
 
 ### 1.4 Dynamic script adaptation
 
@@ -61,13 +62,19 @@ Scripts are **not static**. The agent adapts them to:
 
 > Scripts provide structure. The agent provides context adaptation.
 
-### 1.5 User sovereignty
+### 1.5 User sovereignty (within the app)
 
-No single "correct" behavior path exists. The user may always:
+No single "correct" behavior path exists. Within the app, the user may
+always:
 
-- pick a marketplace sequence
+- pick a vault (marketplace) sequence
 - request an AI-generated sequence
 - edit either before committing
+- swap or regenerate at any point in Planning Mode
+
+> Sovereignty here is *behavioral* (the user controls what they execute),
+> not *infrastructural* (the user does not own the raw vault files —
+> see §2.1 on the closed-source moat).
 
 ---
 
@@ -75,26 +82,38 @@ No single "correct" behavior path exists. The user may always:
 
 ### 2.1 Dual engines
 
-**A. Marketplace — composable tools**
+**A. Marketplace — the Vault (closed-source moat)**
 
-Marketplace "scripts" are internally modeled as **MCP-style composable tools**,
-not passive content. Each tool:
+The marketplace is a **proprietary, closed-source vault** of curated
+sequences. It is the system's primary moat. Sequences are:
 
-- represents a mini-sequence
-- has structured steps
-- is callable by the agent
-- is composable with other tools
-- is forkable and transparent
+- authored and curated centrally (or by vetted contributors)
+- served to clients via the company's backend API
+- **not** distributed via git, public repos, or any open protocol
+- composable through internal references (see §2.4)
+
+The internal storage format is markdown-with-frontmatter (see §2.4) for
+agent ergonomics, but the **distribution, hosting, and personalization data
+are closed**. Users interact with the vault through the app, not through
+files. The format is an implementation detail, not a contract.
+
+This is a deliberate v1 decision: lock-in through curated quality,
+personalization data, and accumulated user history is the business model.
+Personal vault content is also tied to the user's account on the backend.
 
 **B. AI Agent — harness**
 
 The agent is not merely a generator. Its harness must:
 
 1. Interpret user context (from chat + explicit input).
-2. Decide: use existing tools, compose tools, or generate from scratch.
+2. Decide: search the vault, compose existing sequences, or generate fresh.
 3. Adapt output to context (environment, culture, user style).
 4. Refine iteratively based on conversation.
-5. Produce a **Final Compiled Sequence** for execution.
+5. Produce a **Final Compiled Sequence** for execution (see §4).
+
+The agent reads and writes the vault through a small, fixed set of internal
+tools (see §2.5). It does **not** speak any open protocol (no MCP, no public
+plugin surface).
 
 ### 2.2 Stacked mini-sequences
 
@@ -114,6 +133,92 @@ marks the boundary between Planning Mode and Execution Mode. Crossing it:
 - locks the compiled sequence
 - disables chat and editing
 - enters Execution Mode
+
+### 2.4 Vault format (internal implementation)
+
+> This section describes how sequences are represented *inside* the closed
+> vault. It is not a public spec. The format may change without notice.
+
+Each sequence is stored as a markdown document with YAML frontmatter. The
+markdown form is chosen because it is cheap to read for the agent, easy to
+diff internally, and trivially composable via wikilink-style references.
+
+```
+vault/
+├── sequences/                  ← curated marketplace content
+│   ├── greeting/
+│   │   ├── casual-approach.md
+│   │   └── direct-intro.md
+│   ├── small-talk/
+│   │   └── weather-bridge.md
+│   └── invitation/
+│       └── coffee-ask.md
+├── memory/                     ← per-user long-term memory (account-bound)
+│   ├── style.md
+│   ├── outcomes/
+│   │   └── 2026-04-12.md
+│   └── reflections.md
+└── compiled/                   ← archived Final Compiled Sequences
+    └── 2026-04-12-coffee-shop.md
+```
+
+A sequence file:
+
+```markdown
+---
+id: casual-approach
+type: greeting
+tags: [casual, low-pressure, stranger]
+pairs_with: [[small-talk/weather-bridge]], [[invitation/coffee-ask]]
+visibility: marketplace        # marketplace | personal
+version: 3
+---
+
+# Casual Approach
+
+A low-stakes greeting for relaxed contexts.
+
+## Abstract steps
+1. Walk over casually
+2. "Hey — quick hi"
+3. Light comment
+4. Invite or exit
+
+## Planning notes (for the agent)
+Use when context is relaxed, no time pressure.
+Avoid when the target looks busy or mid-task.
+```
+
+Wikilinks (`[[other-sequence]]`) express composition between sequences. The
+agent resolves them when assembling stacked mini-sequences.
+
+### 2.5 Vault tools (internal)
+
+The agent operates on the vault through a small, fixed toolset. These are
+**internal Python functions** wrapped as harness tools — not a public
+protocol.
+
+Vault tools (unstructured, content):
+
+- `search_vault(query)` — find relevant sequences in marketplace + personal
+- `read_sequence(path)` — load a sequence file
+- `list_folder(path)` — browse vault folders
+- `read_memory(topic)` — pull prior personal notes / outcome logs
+- `write_note(path, content)` — append to personal memory
+- `archive_compiled(sequence)` — save the Final Compiled Sequence to
+  `compiled/` after execution (feeds personalization)
+
+Structured tool (schema-enforced, exits planning):
+
+- `emit_final_sequence(steps: list[str])` — see §4. Validated against
+  length and detail constraints. The **only** way to leave Planning Mode.
+
+### 2.6 Memory access — search-based, not whole-vault
+
+The agent must not load the full vault per session. Instead, it uses
+`search_vault` and `read_memory` to pull only what's relevant. This keeps
+context windows small, costs predictable, and the architecture viable as
+the vault grows.
 
 ---
 
@@ -241,9 +346,92 @@ This is not a score.
 
 ---
 
-## 7. UX Contract
+## 7. Agent Harness
 
-### 7.1 Planning screen
+### 7.0 Stack
+
+| Layer | Choice | Notes |
+|---|---|---|
+| **Model (primary)** | **Gemma 4 31B Dense** (hosted) | Apache 2.0; native function calling as a first-class training objective; ranks #3 open on LMArena. Function-call reliability is high enough that the schema-enforced compile step is sufficient — no post-hoc regex classifier needed in v1. |
+| **Model (on-device, future)** | **Gemma 4 E4B** | Runs on phone. Reserved for a future "private mode" deployment branch (see §7.3). |
+| **Harness** | **Pydantic AI** | Schema-first. The Final Compiled Sequence is a Pydantic model with hard validators; the harness retries automatically on validation failure. |
+| **Provider router** | **LiteLLM** | Lets us swap between Google AI Studio / Groq / Together / Ollama / on-device with a config string. |
+| **Local dev** | **Ollama** running `gemma4` | Free, OpenAI-compatible. |
+
+### 7.1 Compile-step schema
+
+The compile step is the one place where structure protects the abstraction
+boundary. It MUST be a schema-validated tool call, not free-text generation.
+
+Pseudocode:
+
+```python
+class FinalCompiledSequence(BaseModel):
+    steps: list[StepText]              # 3 <= len(steps) <= 5
+
+class StepText(ConstrainedStr):
+    max_length = 80
+    forbidden_substrings = [
+        "eye contact", "posture", "tone of voice",
+        "body language", "angle", "lean in",
+        # ...detail keywords that must stay in planning
+    ]
+```
+
+If the agent emits a sequence that fails validation, Pydantic AI retries
+with the validation error in context. The agent cannot exit Planning Mode
+without producing a valid `FinalCompiledSequence`.
+
+### 7.2 Why this stack
+
+- **Cost.** Gemma 4 31B at hosted rates is roughly 5× cheaper than Claude
+  Haiku 4.5 per planning session (~$0.0006 vs ~$0.003 for typical 3k-in /
+  500-out sessions). Apache 2.0 means no commercial licensing concerns.
+- **Tool-call reliability.** Function calling is a first-class training
+  objective in Gemma 4, not a prompt-engineering workaround. This is what
+  makes the schema-enforced compile step viable on an open-weights model.
+- **Provider-agnostic.** LiteLLM means we are not locked to any single
+  hosting provider. If Groq becomes cheaper than Google AI Studio next
+  quarter, we change one line.
+- **No protocol exposure.** No MCP, no plugin surface, nothing that would
+  let third parties script against the vault. The closed-source moat is
+  preserved.
+
+### 7.3 Deployment branches
+
+**Default (v1): server-side.**
+
+- Vault lives on the backend (closed source moat).
+- Agent runs server-side (Pydantic AI + LiteLLM + Gemma 4 hosted).
+- Client is a thin app that renders chat, the evolving plan, the Final
+  Compiled Sequence, and the Execution screen.
+
+**Future branch: on-device "private mode."**
+
+- Gemma 4 E4B runs locally on the user's phone.
+- Personal vault content syncs to the device (encrypted at rest).
+- Marketplace sequences are still served from the backend but cached
+  per-session — never bulk-exported.
+- Sold as a privacy upgrade, not the default. Defaulting on-device would
+  ship the full vault to clients, which erodes the moat.
+
+### 7.4 Verification TODOs
+
+These are not assumed-true; they need direct confirmation before code:
+
+- [ ] Confirm Groq's exact pricing for Gemma 4 31B Dense (catalog lists it,
+      $/Mtok not yet confirmed). Compare to Google AI Studio + Together.
+- [ ] Confirm Pydantic AI / LiteLLM integration path for Gemma 4's custom
+      tool-call special tokens. The official function calling docs are at
+      `ai.google.dev/gemma/docs/capabilities/text/function-calling-gemma4`.
+- [ ] Decide on personal-data export policy (impacts moat strength vs
+      regulatory compliance in EU).
+
+---
+
+## 8. UX Contract
+
+### 8.1 Planning screen
 
 Must support:
 
@@ -255,7 +443,7 @@ Must support:
 
 No time pressure. Reflective, cognitive.
 
-### 7.2 Execution screen
+### 8.2 Execution screen
 
 Must:
 
@@ -264,14 +452,14 @@ Must:
 - remove all explanations and alternatives
 - preserve action integrity above all else
 
-### 7.3 The boundary
+### 8.3 The boundary
 
 `3-2-1 GO` is the only path from Planning to Execution. There is no other
 transition, and there is no path back mid-execution.
 
 ---
 
-## 8. Invariants (must not regress)
+## 9. Invariants (must not regress)
 
 The following are core and MUST remain intact through all future changes:
 
@@ -280,18 +468,26 @@ The following are core and MUST remain intact through all future changes:
 - 3-2-1 execution trigger as system primitive
 - Sequence completion reward model (not outcome-based)
 - Stacked mini-sequences (greeting / small talk / invitation or exit)
-- Tool-based marketplace architecture (scripts = composable tools)
+- **Closed-source vault as the marketplace moat** (no public protocol, no
+  git distribution, no MCP, no third-party plugin surface)
+- Vault-as-memory (sequences, personal notes, outcomes, and compiled
+  archives all live in the same vault abstraction)
+- Search-based memory access (never load the full vault per session)
 - Agent harness (interpret → decide → compose → adapt → compile)
-- Compilation step producing a Final Compiled Sequence
+- Compilation step producing a Final Compiled Sequence via a
+  **schema-validated tool call** (not free-text generation)
 - Abstraction boundary (no detail leaks into execution)
-- User sovereignty across marketplace / AI / manual edits
+- User sovereignty *within the app* across marketplace / AI / manual edits
 - Outcome tracking for feedback only, never validation
-- Composability
+- Composability (via internal wikilink references)
 - Per-interaction sequence execution
+
+> Note: "User sovereignty" in v1 means *within the app*, not raw filesystem
+> ownership. The closed vault is a deliberate trade-off — see §2.1.
 
 ---
 
-## 9. What this system is not
+## 10. What this system is not
 
 - Not a chatbot
 - Not a coaching app
