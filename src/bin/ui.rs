@@ -1,83 +1,111 @@
 use axum::{extract::Json, response::Html, routing::{get, post}, Router};
 use capbit::*;
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 
-#[derive(Deserialize)] struct GrantReq { actor: u64, sub: u64, obj: u64, role: u64 }
+static CB: OnceLock<Capbit> = OnceLock::new();
+fn cb() -> &'static Capbit { CB.get().unwrap() }
+
+fn pol(p: u64) -> Policy {
+    match p { 0 => Policy::Not, 1 => Policy::Possible, _ => Policy::Necessary }
+}
+
+#[derive(Deserialize)] struct ActorObj { actor: u64, obj: u64 }
+#[derive(Deserialize)] struct GrantReq { actor: u64, sub: u64, obj: u64, role: u64, policy: u64 }
 #[derive(Deserialize)] struct RevokeReq { actor: u64, sub: u64, obj: u64, role: u64 }
-#[derive(Deserialize)] struct CreateReq { actor: u64, obj: u64, role: u64, mask: u64 }
-#[derive(Deserialize)] struct UpdateReq { actor: u64, obj: u64, role: u64, mask: u64 }
-#[derive(Deserialize)] struct DeleteReq { actor: u64, obj: u64, role: u64 }
+#[derive(Deserialize)] struct RoleReq { actor: u64, obj: u64, role: u64, mask: u64 }
+#[derive(Deserialize)] struct RoleDel { actor: u64, obj: u64, role: u64 }
 #[derive(Deserialize)] struct CheckReq { sub: u64, obj: u64, req: u64 }
-#[derive(Deserialize)] struct GetMaskReq { sub: u64, obj: u64 }
-#[derive(Deserialize)] struct InheritReq { actor: u64, sub: u64, obj: u64, role: u64, parent: u64 }
-#[derive(Deserialize)] struct RemoveInheritReq { actor: u64, sub: u64, obj: u64, role: u64 }
-#[derive(Deserialize)] struct ListRolesReq { actor: u64, obj: u64 }
-#[derive(Deserialize)] struct ListRolesForReq { actor: u64, sub: u64, obj: u64 }
-#[derive(Deserialize)] struct ListGrantsReq { actor: u64, sub: u64 }
-#[derive(Deserialize)] struct ListSubjectsReq { actor: u64, obj: u64 }
-#[derive(Deserialize)] struct ListInheritsReq { actor: u64, sub: u64, obj: u64 }
-#[derive(Deserialize)] struct ListInheritsOnObjReq { actor: u64, obj: u64 }
-#[derive(Deserialize)] struct ListInheritsOnObjRoleReq { actor: u64, obj: u64, role: u64 }
-#[derive(Deserialize)] struct ListInheritsFromParentReq { actor: u64, parent: u64 }
-#[derive(Deserialize)] struct ListInheritsFromParentOnObjReq { actor: u64, parent: u64, obj: u64 }
+#[derive(Deserialize)] struct MaskReq { sub: u64, obj: u64 }
+#[derive(Deserialize)] struct MemberReq { actor: u64, member: u64, group: u64, policy: u64 }
+#[derive(Deserialize)] struct MemberDel { actor: u64, member: u64, group: u64 }
+#[derive(Deserialize)] struct DelegateReq { actor: u64, sub: u64, obj: u64, role: u64, parent: u64, policy: u64 }
+#[derive(Deserialize)] struct ParentReq { actor: u64, obj: u64, parent: u64 }
+#[derive(Deserialize)] struct ActorSub { actor: u64, sub: u64 }
+#[derive(Deserialize)] struct SubObj { actor: u64, sub: u64, obj: u64 }
+#[derive(Deserialize)] struct PopReq { actor: u64, a: u64, b: u64 }
+#[derive(Deserialize)] struct PageReq { actor: u64, obj: u64, after: Option<u64>, limit: Option<usize> }
+#[derive(Deserialize)] struct AuditReq { actor: u64, after: Option<u64>, limit: Option<usize> }
 #[derive(Serialize)] struct Resp { ok: bool, msg: String }
 
 fn resp(r: Result<String>) -> Json<Resp> {
-    Json(match r { Ok(m) => Resp { ok: true, msg: m }, Err(e) => Resp { ok: false, msg: e.0 } })
+    Json(match r { Ok(m) => Resp { ok: true, msg: m }, Err(e) => Resp { ok: false, msg: e.to_string() } })
 }
 
-fn fmt2(v: &[(u64, u64)]) -> String { v.iter().map(|(a,b)| format!("({a},{b})")).collect::<Vec<_>>().join(", ") }
-fn fmt3(v: &[(u64, u64, u64)]) -> String { v.iter().map(|(a,b,c)| format!("({a},{b},{c})")).collect::<Vec<_>>().join(", ") }
+fn fmt<T: std::fmt::Debug>(v: &[T]) -> String {
+    if v.is_empty() { "(empty)".into() } else { format!("{v:?}") }
+}
 
-async fn do_bootstrap() -> Json<Resp> { resp(bootstrap().map(|(s,r)| format!("system={s}, root={r}"))) }
-async fn do_clear() -> Json<Resp> { resp(clear().map(|_| "Cleared".into())) }
-async fn do_grant(Json(r): Json<GrantReq>) -> Json<Resp> { resp(grant(r.actor, r.sub, r.obj, r.role).map(|_| "Granted".into())) }
-async fn do_revoke(Json(r): Json<RevokeReq>) -> Json<Resp> { resp(revoke(r.actor, r.sub, r.obj, r.role).map(|_| "Revoked".into())) }
-async fn do_create(Json(r): Json<CreateReq>) -> Json<Resp> { resp(create(r.actor, r.obj, r.role, r.mask).map(|_| "Created".into())) }
-async fn do_update(Json(r): Json<UpdateReq>) -> Json<Resp> { resp(update(r.actor, r.obj, r.role, r.mask).map(|_| "Updated".into())) }
-async fn do_delete(Json(r): Json<DeleteReq>) -> Json<Resp> { resp(delete(r.actor, r.obj, r.role).map(|_| "Deleted".into())) }
-async fn do_check(Json(r): Json<CheckReq>) -> Json<Resp> { resp(check(r.sub, r.obj, r.req).map(|b| if b { "Allowed" } else { "Denied" }.into())) }
-async fn do_get_mask(Json(r): Json<GetMaskReq>) -> Json<Resp> { resp(get_mask(r.sub, r.obj).map(|m| format!("0x{m:X} ({m})"))) }
-async fn do_inherit(Json(r): Json<InheritReq>) -> Json<Resp> { resp(inherit(r.actor, r.sub, r.obj, r.role, r.parent).map(|_| "Inherited".into())) }
-async fn do_remove_inherit(Json(r): Json<RemoveInheritReq>) -> Json<Resp> { resp(remove_inherit(r.actor, r.sub, r.obj, r.role).map(|_| "Removed".into())) }
-async fn do_list_roles(Json(r): Json<ListRolesReq>) -> Json<Resp> { resp(list_roles(r.actor, r.obj).map(|v| fmt2(&v))) }
-async fn do_list_roles_for(Json(r): Json<ListRolesForReq>) -> Json<Resp> { resp(list_roles_for(r.actor, r.sub, r.obj).map(|v| format!("{v:?}"))) }
-async fn do_list_grants(Json(r): Json<ListGrantsReq>) -> Json<Resp> { resp(list_grants(r.actor, r.sub).map(|v| fmt2(&v))) }
-async fn do_list_subjects(Json(r): Json<ListSubjectsReq>) -> Json<Resp> { resp(list_subjects(r.actor, r.obj).map(|v| fmt2(&v))) }
-async fn do_list_inherits(Json(r): Json<ListInheritsReq>) -> Json<Resp> { resp(list_inherits(r.actor, r.sub, r.obj).map(|v| fmt2(&v))) }
-async fn do_list_inherits_on_obj(Json(r): Json<ListInheritsOnObjReq>) -> Json<Resp> { resp(list_inherits_on_obj(r.actor, r.obj).map(|v| fmt3(&v))) }
-async fn do_list_inherits_on_obj_role(Json(r): Json<ListInheritsOnObjRoleReq>) -> Json<Resp> { resp(list_inherits_on_obj_role(r.actor, r.obj, r.role).map(|v| fmt2(&v))) }
-async fn do_list_inherits_from_parent(Json(r): Json<ListInheritsFromParentReq>) -> Json<Resp> { resp(list_inherits_from_parent(r.actor, r.parent).map(|v| fmt3(&v))) }
-async fn do_list_inherits_from_parent_on_obj(Json(r): Json<ListInheritsFromParentOnObjReq>) -> Json<Resp> { resp(list_inherits_from_parent_on_obj(r.actor, r.parent, r.obj).map(|v| fmt2(&v))) }
+async fn do_bootstrap() -> Json<Resp> { resp(cb().bootstrap().map(|(s, r)| format!("system={s}, root={r}"))) }
+async fn do_clear(Json(r): Json<ActorSub>) -> Json<Resp> { resp(cb().clear(r.actor).map(|_| "Cleared".into())) }
+async fn do_create_object(Json(r): Json<ActorObj>) -> Json<Resp> { resp(cb().create_object(r.actor, r.obj).map(|_| "Created".into())) }
+async fn do_delete_object(Json(r): Json<ActorObj>) -> Json<Resp> { resp(cb().delete_object(r.actor, r.obj).map(|_| "Deleted".into())) }
+async fn do_grant(Json(r): Json<GrantReq>) -> Json<Resp> { resp(cb().grant(r.actor, r.sub, r.obj, r.role, pol(r.policy)).map(|_| "Granted".into())) }
+async fn do_revoke(Json(r): Json<RevokeReq>) -> Json<Resp> { resp(cb().revoke(r.actor, r.sub, r.obj, r.role).map(|_| "Revoked".into())) }
+async fn do_define_role(Json(r): Json<RoleReq>) -> Json<Resp> { resp(cb().define_role(r.actor, r.obj, r.role, r.mask).map(|_| "Defined".into())) }
+async fn do_update_role(Json(r): Json<RoleReq>) -> Json<Resp> { resp(cb().update_role(r.actor, r.obj, r.role, r.mask).map(|_| "Updated".into())) }
+async fn do_delete_role(Json(r): Json<RoleDel>) -> Json<Resp> { resp(cb().delete_role(r.actor, r.obj, r.role).map(|_| "Deleted".into())) }
+async fn do_list_roles(Json(r): Json<ActorObj>) -> Json<Resp> { resp(cb().list_roles(r.actor, r.obj).map(|v| fmt(&v))) }
+async fn do_check(Json(r): Json<CheckReq>) -> Json<Resp> { resp(cb().check(r.sub, r.obj, r.req).map(|b| if b { "Allowed" } else { "Denied" }.into())) }
+async fn do_get_masks(Json(r): Json<MaskReq>) -> Json<Resp> {
+    resp(cb().get_masks(r.sub, r.obj).map(|m| format!("necessary=0x{:X} possible=0x{:X} denied=0x{:X} allowed=0x{:X}", m.necessary, m.possible, m.denied, m.allowed())))
+}
+async fn do_add_member(Json(r): Json<MemberReq>) -> Json<Resp> { resp(cb().add_member(r.actor, r.member, r.group, pol(r.policy)).map(|_| "Added".into())) }
+async fn do_remove_member(Json(r): Json<MemberDel>) -> Json<Resp> { resp(cb().remove_member(r.actor, r.member, r.group).map(|_| "Removed".into())) }
+async fn do_groups_of(Json(r): Json<ActorSub>) -> Json<Resp> { resp(cb().groups_of(r.actor, r.sub).map(|v| fmt(&v))) }
+async fn do_members_of(Json(r): Json<PageReq>) -> Json<Resp> { resp(cb().members_of(r.actor, r.obj, r.after, r.limit.unwrap_or(100)).map(|v| fmt(&v))) }
+async fn do_pop_intersect(Json(r): Json<PopReq>) -> Json<Resp> { resp(cb().population_intersect(r.actor, r.a, r.b).map(|v| fmt(&v))) }
+async fn do_pop_subtract(Json(r): Json<PopReq>) -> Json<Resp> { resp(cb().population_subtract(r.actor, r.a, r.b).map(|v| fmt(&v))) }
+async fn do_delegate(Json(r): Json<DelegateReq>) -> Json<Resp> { resp(cb().delegate(r.actor, r.sub, r.obj, r.role, r.parent, pol(r.policy)).map(|_| "Delegated".into())) }
+async fn do_undelegate(Json(r): Json<RevokeReq>) -> Json<Resp> { resp(cb().undelegate(r.actor, r.sub, r.obj, r.role).map(|_| "Removed".into())) }
+async fn do_list_delegations(Json(r): Json<ActorObj>) -> Json<Resp> { resp(cb().list_delegations_on(r.actor, r.obj).map(|v| fmt(&v))) }
+async fn do_set_parent(Json(r): Json<ParentReq>) -> Json<Resp> { resp(cb().set_parent(r.actor, r.obj, r.parent).map(|_| "Set".into())) }
+async fn do_clear_parent(Json(r): Json<ActorObj>) -> Json<Resp> { resp(cb().clear_parent(r.actor, r.obj).map(|_| "Cleared".into())) }
+async fn do_list_grants(Json(r): Json<ActorSub>) -> Json<Resp> { resp(cb().list_grants(r.actor, r.sub).map(|v| fmt(&v))) }
+async fn do_list_subjects(Json(r): Json<PageReq>) -> Json<Resp> { resp(cb().list_subjects(r.actor, r.obj, r.after, r.limit.unwrap_or(100)).map(|v| fmt(&v))) }
+async fn do_list_roles_for(Json(r): Json<SubObj>) -> Json<Resp> { resp(cb().list_roles_for(r.actor, r.sub, r.obj).map(|v| fmt(&v))) }
+async fn do_audit(Json(r): Json<AuditReq>) -> Json<Resp> {
+    resp(cb().audit_read(r.actor, r.after, r.limit.unwrap_or(100)).map(|v| {
+        v.iter().map(|e| format!("#{} t={} actor={} op={} args={:?}", e.seq, e.ts_ms, e.actor, e.op, e.args))
+            .collect::<Vec<_>>().join(" | ")
+    }))
+}
 
 async fn index() -> Html<&'static str> { Html(include_str!("ui.html")) }
 
 #[tokio::main]
 async fn main() {
-    init("capbit_data").expect("init failed");
+    CB.set(Capbit::open("capbit_data").expect("open failed")).ok();
     let app = Router::new()
         .route("/", get(index))
         .route("/api/bootstrap", post(do_bootstrap))
         .route("/api/clear", post(do_clear))
+        .route("/api/create_object", post(do_create_object))
+        .route("/api/delete_object", post(do_delete_object))
         .route("/api/grant", post(do_grant))
         .route("/api/revoke", post(do_revoke))
-        .route("/api/create", post(do_create))
-        .route("/api/update", post(do_update))
-        .route("/api/delete", post(do_delete))
-        .route("/api/check", post(do_check))
-        .route("/api/get_mask", post(do_get_mask))
-        .route("/api/inherit", post(do_inherit))
-        .route("/api/remove_inherit", post(do_remove_inherit))
+        .route("/api/define_role", post(do_define_role))
+        .route("/api/update_role", post(do_update_role))
+        .route("/api/delete_role", post(do_delete_role))
         .route("/api/list_roles", post(do_list_roles))
-        .route("/api/list_roles_for", post(do_list_roles_for))
+        .route("/api/check", post(do_check))
+        .route("/api/get_masks", post(do_get_masks))
+        .route("/api/add_member", post(do_add_member))
+        .route("/api/remove_member", post(do_remove_member))
+        .route("/api/groups_of", post(do_groups_of))
+        .route("/api/members_of", post(do_members_of))
+        .route("/api/pop_intersect", post(do_pop_intersect))
+        .route("/api/pop_subtract", post(do_pop_subtract))
+        .route("/api/delegate", post(do_delegate))
+        .route("/api/undelegate", post(do_undelegate))
+        .route("/api/list_delegations", post(do_list_delegations))
+        .route("/api/set_parent", post(do_set_parent))
+        .route("/api/clear_parent", post(do_clear_parent))
         .route("/api/list_grants", post(do_list_grants))
         .route("/api/list_subjects", post(do_list_subjects))
-        .route("/api/list_inherits", post(do_list_inherits))
-        .route("/api/list_inherits_on_obj", post(do_list_inherits_on_obj))
-        .route("/api/list_inherits_on_obj_role", post(do_list_inherits_on_obj_role))
-        .route("/api/list_inherits_from_parent", post(do_list_inherits_from_parent))
-        .route("/api/list_inherits_from_parent_on_obj", post(do_list_inherits_from_parent_on_obj));
+        .route("/api/list_roles_for", post(do_list_roles_for))
+        .route("/api/audit", post(do_audit));
     println!("UI running at http://localhost:3000");
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

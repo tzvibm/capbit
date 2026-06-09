@@ -40,33 +40,89 @@ button.list:hover{background:#4a4}
 </head><body>
 <nav>
 <button class="active" onclick="tab('setup')">Setup</button>
-<button onclick="tab('subjects')">Subjects</button>
-<button onclick="tab('objects')">Objects</button>
-<button onclick="tab('inherits')">Inherits</button>
+<button onclick="tab('roles')">Roles</button>
+<button onclick="tab('grants')">Grants</button>
+<button onclick="tab('groups')">Groups</button>
+<button onclick="tab('delegate')">Delegate</button>
+<button onclick="tab('audit')">Audit</button>
 <button onclick="tab('logs')">Logs</button>
 </nav>
 
 <div id="setup" class="tab active">
 <h2>Setup</h2>
 <div class="constants">
-<code>_SYSTEM=1</code> <code>_ROOT=2</code> <code>_OWNER=1</code> <code>_ADMIN=2</code> <code>_EDITOR=3</code> <code>_VIEWER=4</code><br>
-<code>ALL=0x3FFFFF</code> <code>ADMIN=0x3FCFCF</code> <code>EDITOR=0x366</code> <code>VIEWER=0x318</code>
+<code>_SYSTEM=1</code> <code>_ROOT=2</code> <code>_OWNER=1</code> <code>_ADMIN=2</code> <code>_EDITOR=3</code> <code>_VIEWER=4</code> <code>_MEMBER=5</code><br>
+policy: <code>0=Not (deny)</code> <code>1=Possible</code> <code>2=Necessary</code><br>
+meta bits 0..16: <code>READ_META=1</code> <code>DEFINE=2</code> <code>GRANT=4</code> <code>REVOKE=8</code> <code>DELEGATE=0x10</code> <code>CREATE_OBJ=0x20</code> <code>DELETE_OBJ=0x40</code> <code>SET_PARENT=0x80</code> <code>AUDIT=0x100</code><br>
+app bits 16..64: <code>APP_READ=0x10000</code> <code>APP_WRITE=0x20000</code> <code>APP_DELETE=0x40000</code>
 </div>
 <div class="grid">
 <details><summary>🚀 Bootstrap</summary><div class="card"><p style="font-size:11px;color:#666;margin-bottom:8px">Initialize _SYSTEM and _ROOT</p><button onclick="api('bootstrap',{})">Bootstrap</button></div></details>
-<details><summary>🗑️ Clear</summary><div class="card"><p style="font-size:11px;color:#666;margin-bottom:8px">Wipe all data</p><button class="danger" onclick="api('clear',{})">Clear</button></div></details>
+<details><summary>➕ Create object</summary><div class="card">
+<label>Actor</label><input id="co-actor" value="2">
+<label>Object</label><input id="co-obj">
+<button onclick="api('create_object',{actor:+v('co-actor'),obj:+v('co-obj')})">Create</button>
+</div></details>
+<details><summary>🗑️ Delete object</summary><div class="card">
+<label>Actor</label><input id="do-actor" value="2">
+<label>Object</label><input id="do-obj">
+<button class="danger" onclick="api('delete_object',{actor:+v('do-actor'),obj:+v('do-obj')})">Delete (cascades)</button>
+</div></details>
+<details><summary>🧬 Set type-parent</summary><div class="card">
+<label>Actor</label><input id="sp-actor" value="2">
+<label>Object</label><input id="sp-obj">
+<label>Parent (type object)</label><input id="sp-parent">
+<button onclick="api('set_parent',{actor:+v('sp-actor'),obj:+v('sp-obj'),parent:+v('sp-parent')})">Set</button>
+<button class="danger" onclick="api('clear_parent',{actor:+v('sp-actor'),obj:+v('sp-obj')})">Clear</button>
+</div></details>
+<details><summary>💥 Clear all</summary><div class="card">
+<label>Actor</label><input id="cl-actor" value="2">
+<button class="danger" onclick="api('clear',{actor:+v('cl-actor'),sub:0})">Wipe everything</button>
+</div></details>
 </div>
 </div>
 
-<div id="subjects" class="tab">
-<h2>Subjects</h2>
+<div id="roles" class="tab">
+<h2>Role definitions</h2>
+<div class="grid">
+<details><summary>➕ Define</summary><div class="card">
+<label>Actor</label><input id="c-actor" value="2">
+<label>Object</label><input id="c-obj">
+<label>Role</label><input id="c-role">
+<label>Mask (hex ok)</label><input id="c-mask" placeholder="0x30000">
+<button onclick="api('define_role',{actor:+v('c-actor'),obj:+v('c-obj'),role:+v('c-role'),mask:pm(v('c-mask'))})">Define</button>
+</div></details>
+<details><summary>✏️ Update</summary><div class="card">
+<label>Actor</label><input id="u-actor" value="2">
+<label>Object</label><input id="u-obj">
+<label>Role</label><input id="u-role">
+<label>Mask (hex ok)</label><input id="u-mask">
+<button onclick="api('update_role',{actor:+v('u-actor'),obj:+v('u-obj'),role:+v('u-role'),mask:pm(v('u-mask'))})">Update</button>
+</div></details>
+<details><summary>🗑️ Delete</summary><div class="card">
+<label>Actor</label><input id="d-actor" value="2">
+<label>Object</label><input id="d-obj">
+<label>Role</label><input id="d-role">
+<button class="danger" onclick="api('delete_role',{actor:+v('d-actor'),obj:+v('d-obj'),role:+v('d-role')})">Delete (cascades grants)</button>
+</div></details>
+<details><summary>📜 List</summary><div class="card">
+<label>Actor</label><input id="lr-actor" value="2">
+<label>Object</label><input id="lr-obj" value="1">
+<button class="list" onclick="api('list_roles',{actor:+v('lr-actor'),obj:+v('lr-obj')})">→ (role, mask)</button>
+</div></details>
+</div>
+</div>
+
+<div id="grants" class="tab">
+<h2>Grants</h2>
 <div class="grid">
 <details><summary>✅ Grant</summary><div class="card">
 <label>Actor</label><input id="g-actor" value="2">
 <label>Subject</label><input id="g-sub">
 <label>Object</label><input id="g-obj" value="1">
 <label>Role</label><input id="g-role">
-<button onclick="api('grant',{actor:+v('g-actor'),sub:+v('g-sub'),obj:+v('g-obj'),role:+v('g-role')})">Grant</button>
+<label>Policy (0=Not 1=Possible 2=Necessary)</label><input id="g-pol" value="2">
+<button onclick="api('grant',{actor:+v('g-actor'),sub:+v('g-sub'),obj:+v('g-obj'),role:+v('g-role'),policy:+v('g-pol')})">Grant</button>
 </div></details>
 <details><summary>❌ Revoke</summary><div class="card">
 <label>Actor</label><input id="r-actor" value="2">
@@ -78,109 +134,111 @@ button.list:hover{background:#4a4}
 <details><summary>🔍 Check</summary><div class="card">
 <label>Subject</label><input id="ch-sub">
 <label>Object</label><input id="ch-obj" value="1">
-<label>Required (hex ok)</label><input id="ch-req" placeholder="0x4000">
+<label>Required (hex ok)</label><input id="ch-req" placeholder="0x10000">
 <button onclick="api('check',{sub:+v('ch-sub'),obj:+v('ch-obj'),req:pm(v('ch-req'))})">Check</button>
 </div></details>
-<details><summary>🎭 Mask</summary><div class="card">
+<details><summary>🎭 Masks</summary><div class="card">
 <label>Subject</label><input id="gm-sub">
 <label>Object</label><input id="gm-obj" value="1">
-<button onclick="api('get_mask',{sub:+v('gm-sub'),obj:+v('gm-obj')})">Get Mask</button>
+<button onclick="api('get_masks',{sub:+v('gm-sub'),obj:+v('gm-obj')})">necessary / possible / denied</button>
 </div></details>
 <details><summary>📋 List (subject)</summary><div class="card">
 <label>Actor</label><input id="lg-actor" value="2">
 <label>Subject</label><input id="lg-sub">
-<button class="list" onclick="api('list_grants',{actor:+v('lg-actor'),sub:+v('lg-sub')})">→ (obj, role)</button>
+<button class="list" onclick="api('list_grants',{actor:+v('lg-actor'),sub:+v('lg-sub')})">→ (obj, role, policy)</button>
 </div></details>
 <details><summary>👥 List (object)</summary><div class="card">
 <label>Actor</label><input id="ls-actor" value="2">
 <label>Object</label><input id="ls-obj" value="1">
-<button class="list" onclick="api('list_subjects',{actor:+v('ls-actor'),obj:+v('ls-obj')})">→ (sub, role)</button>
+<label>After (cursor, optional)</label><input id="ls-after">
+<button class="list" onclick="api('list_subjects',{actor:+v('ls-actor'),obj:+v('ls-obj'),after:v('ls-after')?+v('ls-after'):null,limit:100})">→ (sub, role, policy)</button>
 </div></details>
 <details><summary>🏷️ List (sub+obj)</summary><div class="card">
 <label>Actor</label><input id="lrf-actor" value="2">
 <label>Subject</label><input id="lrf-sub">
 <label>Object</label><input id="lrf-obj" value="1">
-<button class="list" onclick="api('list_roles_for',{actor:+v('lrf-actor'),sub:+v('lrf-sub'),obj:+v('lrf-obj')})">→ [roles]</button>
+<button class="list" onclick="api('list_roles_for',{actor:+v('lrf-actor'),sub:+v('lrf-sub'),obj:+v('lrf-obj')})">→ (role, policy)</button>
 </div></details>
 </div>
 </div>
 
-<div id="objects" class="tab">
-<h2>Objects</h2>
+<div id="groups" class="tab">
+<h2>Groups (membership = grant of _MEMBER on a group object)</h2>
 <div class="grid">
-<details><summary>➕ Create</summary><div class="card">
-<label>Actor</label><input id="c-actor" value="2">
-<label>Object</label><input id="c-obj">
-<label>Role</label><input id="c-role">
-<label>Mask (hex ok)</label><input id="c-mask" placeholder="0x3FFFFF">
-<button onclick="api('create',{actor:+v('c-actor'),obj:+v('c-obj'),role:+v('c-role'),mask:pm(v('c-mask'))})">Create</button>
+<details><summary>➕ Add member</summary><div class="card">
+<label>Actor</label><input id="am-actor" value="2">
+<label>Member</label><input id="am-member">
+<label>Group</label><input id="am-group">
+<label>Policy (0=exclude 1=Possible 2=Necessary)</label><input id="am-pol" value="2">
+<button onclick="api('add_member',{actor:+v('am-actor'),member:+v('am-member'),group:+v('am-group'),policy:+v('am-pol')})">Add</button>
 </div></details>
-<details><summary>✏️ Update</summary><div class="card">
-<label>Actor</label><input id="u-actor" value="2">
-<label>Object</label><input id="u-obj">
-<label>Role</label><input id="u-role">
-<label>Mask (hex ok)</label><input id="u-mask">
-<button onclick="api('update',{actor:+v('u-actor'),obj:+v('u-obj'),role:+v('u-role'),mask:pm(v('u-mask'))})">Update</button>
+<details><summary>➖ Remove member</summary><div class="card">
+<label>Actor</label><input id="rm-actor" value="2">
+<label>Member</label><input id="rm-member">
+<label>Group</label><input id="rm-group">
+<button class="danger" onclick="api('remove_member',{actor:+v('rm-actor'),member:+v('rm-member'),group:+v('rm-group')})">Remove</button>
 </div></details>
-<details><summary>🗑️ Delete</summary><div class="card">
-<label>Actor</label><input id="d-actor" value="2">
-<label>Object</label><input id="d-obj">
-<label>Role</label><input id="d-role">
-<button class="danger" onclick="api('delete',{actor:+v('d-actor'),obj:+v('d-obj'),role:+v('d-role')})">Delete</button>
+<details><summary>👤 Groups of</summary><div class="card">
+<label>Actor</label><input id="go-actor" value="2">
+<label>Entity</label><input id="go-sub">
+<button class="list" onclick="api('groups_of',{actor:+v('go-actor'),sub:+v('go-sub')})">→ (group, policy)</button>
 </div></details>
-<details><summary>📜 List</summary><div class="card">
-<label>Actor</label><input id="lr-actor" value="2">
-<label>Object</label><input id="lr-obj" value="1">
-<button class="list" onclick="api('list_roles',{actor:+v('lr-actor'),obj:+v('lr-obj')})">→ (role, mask)</button>
+<details><summary>👥 Members of</summary><div class="card">
+<label>Actor</label><input id="mo-actor" value="2">
+<label>Group</label><input id="mo-group">
+<label>After (cursor, optional)</label><input id="mo-after">
+<button class="list" onclick="api('members_of',{actor:+v('mo-actor'),obj:+v('mo-group'),after:v('mo-after')?+v('mo-after'):null,limit:100})">→ (member, policy)</button>
+</div></details>
+<details><summary>∩ Intersect</summary><div class="card">
+<label>Actor</label><input id="pi-actor" value="2">
+<label>Group A</label><input id="pi-a">
+<label>Group B</label><input id="pi-b">
+<button class="list" onclick="api('pop_intersect',{actor:+v('pi-actor'),a:+v('pi-a'),b:+v('pi-b')})">members of both</button>
+</div></details>
+<details><summary>∖ Subtract</summary><div class="card">
+<label>Actor</label><input id="ps-actor" value="2">
+<label>Group A</label><input id="ps-a">
+<label>Group B</label><input id="ps-b">
+<button class="list" onclick="api('pop_subtract',{actor:+v('ps-actor'),a:+v('ps-a'),b:+v('ps-b')})">in A, not in B</button>
 </div></details>
 </div>
 </div>
 
-<div id="inherits" class="tab">
-<h2>Inherits</h2>
+<div id="delegate" class="tab">
+<h2>Delegation (qualified, attenuating)</h2>
 <div class="grid">
-<details><summary>🔗 Set</summary><div class="card">
+<details><summary>🔗 Delegate</summary><div class="card">
 <label>Actor</label><input id="i-actor" value="2">
-<label>Subject</label><input id="i-sub">
+<label>Subject (receives)</label><input id="i-sub">
 <label>Object</label><input id="i-obj" value="1">
 <label>Role</label><input id="i-role">
-<label>Parent</label><input id="i-parent">
-<button onclick="api('inherit',{actor:+v('i-actor'),sub:+v('i-sub'),obj:+v('i-obj'),role:+v('i-role'),parent:+v('i-parent')})">Set</button>
+<label>Parent (delegates)</label><input id="i-parent">
+<label>Policy (0=blocked 1=Possible 2=Necessary)</label><input id="i-pol" value="2">
+<button onclick="api('delegate',{actor:+v('i-actor'),sub:+v('i-sub'),obj:+v('i-obj'),role:+v('i-role'),parent:+v('i-parent'),policy:+v('i-pol')})">Delegate</button>
 </div></details>
-<details><summary>🔓 Remove</summary><div class="card">
+<details><summary>🔓 Undelegate</summary><div class="card">
 <label>Actor</label><input id="ri-actor" value="2">
 <label>Subject</label><input id="ri-sub">
 <label>Object</label><input id="ri-obj" value="1">
 <label>Role</label><input id="ri-role">
-<button class="danger" onclick="api('remove_inherit',{actor:+v('ri-actor'),sub:+v('ri-sub'),obj:+v('ri-obj'),role:+v('ri-role')})">Remove</button>
-</div></details>
-<details><summary>📄 List (sub+obj)</summary><div class="card">
-<label>Actor</label><input id="li-actor" value="2">
-<label>Subject</label><input id="li-sub">
-<label>Object</label><input id="li-obj" value="1">
-<button class="list" onclick="api('list_inherits',{actor:+v('li-actor'),sub:+v('li-sub'),obj:+v('li-obj')})">→ (role, parent)</button>
+<button class="danger" onclick="api('undelegate',{actor:+v('ri-actor'),sub:+v('ri-sub'),obj:+v('ri-obj'),role:+v('ri-role')})">Remove</button>
 </div></details>
 <details><summary>📦 List (object)</summary><div class="card">
-<label>Actor</label><input id="lio-actor" value="2">
-<label>Object</label><input id="lio-obj" value="1">
-<button class="list" onclick="api('list_inherits_on_obj',{actor:+v('lio-actor'),obj:+v('lio-obj')})">→ (role, parent, sub)</button>
+<label>Actor</label><input id="ld-actor" value="2">
+<label>Object</label><input id="ld-obj" value="1">
+<button class="list" onclick="api('list_delegations',{actor:+v('ld-actor'),obj:+v('ld-obj')})">→ (sub, role, parent, policy)</button>
 </div></details>
-<details><summary>🎯 List (obj+role)</summary><div class="card">
-<label>Actor</label><input id="lior-actor" value="2">
-<label>Object</label><input id="lior-obj" value="1">
-<label>Role</label><input id="lior-role">
-<button class="list" onclick="api('list_inherits_on_obj_role',{actor:+v('lior-actor'),obj:+v('lior-obj'),role:+v('lior-role')})">→ (parent, sub)</button>
-</div></details>
-<details><summary>👆 List (parent)</summary><div class="card">
-<label>Actor</label><input id="lip-actor" value="2">
-<label>Parent</label><input id="lip-parent">
-<button class="list" onclick="api('list_inherits_from_parent',{actor:+v('lip-actor'),parent:+v('lip-parent')})">→ (obj, role, sub)</button>
-</div></details>
-<details><summary>🔀 List (parent+obj)</summary><div class="card">
-<label>Actor</label><input id="lipo-actor" value="2">
-<label>Parent</label><input id="lipo-parent">
-<label>Object</label><input id="lipo-obj" value="1">
-<button class="list" onclick="api('list_inherits_from_parent_on_obj',{actor:+v('lipo-actor'),parent:+v('lipo-parent'),obj:+v('lipo-obj')})">→ (role, sub)</button>
+</div>
+</div>
+
+<div id="audit" class="tab">
+<h2>Audit log</h2>
+<div class="grid">
+<details open><summary>📖 Read</summary><div class="card">
+<label>Actor</label><input id="au-actor" value="2">
+<label>After seq (optional)</label><input id="au-after">
+<label>Limit</label><input id="au-limit" value="50">
+<button class="list" onclick="api('audit',{actor:+v('au-actor'),after:v('au-after')?+v('au-after'):null,limit:+v('au-limit')})">Read</button>
 </div></details>
 </div>
 </div>

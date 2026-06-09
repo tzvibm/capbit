@@ -2,6 +2,11 @@
 
 Authorization as atomized data.
 
+Embedded capability-based access control: u64 IDs, u64 permission bitmasks,
+policy-qualified edges, groups with write-time materialized closure, qualified
+delegation chains, and an audit log written atomically with every mutation.
+Backed by [fjall](https://github.com/fjall-rs/fjall) (LSM-tree storage).
+
 ## Core Idea
 
 |  | Relationships | Semantics |
@@ -10,204 +15,125 @@ Authorization as atomized data.
 | **Zanzibar** | Atomized | Data (schema) |
 | **Capbit** | Atomized | Atomized data |
 
-**Zanzibar's insight**: Authorization semantics belong in data, not application code. It delivered by storing semantics as a schema manifest.
+**Zanzibar's insight**: authorization semantics belong in data, not application
+code. It delivered by storing semantics as a schema manifest.
 
-**Capbit's refinement**: Authorization semantics should be atomized data - independent tuples, not a schema blob. Both relationships and authorization semantics are stored as independent, atomized tuples—fully queryable and mutable.
+**Capbit's refinement**: semantics should be atomized data — independent tuples,
+not a schema blob. There is no schema language and no policy evaluator: a check
+reads tuples, ORs some u64s, and does one AND.
 
-Definitions:
-- **Stored**: Facts exist but joined at query time
-- **Atomized**: Single tuple - queryable, mutable, and addressable independently
-- **Computed**: Derived from rules at runtime
-- **Data (schema)**: Stored in manifest, interpreted at runtime
+**The thesis**: all expansion happens at write time; every check is a bounded
+number of key reads; every edge carries a policy qualifier; and the system
+governs itself — granting, revoking, defining roles, and creating objects are
+permission bits checked by the same resolution as everything else.
 
-## The Progression
+See [DESIGN.md](DESIGN.md) for the full architecture, complexity analysis, and
+an honest comparison with SpiceDB/OpenFGA/Cedar.
 
-### ReBAC
-
-Relationships stored as facts. Semantics computed from rules.
-
-```
-Relationships (stored):
-  owns(alice, doc:100)
-  member_of(bob, engineering)
-
-Semantics (computed):
-  can_write(U, D) :- owns(U, D).
-  can_write(U, D) :- member_of(U, G), team_access(G, D).
-```
-
-To resolve: evaluate rules against facts. Expensive.
-
-### Zanzibar
-
-Relationships atomized. Semantics moved from code to data (schema manifest).
-
-```
-Relationships (atomized):
-  (doc:100, owner, alice)
-  (doc:100, editor, bob)
-
-Semantics (data, but schema):
-  type document {
-    relation owner: user
-    relation editor: user
-    permission write = owner + editor
-  }
-```
-
-Zanzibar's win: semantics are data, not application code.
-Zanzibar's limitation: schema is not atomized - must parse to query.
-
-### Capbit
-
-Relationships atomized. Semantics atomized. Independent tuples.
-
-```
-Relationships (atomized, multi-role):
-  SUBJECTS[(alice, doc:100, EDITOR)] → 1
-  SUBJECTS[(alice, doc:100, COMMENTER)] → 1   // alice has two roles
-  SUBJECTS[(bob, doc:100, VIEWER)] → 1
-
-Semantics (atomized):
-  OBJECTS[(doc:100, EDITOR)] → READ|WRITE|DELETE
-  OBJECTS[(doc:100, COMMENTER)] → READ|COMMENT
-  OBJECTS[(doc:100, VIEWER)] → READ
-
-Inheritance (atomized, role-specific):
-  INHERITS[(alice, doc:100, EDITOR)] → admin_group
-```
-
-Capbit's delta: semantics are atomized data, not schema blob.
-To resolve: prefix scan + mask lookups. No schema parsing.
-
-## Why It Matters
-
-|  | ReBAC | Zanzibar | Capbit |
-|---|---|---|---|
-| Query relationships | Expensive | Cheap | Cheap |
-| Query semantics | Expensive | Expensive (schema) | Cheap |
-| Mutate relationships | Rules change | Tuple write | Tuple write |
-| Mutate semantics | Rules change | Schema change | Tuple write |
+## Quick Start
 
 ```rust
-// Query: "What does EDITOR mean on doc:100?"
-OBJECTS.get(doc_100, EDITOR)  // O(1) - it's just a tuple
+use capbit::*;
 
-// Mutate: "Make EDITOR read-only on doc:100"
-OBJECTS.put(doc_100, EDITOR, READ)  // O(1) - just write a tuple
+let cb = Capbit::open("data")?;
+let (sys, root) = cb.bootstrap()?;            // _SYSTEM + _ROOT, once
 
-// Explain: "Why can alice write to doc:100?"
-SUBJECTS.get(alice, doc_100)  // → EDITOR
-OBJECTS.get(doc_100, EDITOR)  // → READ|WRITE
-// Two tuple lookups. No schema needed.
+// Objects are self-governing: creator becomes owner atomically.
+cb.create_object(root, 50)?;                  // a document
+cb.create_object(root, 90)?;                  // a group
+
+// Direct grant, policy-qualified.
+cb.grant(root, 10, 50, _VIEWER, Policy::Necessary)?;
+assert!(cb.check(10, 50, APP_READ)?);
+
+// Groups: membership is just a grant of _MEMBER on the group object.
+cb.add_member(root, 11, 90, Policy::Necessary)?;
+cb.grant(root, 90, 50, _EDITOR, Policy::Necessary)?;
+assert!(cb.check(11, 50, APP_WRITE)?);        // through the group, no traversal
+
+// Exclusion: "everyone in the group except 12" is one tuple.
+cb.add_member(root, 12, 90, Policy::Not)?;
+
+// Delegation that can only attenuate, centrally revocable, queryable.
+cb.delegate(root, 13, 50, _EDITOR, 11, Policy::Possible)?;
+let m = cb.get_masks(13, 50)?;                // { necessary, possible, denied }
+
+// Audit: every mutation was logged atomically.
+let log = cb.audit_read(root, None, 100)?;
 ```
 
 ## Data Structure
 
 ```
-SUBJECTS:           (subject, object, role) → 1        // grant tuple (multiple roles per subject+object)
-SUBJECTS_REV:       (object, subject, role) → 1        // reverse index
-OBJECTS:            (object, role) → mask              // semantic tuple
-INHERITS:           (subject, object, role) → parent   // role-specific inheritance
-INHERITS_BY_OBJ:    (object, role, parent, subject) → 1   // reverse index
-INHERITS_BY_PARENT: (parent, object, role, subject) → 1   // reverse index
+OBJECTS:         (object, role) → mask                 role definitions
+PARENTS:         (object) → parent                     type-as-object fallback
+PARENTS_REV:     (parent, object) → 1
+SUBJECTS:        (subject, object, role) → policy      grants (membership = _MEMBER)
+SUBJECTS_REV:    (object, subject, role) → policy
+CLOSURE:         (member, group) → policy              materialized membership
+CLOSURE_REV:     (group, member) → policy
+DELEGATIONS:     (subject, object, role) → (parent, policy)
+DELEGATIONS_REV: (object, subject, role) → (parent, policy)
+AUDIT:           (seq) → (ts, actor, op, args)         append-only
 ```
 
-Six partitions with reverse indexes for efficient queries in both directions.
+Ten partitions. Every audit question is a prefix scan; every mutation is one
+atomic batch. Implementable on any ordered-key store.
 
-A subject can have multiple roles on an object. Inheritance is role-specific.
+## Policies
 
-Implementable with any btree-based database (LMDB, RocksDB, LSM trees).
-
-## Permission Resolution
-
-```
-check(alice, doc:100, WRITE):
-
-1. SUBJECTS.prefix(alice, doc:100) → [EDITOR, COMMENTER]  // all roles for alice
-2. for each role: mask |= OBJECTS.get(doc:100, role)      // accumulate masks
-3. mask & WRITE == WRITE                                   // bitmask check
-```
-
-Prefix scan + mask lookups. No schema parsing, no rule evaluation.
-
-With inheritance:
+Every edge — grant, membership, delegation — carries a strength:
 
 ```
-current = alice
-mask = 0
-loop (max 10):
-  for role in SUBJECTS.prefix(current, doc:100):
-    mask |= OBJECTS.get(doc:100, role)
-    if parent = INHERITS.get(current, doc:100, role):
-      current = parent
-      break
-  else: break  // no roles found
-return mask & WRITE == WRITE
+Necessary   structural, mandatory (MAC-like)
+Possible    discretionary, conditional (DAC-like)
+Not         explicit deny / exclusion — overrides everything
 ```
 
-## Zanzibar Semantics on Capbit
+Composition along any chain is `min`: access can only weaken through
+indirection, never strengthen. Resolution returns three buckets
+(`necessary`, `possible`, `denied`); denied bits override.
 
-Anything Zanzibar expresses can be expressed in Capbit. Zanzibar provides schema skeleton out of the box - Capbit provides independent tuples.
+## Permission Bits
+
+Bits 0..16 govern capbit itself (`_GRANT`, `_REVOKE`, `_DEFINE`, `_DELEGATE`,
+`_CREATE_OBJ`, ...). Bits 16..64 are the application's (`app_bit(n)`). The two
+spaces are disjoint by construction.
 
 ```rust
-// Central governance: all documents share same semantics
-fn create_document(actor, doc_id) {
-    let template = get_type_template("document");
-    for (role, mask) in template.roles {
-        create(actor, doc_id, role, mask)?;
-    }
-}
+pub const APP_READ:  u64 = app_bit(0);
+pub const APP_WRITE: u64 = app_bit(1);
 ```
 
-Central governance, shared semantics, type enforcement - all buildable with simple if/else tooling.
+## Groups Without Expansion
 
-## API
+A group is an object; membership is a grant. Nested membership is folded into a
+materialized closure at **write** time, so checks never walk the group graph —
+the cost Zanzibar pays on every check, capbit pays once per membership change.
+
+Reverse queries return the compressed answer (groups as rows) with on-demand,
+paginated expansion, plus set algebra over populations:
 
 ```rust
-// Initialize
-init("data_path")?;
+cb.members_of(actor, eng, None, 1000)?;            // effective members, paginated
+cb.population_intersect(actor, prod_access, no_mfa)?;  // compliance as a primitive
+cb.population_subtract(actor, eng, contractors)?;
+```
 
-// Bootstrap
-let (system, root) = bootstrap()?;
+## Web UI
 
-// SUBJECTS table (grants) - subject can have multiple roles on object
-grant(actor, subject, object, role)?;
-revoke(actor, subject, object, role)?;          // removes specific role
-check_subject(subject, object, role)?;
+```bash
+cargo run --features ui --bin ui
+```
 
-// SUBJECTS list queries
-list_roles_for(actor, subject, object)?;        // → Vec<role>
-list_grants(actor, subject)?;                   // → Vec<(object, role)>
-list_subjects(actor, object)?;                  // → Vec<(subject, role)>
+Opens at http://localhost:3000 — a dev/test harness for every API operation.
+It takes the actor from the request body; real embeddings must derive the actor
+from an authenticated principal.
 
-// OBJECTS table (role definitions)
-create(actor, object, role, mask)?;
-update(actor, object, role, mask)?;
-delete(actor, object, role)?;
-get_object(actor, object, role)?;
-check_object(actor, object, role)?;
-list_roles(actor, object)?;                     // → Vec<(role, mask)>
+## Testing
 
-// INHERITS table (role-specific inheritance)
-inherit(actor, subject, object, role, parent)?;
-remove_inherit(actor, subject, object, role)?;
-get_inherit(actor, subject, object, role)?;
-check_inherit(actor, subject, object, role)?;
-
-// INHERITS list queries
-list_inherits(actor, subject, object)?;                    // → Vec<(role, parent)>
-list_inherits_on_obj(actor, object)?;                      // → Vec<(role, parent, subject)>
-list_inherits_on_obj_role(actor, object, role)?;           // → Vec<(parent, subject)>
-list_inherits_from_parent(actor, parent)?;                 // → Vec<(object, role, subject)>
-list_inherits_from_parent_on_obj(actor, parent, object)?;  // → Vec<(role, subject)>
-
-// Resolution (no actor required)
-check(subject, object, required)?;
-get_mask(subject, object)?;
-
-// Utility
-clear()?;
+```bash
+cargo test
 ```
 
 ## License

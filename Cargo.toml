@@ -1,6 +1,6 @@
 [package]
 name = "capbit"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 description = "Minimal capability-based access control with u64 IDs and bitmask permissions"
 license = "PolyForm-Noncommercial-1.0.0"
