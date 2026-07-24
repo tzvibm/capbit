@@ -461,6 +461,12 @@ All actions validate with zod, check auth + role, and return typed results. Name
 4. **Scheduled jobs** (Vercel cron or Supabase pg_cron; both acceptable): auto-approve deliverables past `auto_approve_at`; auto-settle inactive chat engagements (§6.3.5); expire pending_payment > 24 h; expire proposals > 7 d; attachment TTL purge; weekly payouts; recompute `response_time_mins`.
 5. **Admin page**: tables for coach applications (approve/reject), open help requests (resolve with refund/release), reports. Plain, functional, service-role backed, allowlist-gated.
 6. **Audit**: ledger is the money audit; add `engagement_events(engagement_id, event, actor_id, at)` written by the state machine for a full lifecycle trail.
+7. **Review-fraud defenses** (build the storage in M3, the scoring in M4):
+   - Store Stripe's card fingerprint on profiles (`payment_fingerprints text[]`, server-only). A fingerprint shared across multiple client accounts reviewing the same coach links those reviews; reviews from linked accounts are voided together. Prepaid/virtual card purchases mark the review low-trust.
+   - **Ranking score ≠ displayed average.** Display the true avg/count, but rank with a Bayesian-shrunk, credibility-weighted score: weight each review by account age, payment-method uniqueness, breadth (has the reviewer bought from ≥2 coaches?), and engagement depth (messages exchanged, days active, units consumed). Shrink toward the marketplace prior until count is meaningful — small batches of manufactured 5★s must not outrank an established 4.8★.
+   - One review per client per offering (already enforced by `engagement_id unique`); a repeat purchase lets the client *update* their review, never stack a new one.
+   - Tripwire flags into `help_requests`-style admin queue (`fraud_flags(coach_id, rule, evidence jsonb, created_at)`): review-rate burst vs. trailing baseline; zero/minimal-consumption engagements completed then reviewed; review submitted < N minutes after purchase; text-similarity cluster across a coach's reviews; same-device/IP correlation between coach and reviewer sessions. Flagged reviews are de-weighted immediately, removed only by admin decision.
+   - Enforcement path: weekly payout delay is the clawback window — confirmed fraud reverses escrow via `recordRefund`/withheld `releaseEscrow` before payout, purges the reviews, recomputes aggregates, and suspends the coach (`coach_status='suspended'`). Coaches are KYC'd via Connect, so a ban is loss of a verified identity, not a throwaway profile.
 
 ---
 
