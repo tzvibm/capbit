@@ -1,4 +1,5 @@
 <title>Wing — Interactive Prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
   :root {
     --bg:#FFFBF8; --surface:#FFFFFF; --ink:#2A2230; --ink-soft:#6E6068; --ink-faint:#9A8C93;
@@ -53,7 +54,7 @@
   .chiprow::-webkit-scrollbar { display:none; }
   .fchip { flex:0 0 auto; font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:999px; background:var(--surface); border:1px solid var(--line); color:var(--ink-soft); }
   .fchip.on { background:var(--ink); color:var(--bg); border-color:var(--ink); }
-  .search { margin:10px 16px 0; display:block; width:calc(100% - 32px); background:var(--chip); border:none; border-radius:12px; padding:11px 14px; font-size:14px; }
+  .search { margin:10px 16px 0; display:block; width:calc(100% - 32px); background:var(--chip); border:none; border-radius:12px; padding:11px 14px; font-size:16px; }
   .search::placeholder { color:var(--ink-faint); }
   .search:focus { outline:2px solid var(--accent); }
 
@@ -118,7 +119,7 @@
   .qb.no { background:var(--chip); color:var(--ink-soft); }
   .onote { text-align:center; font-size:10px; color:var(--ink-faint); margin-top:8px; font-family:ui-monospace,Menlo,monospace; }
   .compose { display:flex; gap:8px; align-items:center; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:var(--surface); border-top:1px solid var(--line); }
-  .cfield { flex:1; background:var(--chip); border:none; border-radius:999px; padding:11px 15px; font-size:14px; }
+  .cfield { flex:1; min-width:0; background:var(--chip); border:none; border-radius:999px; padding:11px 15px; font-size:16px; }
   .cfield:focus { outline:2px solid var(--accent); }
   .csend { width:38px; height:38px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-size:15px; flex:0 0 auto; }
 
@@ -174,7 +175,7 @@
   .outchips { display:flex; gap:7px; justify-content:center; flex-wrap:wrap; margin:12px 0 4px; }
   .ochip { font-size:12px; font-weight:600; padding:7px 13px; border-radius:999px; background:var(--bg); border:1px solid var(--line); color:var(--ink-soft); }
   .ochip.on { background:var(--positive-soft); border-color:var(--positive); color:var(--positive); }
-  .revfield { width:100%; margin-top:12px; background:var(--chip); border:none; border-radius:12px; padding:12px 13px; font-size:13.5px; min-height:64px; resize:none; }
+  .revfield { width:100%; margin-top:12px; background:var(--chip); border:none; border-radius:12px; padding:12px 13px; font-size:16px; min-height:64px; resize:none; }
   .cta { display:block; width:100%; margin-top:12px; background:var(--accent); color:#fff; border-radius:14px; text-align:center; padding:14px; font-weight:700; font-size:15px; }
   .toast { position:absolute; left:50%; transform:translateX(-50%) translateY(20px); bottom:90px; background:var(--ink); color:var(--bg); font-size:13px; font-weight:600; padding:10px 18px; border-radius:999px; opacity:0; transition:all .25s; z-index:40; pointer-events:none; white-space:nowrap; box-shadow:var(--shadow); }
   .toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -196,7 +197,7 @@
   <div class="screen" id="s-profile"></div>
 
   <!-- THREAD -->
-  <div class="screen" id="s-thread" style="display:none"></div>
+  <div class="screen" id="s-thread"></div>
 
   <!-- INBOX -->
   <div class="screen" id="s-inbox">
@@ -304,8 +305,8 @@ function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"
 // ---------- nav ----------
 function go(screen){
   state.screen=screen;
-  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
-  $("s-"+screen).classList.add("on"); $("s-"+screen).style.display="flex";
+  document.querySelectorAll(".screen").forEach(s=>{ s.classList.remove("on"); s.style.display=""; });
+  $("s-"+screen).classList.add("on");
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.tab===screen));
   $("tabbar").style.display = (screen==="thread"||screen==="profile") ? "none":"flex";
   if(screen==="discover") renderDiscover();
@@ -328,10 +329,13 @@ function renderDiscover(){
   });
   $("coachlist").innerHTML = list.length? list.map(c=>{
     const from = OFFERS.filter(o=>o.c===c.h && o.price>0).sort((a,b)=>a.price-b.price)[0];
+    const fromHtml = from
+      ? `<b>from ${money(from.price)}</b><span>${from.unit?("per "+from.unit):from.scheme==="deliverable"?"deliverable":"session"}</span>`
+      : `<b>ask</b><span>custom quote</span>`;
     return `<button class="ccard" onclick="openProfile('${c.h}')">
       <span class="row">${avatar(c,"av-md")}
         <span style="min-width:0"><span class="nm">${c.name} ${c.tick?'<span class="vtick">✓</span>':''}</span><span class="hl">${c.head}</span></span>
-        <span class="fromp"><b>from ${money(from.price)}</b><span>${from.unit?("per "+from.unit):from.scheme==="deliverable"?"deliverable":"session"}</span></span>
+        <span class="fromp">${fromHtml}</span>
       </span>
       <span class="meta"><span class="stars">${"★".repeat(Math.round(c.rating))}</span><span><b>${c.rating}</b> (${c.count})</span><span>${c.resp} reply</span></span>
       <span class="spec">${c.specs.map(s=>`<span class="schip">${SPECS[s]}</span>`).join("")}${c.badges.map(b=>`<span class="schip t">${b}</span>`).join("")}</span>
@@ -403,7 +407,7 @@ function confirmPurchase(){
   addMsg(o.c,{kind:"sys",text:`You bought ${o.t}${total?` · ${money(total)}`:""}`});
   if(o.scheme==="deliverable"){
     addMsg(o.c,{kind:"order",engId:eng.id});
-    setTimeout(()=>{ eng.status="delivered"; addMsg(o.c,{kind:"order",engId:eng.id}); coachSay(o.c,"Delivered! Open the card above — and tell me if anything misses.",true); if(state.screen==="thread") renderThread(); }, 6000);
+    setTimeout(()=>{ eng.status="delivered"; if(state.screen==="thread"&&state.coach===o.c) renderThread(); coachSay(o.c,"Delivered! Open the card above — and tell me if anything misses.",false); }, 6000);
     coachSay(o.c, COACHES[o.c].replies[0], false);
   } else if(o.scheme==="live"){
     addMsg(o.c,{kind:"call",engId:eng.id});
@@ -437,6 +441,7 @@ function coachSay(h,text,billable){
 function openThread(h){ state.coach=h; ensureThread(h); state.threads[h].unread=0; renderThread(); go("thread"); renderTabs(); }
 function renderThread(){
   const h=state.coach, c=COACHES[h], th=state.threads[h];
+  const prevInput=document.getElementById("cinput"); const keep=prevInput?prevInput.value:"";
   const a=armed(h);
   const others = th.engagements.length - (a?1:0);
   const trayLabel = a? `ARMED: ${a.title.toUpperCase().slice(0,18)} · ${a.unitsTotal-a.unitsUsed} LEFT` : th.engagements.length? "NO CHAT ITEM ARMED — TAP TO MANAGE" : "NO ITEMS YET — BUY FROM "+c.name.split(" ")[0].toUpperCase()+"'S MENU";
@@ -450,6 +455,7 @@ function renderThread(){
       <input class="cfield" id="cinput" placeholder="Message ${c.name.split(" ")[0]}…" onkeydown="if(event.key==='Enter')sendMsg()">
       <button class="csend" onclick="sendMsg()">➤</button>
     </div>`;
+  if(keep) $("cinput").value=keep;
   const log=$("chatlog"); log.scrollTop=log.scrollHeight;
 }
 function renderMsg(m,h){
@@ -482,7 +488,6 @@ function sendMsg(){
 function approveOrder(h,engId){
   const th=state.threads[h]; const e=th.engagements.find(x=>x.id===engId);
   e.status="approved";
-  addMsg(h,{kind:"order",engId});
   toast(money(e.amount)+" released to "+COACHES[h].name.split(" ")[0]);
   renderThread();
   setTimeout(()=>promptReview(h,e),700);
