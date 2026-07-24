@@ -1,0 +1,980 @@
+<title>Wing — UI/UX Design Pitch</title>
+<style>
+  :root {
+    --paper:      #FBF7F4;
+    --surface:    #FFFFFF;
+    --surface-2:  #F4ECE7;
+    --ink:        #241E26;
+    --ink-soft:   #5A5058;
+    --ink-faint:  #8A7F84;
+    --line:       #E7DCD5;
+    --line-soft:  #F0E7E1;
+    --accent:     #D6456A;
+    --accent-ink: #A32C4C;
+    --teal:       #2F5D62;
+    --teal-soft:  #E3EDEC;
+    --amber:      #B77410;
+    --amber-soft: #F5E9D6;
+    --radius: 10px;
+    --maxw: 1000px;
+    --read: 690px;
+    --serif: 'Iowan Old Style', 'Palatino Linotype', 'Palatino', 'Book Antiqua', 'Georgia', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#17131A; --surface:#201A22; --surface-2:#292230; --ink:#F1EAEE; --ink-soft:#C4B8C0;
+      --ink-faint:#8E8390; --line:#362E3B; --line-soft:#2A232F; --accent:#F2718F; --accent-ink:#F79DB2;
+      --teal:#7FC0C3; --teal-soft:#1E2E30; --amber:#E0A64E; --amber-soft:#2E2515;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper:#FBF7F4; --surface:#FFFFFF; --surface-2:#F4ECE7; --ink:#241E26; --ink-soft:#5A5058;
+    --ink-faint:#8A7F84; --line:#E7DCD5; --line-soft:#F0E7E1; --accent:#D6456A; --accent-ink:#A32C4C;
+    --teal:#2F5D62; --teal-soft:#E3EDEC; --amber:#B77410; --amber-soft:#F5E9D6;
+  }
+  :root[data-theme="dark"] {
+    --paper:#17131A; --surface:#201A22; --surface-2:#292230; --ink:#F1EAEE; --ink-soft:#C4B8C0;
+    --ink-faint:#8E8390; --line:#362E3B; --line-soft:#2A232F; --accent:#F2718F; --accent-ink:#F79DB2;
+    --teal:#7FC0C3; --teal-soft:#1E2E30; --amber:#E0A64E; --amber-soft:#2E2515;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.62; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px 110px; }
+  .narrow { max-width: var(--read); }
+
+  header.mast { padding: 62px 0 32px; border-bottom: 2px solid var(--ink); }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  h1.title { font-family: var(--serif); font-weight: 600; font-size: clamp(32px, 5.6vw, 48px); line-height: 1.08; letter-spacing: -0.015em; margin: 0 0 18px; text-wrap: balance; }
+  .lede { font-size: clamp(18px, 2.3vw, 20.5px); color: var(--ink-soft); max-width: var(--read); margin: 0; line-height: 1.55; }
+
+  section { padding-top: 58px; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
+  .sec-num { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 600; padding-top: 4px; flex: 0 0 auto; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(23px, 3.4vw, 29px); letter-spacing: -0.01em; margin: 0; line-height: 1.15; text-wrap: balance; }
+  h3 { font-weight: 680; font-size: 16px; margin: 26px 0 10px; }
+  p { max-width: var(--read); }
+  p.body { margin: 0 0 16px; }
+  strong { font-weight: 680; }
+
+  .journey { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); border-top: 1px solid var(--line); padding-top: 34px; margin-top: 64px; }
+  .journey b { color: var(--accent-ink); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 8px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+  .card h4 { font-size: 15.5px; font-weight: 680; margin: 0 0 6px; }
+  .card p { font-size: 14px; color: var(--ink-soft); margin: 0; line-height: 1.5; }
+  .card .tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); display: inline-block; margin-bottom: 8px; }
+
+  .swatches { display: flex; gap: 12px; flex-wrap: wrap; margin: 14px 0 6px; }
+  .sw { width: 118px; border-radius: var(--radius); border: 1px solid var(--line); overflow: hidden; background: var(--surface); }
+  .sw .chip { height: 56px; }
+  .sw .swl { padding: 8px 10px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); line-height: 1.5; }
+  .sw .swl b { display: block; color: var(--ink); font-size: 11px; letter-spacing: 0.04em; }
+
+  .callout { border-radius: var(--radius); padding: 18px 22px; margin: 22px 0 6px; font-size: 15px; line-height: 1.55; max-width: var(--read); }
+  .callout.teal { background: var(--teal-soft); border: 1px solid color-mix(in srgb, var(--teal) 30%, transparent); }
+  .callout.amber { background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 34%, transparent); }
+  .callout .clab { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+  .callout.teal .clab { color: var(--teal); }
+  .callout.amber .clab { color: var(--amber); }
+  .callout p { margin: 0; max-width: none; }
+
+  .tbl-wrap { overflow-x: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius); max-width: var(--read); }
+  table.doc { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 420px; }
+  table.doc th, table.doc td { text-align: left; padding: 11px 16px; border-top: 1px solid var(--line-soft); vertical-align: top; }
+  table.doc thead th { border-top: none; background: var(--surface-2); font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; }
+  table.doc tbody tr:first-child td { border-top: none; }
+  table.doc td.mono { font-family: var(--mono); font-size: 13px; color: var(--teal); }
+
+  ul.clean { padding-left: 20px; max-width: var(--read); }
+  ul.clean li { margin: 8px 0; }
+  ul.clean li::marker { color: var(--accent); }
+
+  /* ============ PHONE MOCKUPS (artwork: fixed light-app colors; app dark mode noted in copy) ============ */
+  .shelf { display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start; margin-top: 18px; }
+  .mock { flex: 0 0 auto; }
+  .mock .mlabel { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); margin: 14px 0 0; text-align: center; }
+  .notes { flex: 1 1 250px; min-width: 240px; max-width: 320px; padding-top: 6px; }
+  .notes h4 { font-size: 15px; font-weight: 680; margin: 0 0 10px; }
+  .note { display: grid; grid-template-columns: 22px 1fr; gap: 10px; margin: 0 0 12px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+  .note .nd { font-family: var(--mono); font-size: 11px; font-weight: 600; color: #fff; background: var(--accent); border-radius: 50%; width: 20px; height: 20px; display: grid; place-items: center; margin-top: 2px; }
+  .note b { color: var(--ink); }
+
+  .phone { width: 300px; border-radius: 38px; padding: 9px; background: #1B1520; box-shadow: 0 18px 40px -18px rgba(30,15,25,0.45); }
+  .screen { border-radius: 30px; overflow: hidden; background: #FFFBF8; color: #2A2230; font-size: 12.5px; line-height: 1.45; font-family: var(--sans); }
+  .sbar { display: flex; justify-content: space-between; padding: 9px 20px 3px; font-size: 10.5px; font-weight: 600; color: #2A2230; }
+  .sbar .icons { letter-spacing: 2px; font-size: 9.5px; }
+
+  .apphead { padding: 8px 16px 10px; }
+  .apphead .greet { font-size: 10.5px; color: #9A8C93; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+  .apphead h5 { font-family: var(--serif); font-size: 20px; margin: 2px 0 0; font-weight: 600; letter-spacing: -0.01em; color: #2A2230; }
+  .search { margin: 10px 16px 0; background: #F4EBE7; border-radius: 11px; padding: 8px 13px; color: #9A8C93; font-size: 12px; }
+  .chiprow { display: flex; gap: 6px; padding: 11px 16px 4px; overflow: hidden; }
+  .fchip { font-size: 11px; font-weight: 600; padding: 5px 11px; border-radius: 999px; background: #FFFFFF; border: 1px solid #EADDD6; color: #6E6068; white-space: nowrap; }
+  .fchip.on { background: #2A2230; color: #FFF9F5; border-color: #2A2230; }
+
+  .coachlist { padding: 9px 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+  .ccard { background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 15px; padding: 12px 13px; box-shadow: 0 2px 8px -6px rgba(60,30,45,0.18); }
+  .ccard .top { display: flex; gap: 10px; align-items: center; }
+  .av { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px; flex: 0 0 auto; }
+  .av.g1 { background: linear-gradient(135deg, #E4506F, #B23A6E); }
+  .av.g2 { background: linear-gradient(135deg, #2F5D62, #4E8C7F); }
+  .av.g3 { background: linear-gradient(135deg, #B77410, #D6A03F); }
+  .av.sm { width: 28px; height: 28px; font-size: 11px; }
+  .ccard .who { min-width: 0; }
+  .ccard .nm { font-weight: 700; font-size: 13px; display: flex; gap: 5px; align-items: center; }
+  .vtick { display: inline-grid; place-items: center; width: 12px; height: 12px; border-radius: 50%; background: #2F8C6A; color: #fff; font-size: 8px; font-weight: 800; }
+  .ccard .hl { font-size: 11px; color: #8A7A82; margin-top: 1px; }
+  .ccard .from { margin-left: auto; text-align: right; flex: 0 0 auto; }
+  .ccard .from b { display: block; font-size: 12.5px; color: #D6456A; font-weight: 700; }
+  .ccard .from span { font-size: 9.5px; color: #9A8C93; }
+  .ccard .meta { display: flex; gap: 9px; margin-top: 8px; font-size: 10.5px; color: #6E6068; align-items: center; flex-wrap: wrap; }
+  .stars { color: #E0A03C; letter-spacing: 1px; font-size: 10.5px; }
+  .ccard .meta b { font-weight: 700; color: #2A2230; }
+  .spec { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+  .schip { font-size: 9.5px; font-weight: 600; padding: 3px 8px; border-radius: 999px; background: #FBEEF1; color: #A32C4C; }
+  .schip.t { background: #E9F2F0; color: #2F5D62; }
+
+  /* welcome */
+  .welc { padding: 34px 22px 22px; text-align: center; }
+  .wlogo { font-family: var(--serif); font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+  .wlogo i { color: #D6456A; font-style: normal; }
+  .welc h6 { font-family: var(--serif); font-size: 21px; font-weight: 600; margin: 26px 0 8px; line-height: 1.25; }
+  .welc .sub { font-size: 12.5px; color: #8A7A82; line-height: 1.5; margin: 0 8px; }
+  .wbtn { margin: 9px 6px 0; border-radius: 13px; padding: 11px; font-weight: 700; font-size: 13px; }
+  .wbtn.dark { background: #2A2230; color: #FFF7F2; margin-top: 24px; }
+  .wbtn.lite { background: #FFFFFF; border: 1px solid #EADDD6; color: #2A2230; }
+  .welc .fine { font-size: 10px; color: #9A8C93; margin-top: 22px; line-height: 1.5; }
+  .wtrust { display: flex; justify-content: center; gap: 14px; margin-top: 26px; font-size: 10px; color: #6E6068; font-weight: 600; }
+
+  /* profile */
+  .pback { font-size: 11.5px; color: #9A8C93; padding: 7px 16px 0; }
+  .phero { text-align: center; padding: 6px 16px 2px; }
+  .phero .av { margin: 0 auto; width: 58px; height: 58px; font-size: 20px; }
+  .phero h5 { font-family: var(--serif); font-size: 19px; margin: 7px 0 1px; font-weight: 600; }
+  .phero .hl { font-size: 11.5px; color: #8A7A82; }
+  .statrow { display: flex; margin: 11px 14px 4px; background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 13px; padding: 9px 0; }
+  .stat { flex: 1; text-align: center; }
+  .stat + .stat { border-left: 1px solid #F0E4DD; }
+  .stat b { display: block; font-size: 13px; font-weight: 700; }
+  .stat span { font-size: 9.5px; color: #9A8C93; }
+  .menuhead { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #9A8C93; padding: 12px 18px 6px; }
+  .offer { display: flex; align-items: center; gap: 9px; background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 13px; padding: 10px 12px; margin: 0 12px 7px; }
+  .offer .oi { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; background: #FBEEF1; flex: 0 0 auto; }
+  .offer .oi.t { background: #E9F2F0; }
+  .offer .oi.a { background: #F5E9D6; }
+  .offer .ow { min-width: 0; }
+  .offer .ow b { font-size: 12px; font-weight: 700; display: block; }
+  .offer .ow span { font-size: 10px; color: #9A8C93; }
+  .offer .op { margin-left: auto; font-weight: 700; font-size: 12px; color: #D6456A; white-space: nowrap; }
+  .rev { margin: 4px 12px 9px; background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 13px; padding: 10px 12px; }
+  .rev .rt { display: flex; gap: 7px; align-items: center; font-size: 11px; font-weight: 700; }
+  .rev p { font-size: 11px; color: #6E6068; margin: 4px 0 0; line-height: 1.45; }
+  .cta { margin: 5px 12px 14px; background: #D6456A; color: #fff; text-align: center; font-weight: 700; font-size: 13px; border-radius: 13px; padding: 12px; box-shadow: 0 6px 16px -8px rgba(214,69,106,0.6); }
+
+  /* purchase sheet */
+  .dimtop { height: 190px; background: linear-gradient(#EFE3DC, #E4D6CF); position: relative; }
+  .dimtop::after { content: "Maya's profile"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: #9A8C93; font-family: var(--mono); }
+  .sheet { background: #FFFFFF; border-radius: 22px 22px 0 0; margin-top: -18px; position: relative; padding: 14px 16px 18px; box-shadow: 0 -8px 30px -12px rgba(40,20,35,0.25); }
+  .grab { width: 36px; height: 4px; border-radius: 999px; background: #E8DCD6; margin: 0 auto 12px; }
+  .sheet .sit { display: flex; gap: 10px; align-items: center; }
+  .sheet .sit .oi { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-size: 16px; background: #FBEEF1; }
+  .sheet .sit b { display: block; font-size: 13.5px; }
+  .sheet .sit span { font-size: 11px; color: #9A8C93; }
+  .sheet .sprice { margin-left: auto; font-weight: 800; font-size: 16px; }
+  .srow { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #F4EAE4; padding: 10px 2px; font-size: 12px; color: #6E6068; margin-top: 10px; }
+  .srow b { color: #2A2230; font-weight: 600; }
+  .srow .mono { font-family: var(--mono); font-size: 11px; }
+  .paybtn { margin-top: 12px; background: #000; color: #fff; border-radius: 13px; text-align: center; padding: 13px; font-weight: 700; font-size: 14px; }
+  .paybtn span {  }
+  .paynote { text-align: center; font-size: 10px; color: #9A8C93; margin-top: 9px; line-height: 1.5; }
+
+  /* thread */
+  .thead2 { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid #F0E4DD; background: #FFFDFB; }
+  .thead2 .tw b { font-size: 12.5px; font-weight: 700; display: block; }
+  .thead2 .tw span { font-size: 9.5px; color: #2F8C6A; font-weight: 600; }
+  .engbar { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: #FBEEF1; border-bottom: 1px solid #F3D9E0; font-family: var(--mono); font-size: 9px; font-weight: 600; color: #A32C4C; letter-spacing: 0.04em; }
+  .engbar .edot { width: 5px; height: 5px; border-radius: 50%; background: #2F8C6A; flex: 0 0 auto; }
+  .engbar .est { margin-left: auto; color: #2F8C6A; }
+  .engbar.tealbar { background: #E9F2F0; border-bottom-color: #D5E6E2; color: #2F5D62; }
+  .chat { padding: 11px 11px 6px; display: flex; flex-direction: column; gap: 7px; background: #FFFBF8; }
+  .msg { max-width: 84%; padding: 7px 11px; border-radius: 14px; font-size: 12px; line-height: 1.45; }
+  .msg.me { align-self: flex-end; background: #2A2230; color: #FFF7F2; border-bottom-right-radius: 5px; }
+  .msg.them { align-self: flex-start; background: #FFFFFF; border: 1px solid #F0E4DD; border-bottom-left-radius: 5px; }
+  .shot { align-self: flex-end; width: 62%; border-radius: 12px; border: 1px solid #F0E4DD; overflow: hidden; background: #FFF; }
+  .shot .simg { height: 60px; background: linear-gradient(160deg, #EFE2DA 25%, #E5D3CE 25% 50%, #EFE2DA 50% 75%, #E5D3CE 75%); position: relative; }
+  .shot .simg::after { content: "⌁ hinge_convo.png"; position: absolute; inset: auto 0 0 0; font-size: 8.5px; padding: 3px 7px; background: rgba(42,34,48,0.82); color: #FFF7F2; font-family: var(--mono); }
+  .pill { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 8.5px; font-weight: 700; letter-spacing: 0.05em; padding: 2px 7px; border-radius: 999px; margin-top: 5px; }
+  .pill.free { background: #E9F2F0; color: #2F5D62; }
+  .pill.paid { background: #FBEEF1; color: #A32C4C; }
+  .group { align-self: flex-start; max-width: 87%; border-left: 2.5px solid #D6456A; padding-left: 7px; display: flex; flex-direction: column; gap: 5px; }
+  .group .msg.them { max-width: 100%; }
+  .gtag { font-family: var(--mono); font-size: 8.5px; color: #A32C4C; font-weight: 700; letter-spacing: 0.05em; }
+  .qcard { align-self: flex-start; width: 88%; background: #FFFFFF; border: 1.5px solid #E9C8D2; border-radius: 13px; padding: 10px 12px; }
+  .qcard .qt { font-weight: 700; color: #A32C4C; letter-spacing: 0.06em; text-transform: uppercase; font-family: var(--mono); font-size: 9px; }
+  .qcard b.qname { display: block; font-size: 12px; margin-top: 3px; }
+  .qcard .qp { font-size: 11.5px; color: #6E6068; margin-top: 2px; }
+  .qbtns { display: flex; gap: 6px; margin-top: 8px; }
+  .qb { flex: 1; text-align: center; font-size: 11px; font-weight: 700; padding: 7px 0; border-radius: 9px; }
+  .qb.yes { background: #D6456A; color: #fff; }
+  .qb.no { background: #F4EBE7; color: #6E6068; }
+  .compose { display: flex; gap: 7px; align-items: center; padding: 9px 11px 13px; background: #FFFDFB; border-top: 1px solid #F0E4DD; }
+  .cfield { flex: 1; background: #F4EBE7; border-radius: 999px; padding: 8px 13px; font-size: 11.5px; color: #9A8C93; }
+  .csend { width: 32px; height: 32px; border-radius: 50%; background: #D6456A; color: #fff; display: grid; place-items: center; font-size: 13px; }
+
+  /* order card */
+  .ocard { align-self: flex-start; width: 92%; background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 13px; padding: 11px 12px; }
+  .ocard .ot { display: flex; align-items: center; gap: 8px; }
+  .ocard .ot .oi { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 13px; background: #E9F2F0; }
+  .ocard .ot b { font-size: 12px; display: block; }
+  .ocard .ot span { font-size: 10px; color: #9A8C93; }
+  .ocard .ot .os { margin-left: auto; font-family: var(--mono); font-size: 8.5px; font-weight: 700; color: #2F8C6A; background: #E9F2F0; padding: 2.5px 7px; border-radius: 999px; }
+  .tline { display: flex; align-items: center; gap: 0; margin: 10px 2px 2px; }
+  .tstep { flex: 1; text-align: center; font-size: 8.5px; color: #9A8C93; font-family: var(--mono); position: relative; }
+  .tstep::before { content: ""; display: block; width: 9px; height: 9px; border-radius: 50%; background: #2F8C6A; margin: 0 auto 4px; }
+  .tstep.pend::before { background: #E8DCD6; }
+  .tstep.cur::before { background: #D6456A; box-shadow: 0 0 0 3px #FBEEF1; }
+  .filechip { display: flex; align-items: center; gap: 8px; background: #F9F2EE; border-radius: 10px; padding: 8px 10px; margin-top: 10px; font-size: 11px; font-weight: 600; }
+  .filechip .fi { width: 26px; height: 26px; border-radius: 7px; background: #2F5D62; color: #fff; display: grid; place-items: center; font-size: 10px; font-family: var(--mono); }
+  .filechip span { color: #9A8C93; font-weight: 400; font-size: 9.5px; margin-left: auto; }
+  .obtns { display: flex; gap: 6px; margin-top: 10px; }
+  .onote { text-align: center; font-size: 9px; color: #9A8C93; margin-top: 7px; font-family: var(--mono); }
+
+  /* review */
+  .revwrap { padding: 22px 18px 18px; text-align: center; }
+  .revwrap h6 { font-family: var(--serif); font-size: 19px; font-weight: 600; margin: 10px 0 4px; }
+  .revwrap .rsub { font-size: 11.5px; color: #8A7A82; }
+  .bigstars { font-size: 30px; color: #E0A03C; letter-spacing: 6px; margin: 16px 0 4px; }
+  .bigstars .off { color: #E8DCD6; }
+  .outchips { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 14px 0 4px; }
+  .ochip { font-size: 11px; font-weight: 600; padding: 6px 12px; border-radius: 999px; background: #FFFFFF; border: 1px solid #EADDD6; color: #6E6068; }
+  .ochip.on { background: #E9F2F0; border-color: #BFD9D2; color: #2F5D62; }
+  .revfield { margin: 12px 4px 0; background: #F4EBE7; border-radius: 12px; padding: 12px 13px; font-size: 11.5px; color: #9A8C93; text-align: left; min-height: 54px; }
+  .revsubmit { margin: 14px 4px 0; background: #D6456A; color: #fff; border-radius: 13px; padding: 12px; font-weight: 700; font-size: 13px; }
+  .revskip { font-size: 11px; color: #9A8C93; margin-top: 10px; }
+
+  /* inbox */
+  .ibrow { display: flex; gap: 10px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #F6ECE6; }
+  .ibrow .iw { min-width: 0; flex: 1; }
+  .ibrow .inm { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; }
+  .ibrow .itime { margin-left: auto; font-size: 9.5px; color: #9A8C93; font-family: var(--mono); flex: 0 0 auto; }
+  .ibrow .isnip { font-size: 11px; color: #8A7A82; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .ibrow .isnip b { color: #2A2230; font-weight: 600; }
+  .itag { font-family: var(--mono); font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 999px; letter-spacing: 0.04em; }
+  .itag.a { background: #FBEEF1; color: #A32C4C; }
+  .itag.d { background: #E9F2F0; color: #2F5D62; }
+  .itag.w { background: #F5E9D6; color: #B77410; }
+  .udot { width: 8px; height: 8px; border-radius: 50%; background: #D6456A; flex: 0 0 auto; }
+
+  /* receipts */
+  .rrow { display: flex; gap: 10px; align-items: center; padding: 11px 16px; border-bottom: 1px solid #F6ECE6; }
+  .rrow .ri { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 13px; background: #FBEEF1; flex: 0 0 auto; }
+  .rrow .rw b { font-size: 12px; display: block; }
+  .rrow .rw span { font-size: 10px; color: #9A8C93; }
+  .rrow .ramt { margin-left: auto; font-family: var(--mono); font-size: 12px; font-weight: 700; }
+  .rnote { margin: 12px 16px; background: #E9F2F0; border-radius: 11px; padding: 9px 12px; font-size: 10.5px; color: #2F5D62; line-height: 1.5; }
+
+  /* coach: composer */
+  .bstep { margin: 0 12px 9px; background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 13px; padding: 11px 13px; }
+  .bstep .bq { font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #9A8C93; margin-bottom: 7px; }
+  .bopts { display: flex; gap: 5px; flex-wrap: wrap; }
+  .bo { font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: #F9F2EE; border: 1px solid #EADDD6; color: #6E6068; }
+  .bo.on { background: #D6456A; border-color: #D6456A; color: #fff; }
+  .ratebox { display: flex; align-items: center; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+  .ratebox .rl { font-size: 11px; color: #6E6068; }
+  .rateval { font-family: var(--mono); font-weight: 700; font-size: 12.5px; background: #F4EBE7; border-radius: 8px; padding: 5px 11px; }
+  .prevcard { margin: 4px 12px 7px; border: 1.5px dashed #E9C8D2; border-radius: 13px; padding: 10px 12px; background: #FFF7F4; }
+  .prevcard .pl { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #A32C4C; margin-bottom: 5px; }
+  .togrow { display: flex; align-items: center; justify-content: space-between; margin: 7px 14px; font-size: 11.5px; color: #2A2230; font-weight: 600; }
+  .tog { width: 35px; height: 20px; border-radius: 999px; background: #2F8C6A; position: relative; flex: 0 0 auto; }
+  .tog::after { content: ""; position: absolute; right: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+  .pubbtn { margin: 7px 12px 14px; background: #2A2230; color: #FFF7F2; text-align: center; font-weight: 700; font-size: 13px; border-radius: 13px; padding: 11px; }
+
+  /* coach: queue + earnings */
+  .qrow { margin: 0 12px 8px; background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 13px; padding: 10px 12px; }
+  .qrow .qtop { display: flex; gap: 8px; align-items: center; }
+  .qrow .qtop .oi { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 13px; background: #E9F2F0; flex: 0 0 auto; }
+  .qrow .qtop b { font-size: 12px; display: block; }
+  .qrow .qtop span { font-size: 10px; color: #9A8C93; }
+  .qrow .due { margin-left: auto; font-family: var(--mono); font-size: 9px; color: #B77410; font-weight: 700; background: #F5E9D6; padding: 3px 7px; border-radius: 999px; white-space: nowrap; }
+  .qrow .due.ok { color: #2F5D62; background: #E9F2F0; }
+  .etile { margin: 4px 12px 10px; background: #2A2230; border-radius: 15px; padding: 15px 16px; color: #FFF7F2; }
+  .etile .el { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #C9BAC4; font-weight: 600; }
+  .etile .ev { font-family: var(--mono); font-size: 27px; font-weight: 700; margin-top: 3px; }
+  .etile .es { font-size: 10.5px; color: #C9BAC4; margin-top: 4px; }
+  .etile .es b { color: #7FC0A8; font-weight: 700; }
+  .etiles2 { display: flex; gap: 8px; margin: 0 12px 10px; }
+  .et2 { flex: 1; background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 13px; padding: 10px 12px; }
+  .et2 b { font-family: var(--mono); font-size: 15px; display: block; }
+  .et2 span { font-size: 9.5px; color: #9A8C93; }
+  .payrow { display: flex; align-items: center; gap: 9px; margin: 0 12px 10px; background: #E9F2F0; border-radius: 13px; padding: 11px 13px; font-size: 11.5px; }
+  .payrow b { font-weight: 700; }
+  .payrow .mono { font-family: var(--mono); font-size: 10.5px; color: #2F5D62; margin-left: auto; font-weight: 700; }
+
+  /* interaction gallery components */
+  .shotgrid { align-self: flex-end; width: 74%; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .pthumb { height: 50px; border-radius: 9px; position: relative; overflow: hidden; }
+  .pthumb i { position: absolute; left: 5px; top: 4px; font-style: normal; font-family: var(--mono); font-size: 8.5px; font-weight: 700; color: #FFF7F2; background: rgba(42,34,48,0.7); border-radius: 999px; padding: 1px 6px; }
+  .pt1 { background: linear-gradient(150deg, #E8D5C8, #D9BFB4); }
+  .pt2 { background: linear-gradient(150deg, #CFD8D2, #B7C6BD); }
+  .pt3 { background: linear-gradient(150deg, #E3D0DA, #CDB4C4); }
+  .pt4 { background: linear-gradient(150deg, #D8D2C8, #C4BCAD); }
+  .vrow { display: flex; gap: 8px; align-items: center; background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 11px; padding: 7px 9px; }
+  .vthumb { width: 30px; height: 30px; border-radius: 8px; flex: 0 0 auto; }
+  .vrow .vw { min-width: 0; font-size: 10.5px; color: #6E6068; line-height: 1.35; }
+  .vchip { margin-left: auto; flex: 0 0 auto; font-family: var(--mono); font-size: 8.5px; font-weight: 700; padding: 2.5px 7px; border-radius: 999px; letter-spacing: 0.04em; }
+  .vchip.keep { background: #E9F2F0; color: #2F5D62; }
+  .vchip.cut { background: #FBEEF1; color: #A32C4C; }
+  .vchip.re { background: #F5E9D6; color: #B77410; }
+  .oprow { display: flex; gap: 8px; align-items: center; background: #F9F2EE; border-radius: 10px; padding: 8px 10px; font-size: 10.5px; line-height: 1.4; color: #2A2230; }
+  .opnum { width: 18px; height: 18px; border-radius: 50%; background: #2A2230; color: #FFF7F2; display: grid; place-items: center; font-family: var(--mono); font-size: 9px; font-weight: 700; flex: 0 0 auto; }
+  .opcopy { margin-left: auto; flex: 0 0 auto; font-family: var(--mono); font-size: 8.5px; font-weight: 700; color: #A32C4C; }
+  .slots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .slot { font-size: 10.5px; font-weight: 600; padding: 6px 10px; border-radius: 9px; background: #F9F2EE; border: 1px solid #EADDD6; color: #6E6068; }
+  .slot.on { background: #2A2230; border-color: #2A2230; color: #FFF7F2; }
+  .callbody { background: #221B26; height: 168px; position: relative; display: grid; place-items: center; }
+  .callbody .callname { color: #FFF7F2; text-align: center; }
+  .callbody .callname .av { margin: 0 auto 7px; }
+  .callbody .callname b { font-size: 13px; display: block; }
+  .callbody .callname span { font-size: 10px; color: #C9BAC4; }
+  .callself { position: absolute; right: 10px; bottom: 10px; width: 44px; height: 58px; border-radius: 10px; background: linear-gradient(150deg, #4A3C4E, #372C3B); border: 1px solid #4A3C4E; }
+  .ctimer { position: absolute; left: 10px; top: 10px; font-family: var(--mono); font-size: 9.5px; font-weight: 700; color: #FFF7F2; background: rgba(214,69,106,0.85); padding: 3px 8px; border-radius: 999px; }
+  .callbar { display: flex; justify-content: center; gap: 12px; padding: 12px 0 14px; background: #2A2230; }
+  .cbtn { width: 36px; height: 36px; border-radius: 50%; background: #4A3C4E; color: #FFF7F2; display: grid; place-items: center; font-size: 14px; }
+  .cbtn.end { background: #D6456A; }
+  .stop { display: grid; grid-template-columns: 20px 1fr; gap: 8px; font-size: 10.5px; color: #6E6068; line-height: 1.4; margin-top: 7px; }
+  .stop .sn { width: 17px; height: 17px; border-radius: 50%; background: #E9F2F0; color: #2F5D62; display: grid; place-items: center; font-family: var(--mono); font-size: 9px; font-weight: 700; margin-top: 1px; }
+  .stop b { color: #2A2230; }
+  .helpopt { display: flex; gap: 10px; align-items: center; background: #FFFFFF; border: 1px solid #F0E4DD; border-radius: 12px; padding: 11px 13px; margin: 0 14px 8px; font-size: 12px; font-weight: 600; }
+  .helpopt .ho { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #E0D2CA; flex: 0 0 auto; }
+  .helpopt.on .ho { border-color: #D6456A; background: radial-gradient(circle at center, #D6456A 40%, transparent 45%); }
+  .helpopt span.sub { display: block; font-size: 10px; color: #9A8C93; font-weight: 400; }
+  .ffield { margin: 0 14px 9px; }
+  .ffield label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #9A8C93; margin-bottom: 5px; }
+  .finput { background: #F4EBE7; border-radius: 11px; padding: 10px 12px; font-size: 11.5px; color: #2A2230; }
+  .finput.ph { color: #9A8C93; }
+
+  footer { margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--ink-faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  @media (max-width: 720px) { .shelf { gap: 22px; } .notes { max-width: none; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow"><span class="dot"></span> UI/UX Design Pitch · v2 comprehensive · working title: "Wing"</p>
+    <h1 class="title">What it looks like when human help is the product</h1>
+    <p class="lede">Every screen, both sides of the marketplace. One rule everywhere: <strong>plain dollars, charged per item at the moment of purchase</strong> — no credits, no wallet to pre-fund, nothing to decode. The interface's job is to make paying a person feel natural, transparent, and worth it.</p>
+  </header>
+
+  <!-- 01 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>Design stance — four principles</h2></div>
+    <div class="cards">
+      <div class="card"><span class="tag">Principle 1</span><h4>Human-warm, not AI-neon</h4><p>Soft paper grounds, an editorial serif for moments of voice, real faces. Deliberately the visual opposite of the glowing-gradient AI tools — the design itself argues "a person is here."</p></div>
+      <div class="card"><span class="tag">Principle 2</span><h4>Dollars, stated plainly</h4><p>Every price is a dollar amount, charged at purchase like any normal checkout. No token currencies, no conversion math, no pre-funding. "$4 per reply" means exactly that, on a card statement they recognize.</p></div>
+      <div class="card"><span class="tag">Principle 3</span><h4>The chat is the product</h4><p>One thread holds everything — advice, purchases, deliverables, offers — as cards in the stream. If it happened, it happened in the conversation.</p></div>
+      <div class="card"><span class="tag">Principle 4</span><h4>Consent anchors every charge</h4><p>The client picks the item; the coach fulfills it. Terms sit pinned atop the thread, and a coach action can cost what was agreed — or less. Never more.</p></div>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>Visual language</h2></div>
+    <p class="body">Warm off-white ground, plum-black ink, one confident rose accent reserved for money and primary actions, and a sage-teal that exclusively means "free / good news." Serif for human voice moments, sans for UI, mono only for dollar amounts and status badges — anything money-related is recognizable by typeface alone.</p>
+    <div class="swatches">
+      <div class="sw"><div class="chip" style="background:#FFFBF8; border-bottom:1px solid #F0E4DD"></div><div class="swl"><b>Paper #FFFBF8</b>app ground</div></div>
+      <div class="sw"><div class="chip" style="background:#2A2230"></div><div class="swl"><b>Ink #2A2230</b>text · client bubbles</div></div>
+      <div class="sw"><div class="chip" style="background:#D6456A"></div><div class="swl"><b>Rose #D6456A</b>money · primary CTA</div></div>
+      <div class="sw"><div class="chip" style="background:#2F5D62"></div><div class="swl"><b>Sage #2F5D62</b>free · success</div></div>
+      <div class="sw"><div class="chip" style="background:#E0A03C"></div><div class="swl"><b>Gold #E0A03C</b>ratings only</div></div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="doc">
+        <thead><tr><th>Voice rule</th><th>Instead of</th><th>We say</th></tr></thead>
+        <tbody>
+          <tr><td>Coach generosity is visible</td><td class="mono">"$0.00"</td><td class="mono">"free"</td></tr>
+          <tr><td>Charges are plain</td><td class="mono">"Transaction complete"</td><td class="mono">"$4 · Maya's answer"</td></tr>
+          <tr><td>Warm, not clinical</td><td class="mono">"Submit request"</td><td class="mono">"Ask Maya"</td></tr>
+          <tr><td>Checkout is honest</td><td class="mono">"Confirm order"</td><td class="mono">"Pay $25 · Maya starts after payment"</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CLIENT JOURNEY -->
+  <p class="journey"><b>Part I</b> — The client journey · nine screens, in order</p>
+
+  <!-- 03 welcome + discover -->
+  <section style="padding-top:34px">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Arrive &amp; discover</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="welc">
+            <div class="wlogo">wing<i>.</i></div>
+            <h6>Your wing for online dating.</h6>
+            <p class="sub">Real experts — not AI. Get help with openers, bios, photos, and dead conversations. Pay only for the help you take.</p>
+            <div class="wbtn dark"> Continue with Apple</div>
+            <div class="wbtn lite">Continue with Google</div>
+            <div class="wbtn lite">Use email</div>
+            <div class="wtrust"><span>✓ Real humans</span><span>✓ Plain prices</span><span>✓ Private</span></div>
+            <p class="fine">Your screenshots stay private and auto-delete.<br>We never touch your dating accounts.</p>
+          </div>
+        </div></div>
+        <p class="mlabel">C1 · Welcome</p>
+      </div>
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="apphead"><div class="greet">Tuesday · your wing awaits</div><h5>Who do you need?</h5></div>
+          <div class="search">Search coaches, e.g. "openers"…</div>
+          <div class="chiprow"><span class="fchip on">Openers</span><span class="fchip">Bio</span><span class="fchip">Photos</span><span class="fchip">Convos</span><span class="fchip">Live</span></div>
+          <div class="coachlist">
+            <div class="ccard">
+              <div class="top"><div class="av g1">M</div><div class="who"><div class="nm">Maya R. <span class="vtick">✓</span></div><div class="hl">Opener &amp; conversation specialist</div></div><div class="from"><b>$4</b><span>per reply</span></div></div>
+              <div class="meta"><span class="stars">★★★★★</span><span><b>4.9</b> (212)</span><span>~5 min reply</span></div>
+              <div class="spec"><span class="schip">Openers</span><span class="schip">Convo rescue</span><span class="schip t">First reply free</span></div>
+            </div>
+            <div class="ccard">
+              <div class="top"><div class="av g2">D</div><div class="who"><div class="nm">Dev K. <span class="vtick">✓</span></div><div class="hl">Bio doctor · ex-copywriter</div></div><div class="from"><b>$30</b><span>bio makeover</span></div></div>
+              <div class="meta"><span class="stars">★★★★★</span><span><b>4.8</b> (167)</span><span>~2 hr turnaround</span></div>
+              <div class="spec"><span class="schip">Bio</span><span class="schip">Prompts</span></div>
+            </div>
+            <div class="ccard">
+              <div class="top"><div class="av g3">S</div><div class="who"><div class="nm">Sam T. <span class="vtick">✓</span></div><div class="hl">Photo lineup strategist</div></div><div class="from"><b>$5</b><span>per photo</span></div></div>
+              <div class="meta"><span class="stars">★★★★☆</span><span><b>4.7</b> (94)</span><span>~1 hr reply</span></div>
+              <div class="spec"><span class="schip">Photos</span><span class="schip t">Pack deals</span></div>
+            </div>
+          </div>
+        </div></div>
+        <p class="mlabel">C2 · Discover</p>
+      </div>
+      <div class="notes">
+        <h4>Why they look this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>The welcome screen states the three fears away</b> — real humans (not AI), plain prices (no subscription trap), private (screenshots auto-delete, we never touch your accounts). Positioning is the first screen's whole job.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>Price-forward cards:</b> a plain dollar amount at eye level on every card. Micro-pricing IS the pitch, so it's never buried behind a tap.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>Trust stack in one glance:</b> verified tick, rating with count, response time — the whole purchase decision for a $4 item.</span></div>
+        <div class="note"><span class="nd">4</span><span><b>Specialty chips self-describe</b> ("Convo rescue"), teal flags deals ("First reply free") — the trial mechanic surfaces right in browse.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 profile + purchase -->
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>Choose &amp; pay — the menu and the checkout moment</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="pback">‹ Back</div>
+          <div class="phero"><div class="av g1">M</div><h5>Maya R. <span class="vtick" style="vertical-align:2px">✓</span></h5><div class="hl">"I fix dead conversations." · she/her</div></div>
+          <div class="statrow">
+            <div class="stat"><b>4.9 ★</b><span>212 reviews</span></div>
+            <div class="stat"><b>1,408</b><span>clients helped</span></div>
+            <div class="stat"><b>~5 min</b><span>response</span></div>
+          </div>
+          <div class="menuhead">Maya's menu</div>
+          <div class="offer"><div class="oi">💬</div><div class="ow"><b>Opener rescue</b><span>Per reply · first one free</span></div><div class="op">$4</div></div>
+          <div class="offer"><div class="oi">💬</div><div class="ow"><b>Convo rescue pack</b><span>10 replies, use anytime</span></div><div class="op">$25</div></div>
+          <div class="offer"><div class="oi t">⏱</div><div class="ow"><b>Live strategy call</b><span>30 min · video</span></div><div class="op">$50</div></div>
+          <div class="offer"><div class="oi a">✦</div><div class="ow"><b>Something else?</b><span>Describe it — Maya quotes a price</span></div><div class="op">ask</div></div>
+          <div class="menuhead">Latest review</div>
+          <div class="rev"><div class="rt"><span class="stars">★★★★★</span> <span>— J., 2 days ago</span></div><p>"Sent her a convo that was dead for a week. Her two lines got a reply in an hour. Date's on Friday."</p></div>
+          <div class="cta">Start with Maya</div>
+        </div></div>
+        <p class="mlabel">C3 · Coach profile</p>
+      </div>
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="dimtop"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="sit"><div class="oi">💬</div><div><b>Convo rescue pack</b><span>10 replies from Maya · use anytime</span></div><div class="sprice">$25</div></div>
+            <div class="srow" style="margin-top:12px"><span>Pay with</span><b class="mono">Visa ··4242 ›</b></div>
+            <div class="srow"><span>Maya typically replies in</span><b>~5 min</b></div>
+            <div class="srow"><span>Protection</span><b>Refund if she doesn't deliver</b></div>
+            <div class="paybtn"> Pay $25</div>
+            <p class="paynote">Charged now, once. Maya starts after payment.<br>No subscription · no balance to top up</p>
+          </div>
+        </div></div>
+        <p class="mlabel">C4 · Purchase sheet</p>
+      </div>
+      <div class="notes">
+        <h4>Why they look this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>The menu is the profile</b> — offerings as tappable rows with plain dollar prices, scannable like a restaurant menu. "Something else? → ask" makes the custom-quote path a first-class item.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>Checkout is a native-feeling sheet,</b> not a page: item, price, saved card / Apple Pay, one button. Tap-to-paid in under three seconds — the whole micro-consulting bet depends on this being impulse-frictionless.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>"Charged now, once."</b> The sheet says exactly what happens in checkout language people already trust, and the protection line ("refund if she doesn't deliver") de-risks the first purchase.</span></div>
+        <div class="note"><span class="nd">4</span><span><b>No wallet anywhere.</b> Buying a pack just means this purchase includes 10 replies — a deal on an item, not a balance system to understand.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 thread -->
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2>The thread — where help happens</h2></div>
+    <p class="body narrow">The hero screen, and the one no competitor has: a chat where free help and paid fulfillment coexist without a single confusing moment. The client chose the item; the pinned strip carries its terms; the coach delivers against them.</p>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="thead2"><div class="av g1 sm">M</div><div class="tw"><b>Maya R.</b><span>● online now</span></div></div>
+          <div class="engbar"><span class="edot"></span>CONVO RESCUE PACK · 7 OF 10 REPLIES LEFT<span class="est">active</span></div>
+          <div class="chat">
+            <div class="msg me">She stopped replying mid-convo 😩 can you take a look?</div>
+            <div class="shot"><div class="simg"></div></div>
+            <div class="msg them">Quick one before I dig in — how long since her last reply?<div><span class="pill free">FREE</span></div></div>
+            <div class="msg me">3 days</div>
+            <div class="group">
+              <span class="gtag">MAYA'S ANSWER · USES 1 REPLY</span>
+              <div class="msg them">Ok — good news, this is recoverable. Your last two texts were both questions; that reads needy after a gap.</div>
+              <div class="msg them">Send this: <i>"just saw a golden retriever argue with a pigeon and thought of your dog-park story"</i> — callback, zero pressure, easy yes.<div><span class="pill paid">1 REPLY USED · 6 LEFT</span></div></div>
+            </div>
+            <div class="qcard"><div class="qt">Offer from Maya</div><b class="qname">Full re-engagement strategy</b><div class="qp">3-message sequence + timing plan for this match</div><div class="qbtns"><div class="qb yes">Accept · $10</div><div class="qb no">Not now</div></div></div>
+          </div>
+          <div class="compose"><div class="cfield">Message Maya…</div><div class="csend">➤</div></div>
+        </div></div>
+        <p class="mlabel">C5 · Thread (pack engagement)</p>
+      </div>
+      <div class="notes">
+        <h4>Why it looks this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>The engagement strip is the consent anchor.</b> The client bought the pack; its terms sit pinned atop the thread. A per-reply item shows "$4/reply · $8 so far"; a timed session shows a live countdown; a deliverable shows its order status.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>FREE badge in sage:</b> Maya's clarifying question doesn't consume anything — her generosity is legible, which is both trust and her marketing.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>The grouped answer:</b> two bubbles, one rose spine, one consumption — "1 reply used · 6 left." A real answer spans messages but counts once.</span></div>
+        <div class="note"><span class="nd">4</span><span><b>Upsells are offer cards, never charges.</b> Maya's bigger idea arrives priced in dollars with Accept / Not now — accepting runs the same purchase sheet as any item.</span></div>
+        <div class="note"><span class="nd">5</span><span><b>Screenshots are first-class</b> — labeled, blurred in previews, auto-expiring per the privacy stance.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 deliverable + review -->
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2>Deliverables &amp; the review moment</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="thead2"><div class="av g2 sm">D</div><div class="tw"><b>Dev K.</b><span>usually replies in ~2 hr</span></div></div>
+          <div class="engbar tealbar"><span class="edot"></span>BIO MAKEOVER · $30 · PAID<span class="est">delivered</span></div>
+          <div class="chat">
+            <div class="msg me">Here's my current bio + what I do for work, hope that's enough to start</div>
+            <div class="msg them">Perfect, all I need. You'll have two versions by tonight — one playful, one grounded.<div><span class="pill free">FREE</span></div></div>
+            <div class="ocard">
+              <div class="ot"><div class="oi">📝</div><div><b>Bio makeover</b><span>Dev K. · ordered Tue</span></div><span class="os">DELIVERED</span></div>
+              <div class="tline">
+                <div class="tstep">PAID</div>
+                <div class="tstep">IN&nbsp;PROGRESS</div>
+                <div class="tstep cur">DELIVERED</div>
+                <div class="tstep pend">APPROVED</div>
+              </div>
+              <div class="filechip"><div class="fi">TXT</div>your_new_bio_2_versions.txt<span>2 KB</span></div>
+              <div class="obtns"><div class="qb yes">Approve</div><div class="qb no">Request changes</div></div>
+              <div class="onote">auto-approves Friday · $30 releases to Dev on approval</div>
+            </div>
+            <div class="msg them">Version 1 leans on your pottery thing — it's your best hook by far.<div><span class="pill free">FREE</span></div></div>
+          </div>
+          <div class="compose"><div class="cfield">Message Dev…</div><div class="csend">➤</div></div>
+        </div></div>
+        <p class="mlabel">C6 · Deliverable order</p>
+      </div>
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="revwrap">
+            <div class="av g1" style="margin:0 auto; width:54px; height:54px; font-size:19px;">M</div>
+            <h6>How was Maya?</h6>
+            <p class="rsub">Convo rescue pack · completed today</p>
+            <div class="bigstars">★★★★<span class="off">★</span></div>
+            <div class="outchips">
+              <span class="ochip on">Got a reply 🎉</span>
+              <span class="ochip on">Fast</span>
+              <span class="ochip">Date set</span>
+              <span class="ochip">Better profile</span>
+            </div>
+            <div class="revfield">What happened? Results help other daters choose…</div>
+            <div class="revsubmit">Post review</div>
+            <p class="revskip">Skip for now</p>
+          </div>
+        </div></div>
+        <p class="mlabel">C7 · Review</p>
+      </div>
+      <div class="notes">
+        <h4>Why they look this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>The order card lives in the chat</b> and updates in place: PAID → IN PROGRESS → DELIVERED → APPROVED. No separate "orders" section to hunt through; the conversation is the record.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>Approval releases the money</b> — stated right on the card ("$30 releases to Dev on approval"), with a visible auto-approve date so coaches aren't hostage to silent clients.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>Free commentary around the paid deliverable</b> is where coaches shine — Dev's unprompted tip costs nothing and earns the five-star.</span></div>
+        <div class="note"><span class="nd">4</span><span><b>Reviews ask for outcomes, not vibes:</b> tappable result chips ("Got a reply", "Date set") build the structured proof that powers discovery — and only completed purchases can review.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 inbox + receipts -->
+  <section>
+    <div class="sec-head"><span class="sec-num">07</span><h2>Inbox &amp; purchase history</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="apphead"><div class="greet">3 conversations</div><h5>Inbox</h5></div>
+          <div style="padding-top:4px">
+            <div class="ibrow"><div class="av g1 sm">M</div><div class="iw"><div class="inm">Maya R. <span class="itag a">PACK · 6 LEFT</span></div><div class="isnip"><b>Maya:</b> how'd the pigeon line land? 👀</div></div><div class="itime">2m</div><div class="udot"></div></div>
+            <div class="ibrow"><div class="av g2 sm">D</div><div class="iw"><div class="inm">Dev K. <span class="itag d">DELIVERED</span></div><div class="isnip"><b>Dev:</b> two versions attached — read v1 first</div></div><div class="itime">1h</div><div class="udot"></div></div>
+            <div class="ibrow"><div class="av g3 sm">S</div><div class="iw"><div class="inm">Sam T. <span class="itag w">QUOTE SENT</span></div><div class="isnip"><b>Sam:</b> full lineup redo — I'd do it for $35</div></div><div class="itime">Tue</div></div>
+          </div>
+        </div></div>
+        <p class="mlabel">C8 · Inbox</p>
+      </div>
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="apphead"><div class="greet">All charges in plain dollars</div><h5>Purchases</h5></div>
+          <div style="padding-top:4px">
+            <div class="rrow"><div class="ri">💬</div><div class="rw"><b>Convo rescue pack — Maya R.</b><span>Jul 22 · Visa ··4242 · 6 of 10 replies left</span></div><div class="ramt">$25</div></div>
+            <div class="rrow"><div class="ri">📝</div><div class="rw"><b>Bio makeover — Dev K.</b><span>Jul 21 · Visa ··4242 · awaiting your approval</span></div><div class="ramt">$30</div></div>
+            <div class="rrow"><div class="ri">💬</div><div class="rw"><b>Opener rescue — Maya R.</b><span>Jul 18 · first reply free</span></div><div class="ramt">$4</div></div>
+          </div>
+          <div class="rnote">Every purchase is a one-time card charge with an emailed receipt — nothing recurring unless you subscribe to a coach.</div>
+        </div></div>
+        <p class="mlabel">C9 · Purchases</p>
+      </div>
+      <div class="notes">
+        <h4>Why they look this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>Inbox rows carry commercial state</b> as tiny tags — "PACK · 6 LEFT", "DELIVERED", "QUOTE SENT" — so the client triages money and conversation together.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>Purchases reads like a card statement</b> they already understand: item, coach, date, amount, payment method — plus live state ("6 of 10 left"). This screen <em>is</em> the wallet replacement.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>The reassurance note says the quiet part out loud:</b> one-time charges, receipts, nothing recurring by surprise.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COACH JOURNEY -->
+  <p class="journey"><b>Part II</b> — The coach journey · three screens</p>
+
+  <!-- 08 composer + queue -->
+  <section style="padding-top:34px">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Build the menu, work the queue</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="apphead"><div class="greet">New offering</div><h5>Build your menu</h5></div>
+          <div class="bstep"><div class="bq">1 · What do you help with?</div><div class="bopts"><span class="bo on">Openers</span><span class="bo">Bio</span><span class="bo">Photos</span><span class="bo">Convos</span><span class="bo">Dates</span><span class="bo">Custom…</span></div></div>
+          <div class="bstep"><div class="bq">2 · How is it delivered?</div><div class="bopts"><span class="bo on">In chat</span><span class="bo">Deliverable</span><span class="bo">Live call</span><span class="bo">Package</span></div></div>
+          <div class="bstep"><div class="bq">3 · How do you charge?</div><div class="bopts"><span class="bo on">Per reply</span><span class="bo">Flat</span><span class="bo">Pack</span><span class="bo">Monthly</span></div>
+            <div class="ratebox"><span class="rl">Price</span><span class="rateval">$4.00</span><span class="rl">/ reply · you keep $3.20</span></div>
+          </div>
+          <div class="prevcard"><div class="pl">Live preview — as clients see it</div>
+            <div class="offer" style="margin:0; border:none; padding:2px 0;"><div class="oi">💬</div><div class="ow"><b>Opener rescue</b><span>Per reply · first one free</span></div><div class="op">$4</div></div>
+          </div>
+          <div class="togrow"><span>First reply free for new clients</span><span class="tog"></span></div>
+          <div class="pubbtn">Publish to my menu</div>
+        </div></div>
+        <p class="mlabel">W1 · Menu composer</p>
+      </div>
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="apphead"><div class="greet">Good morning, Maya</div><h5>To fulfill</h5></div>
+          <div class="qrow">
+            <div class="qtop"><div class="oi">💬</div><div><b>Jordan — pack reply waiting</b><span>Convo rescue · screenshot attached</span></div><span class="due">~5 MIN GOAL</span></div>
+          </div>
+          <div class="qrow">
+            <div class="qtop"><div class="oi" style="background:#FBEEF1">📝</div><div><b>Alex — 5 opener bundle</b><span>Paid $18 · inputs received</span></div><span class="due">DUE 22H</span></div>
+          </div>
+          <div class="qrow">
+            <div class="qtop"><div class="oi" style="background:#F5E9D6">✦</div><div><b>Riley — custom request</b><span>"Help planning a first date in Austin"</span></div><span class="due ok">SEND QUOTE</span></div>
+            <div class="qbtns" style="margin-top:9px"><div class="qb yes">Quote a price</div><div class="qb no">Decline politely</div></div>
+          </div>
+          <div class="menuhead" style="padding-top:8px">Today</div>
+          <div class="etiles2" style="margin-top:2px">
+            <div class="et2"><b>7</b><span>replies sent</span></div>
+            <div class="et2"><b>$46</b><span>earned today</span></div>
+            <div class="et2"><b>4 min</b><span>avg response</span></div>
+          </div>
+        </div></div>
+        <p class="mlabel">W2 · Fulfillment queue</p>
+      </div>
+      <div class="notes">
+        <h4>Why they look this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>Three questions, three cards:</b> the whole abstract pricing engine compresses to a form a non-technical coach finishes in 30 seconds — with a live WYSIWYG preview of the exact menu row clients will see.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>"You keep $3.20"</b> — the take rate is stated at the moment of pricing, in the coach's own dollars. No fee surprises at payout.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>The queue is triage, not chat:</b> every open obligation (pack replies waiting, paid deliverables with deadlines, quote requests) in one prioritized list, with response-time goals visible because they're a ranked reputation stat.</span></div>
+        <div class="note"><span class="nd">4</span><span><b>Custom requests arrive with two honest buttons</b> — quote a price or decline politely. No ghosting path.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 earnings -->
+  <section>
+    <div class="sec-head"><span class="sec-num">09</span><h2>Earnings — the coach's paycheck</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="apphead"><div class="greet">Earnings</div><h5>This week</h5></div>
+          <div class="etile"><div class="el">You've earned</div><div class="ev">$312.40</div><div class="es"><b>▲ 22%</b> vs last week · after the 20% platform fee</div></div>
+          <div class="etiles2">
+            <div class="et2"><b>4.9 ★</b><span>rating</span></div>
+            <div class="et2"><b>38</b><span>clients this week</span></div>
+            <div class="et2"><b>92%</b><span>repeat rate</span></div>
+          </div>
+          <div class="payrow"><b>Next payout</b> Friday <span class="mono">$286.20 → bank ··1123</span></div>
+          <div class="menuhead">Recent</div>
+          <div class="rrow"><div class="ri">💬</div><div class="rw"><b>Jordan — pack reply</b><span>12:40 · Convo rescue</span></div><div class="ramt" style="color:#2F5D62">+$2.00</div></div>
+          <div class="rrow"><div class="ri">📝</div><div class="rw"><b>Priya — bio makeover approved</b><span>11:15 · released on approval</span></div><div class="ramt" style="color:#2F5D62">+$24.00</div></div>
+          <div class="rrow"><div class="ri">💬</div><div class="rw"><b>Alex — opener bundle</b><span>9:02 · 5 openers delivered</span></div><div class="ramt" style="color:#2F5D62">+$14.40</div></div>
+        </div></div>
+        <p class="mlabel">W3 · Earnings</p>
+      </div>
+      <div class="notes">
+        <h4>Why it looks this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>The big number is post-fee</b> — always the coach's real money, never a gross figure that shrinks later. Payout day, amount, and destination sit one row below.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>Every earning line traces to a fulfillment</b> ("bio makeover approved · released on approval") — the escrow model explained by the receipt itself.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>Repeat rate is a first-class stat.</b> For coaches, returning clients are the business; we surface it next to rating to steer behavior toward relationship quality, not volume.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INTERACTION GALLERY -->
+  <p class="journey"><b>Part III</b> — Interaction gallery · how different kinds of coaching feel</p>
+
+  <!-- 10 photos + openers -->
+  <section style="padding-top:34px">
+    <div class="sec-head"><span class="sec-num">10</span><h2>Photo verdicts &amp; opener delivery</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="thead2"><div class="av g3 sm">S</div><div class="tw"><b>Sam T.</b><span>usually replies in ~1 hr</span></div></div>
+          <div class="engbar"><span class="edot"></span>PHOTO REVIEW · $5/PHOTO · 4 PHOTOS · $20<span class="est">active</span></div>
+          <div class="chat">
+            <div class="msg me">Be brutal — which ones are hurting me?</div>
+            <div class="shotgrid">
+              <div class="pthumb pt1"><i>1</i></div><div class="pthumb pt2"><i>2</i></div>
+              <div class="pthumb pt3"><i>3</i></div><div class="pthumb pt4"><i>4</i></div>
+            </div>
+            <div class="msg them">Got them. Verdicts as I go — each one counts as a review.<div><span class="pill free">FREE</span></div></div>
+            <div class="group">
+              <span class="gtag">SAM'S VERDICTS · 3 OF 4 REVIEWED</span>
+              <div class="vrow"><div class="vthumb pt1"></div><div class="vw">Lead with this — warm light, real smile, mid-laugh.</div><span class="vchip keep">KEEP</span></div>
+              <div class="vrow"><div class="vthumb pt2"></div><div class="vw">Gym mirror. Reads try-hard; costs you more than it earns.</div><span class="vchip cut">CUT</span></div>
+              <div class="vrow"><div class="vthumb pt3"></div><div class="vw">Great setting, bad crop — retake in landscape, step back 2m.</div><span class="vchip re">RESHOOT</span></div>
+              <div class="msg them" style="max-width:100%">Last one coming tonight, then your final lineup order.<div><span class="pill paid">$15 OF $20 USED</span></div></div>
+            </div>
+          </div>
+          <div class="compose"><div class="cfield">Message Sam…</div><div class="csend">➤</div></div>
+        </div></div>
+        <p class="mlabel">G1 · Per-photo review</p>
+      </div>
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="thead2"><div class="av g1 sm">M</div><div class="tw"><b>Maya R.</b><span>● online now</span></div></div>
+          <div class="engbar tealbar"><span class="edot"></span>5 CUSTOM OPENERS · $18 · PAID<span class="est">delivered</span></div>
+          <div class="chat">
+            <div class="msg me">Her profile's attached — she's into climbing, has a corgi, bio is all jokes</div>
+            <div class="ocard">
+              <div class="ot"><div class="oi" style="background:#FBEEF1">💬</div><div><b>Your 5 openers</b><span>Maya R. · written for this match</span></div><span class="os">DELIVERED</span></div>
+              <div style="display:flex; flex-direction:column; gap:6px; margin-top:10px">
+                <div class="oprow"><span class="opnum">1</span>Your corgi has main-character energy and I need to know his name immediately<span class="opcopy">COPY</span></div>
+                <div class="oprow"><span class="opnum">2</span>Ok the jokes in your bio — is that a competition? Because I came prepared<span class="opcopy">COPY</span></div>
+                <div class="oprow"><span class="opnum">3</span>Belay question: overhangs or slabs? This determines everything<span class="opcopy">COPY</span></div>
+              </div>
+              <div class="onote">+ 2 more · tap COPY, paste straight into Hinge</div>
+            </div>
+            <div class="msg them">Start with #1 if you want easy, #3 if you want her to know you actually climb. Don't send more than one 🙂<div><span class="pill free">FREE</span></div></div>
+          </div>
+          <div class="compose"><div class="cfield">Message Maya…</div><div class="csend">➤</div></div>
+        </div></div>
+        <p class="mlabel">G2 · Opener bundle</p>
+      </div>
+      <div class="notes">
+        <h4>Why they look this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>Per-item metering is visible mid-fulfillment:</b> "3 of 4 reviewed · $15 of $20 used." The client watches value arrive verdict by verdict — no leap of faith, no surprise total.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>Verdicts are structured, not prose:</b> KEEP / CUT / RESHOOT chips + one sharp sentence. Structured output feels more expert, skims faster, and becomes portfolio-able proof of the coach's eye.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>Openers ship with a COPY button</b> — the deliverable is designed for what happens ten seconds later in another app. Friction between advice and use is where value dies.</span></div>
+        <div class="note"><span class="nd">4</span><span><b>The free coaching wrapped around the deliverable</b> ("start with #1… don't send more than one") is the human judgment layer no AI tool ships — and it's what earns the review.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 live + custom -->
+  <section>
+    <div class="sec-head"><span class="sec-num">11</span><h2>Live sessions &amp; custom requests</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="thead2"><div class="av g2 sm">E</div><div class="tw"><b>Elena V.</b><span>live session</span></div></div>
+          <div class="engbar"><span class="edot"></span>LIVE STRATEGY CALL · $50 · 30 MIN<span class="est">in session</span></div>
+          <div class="callbody">
+            <div class="ctimer">18:42 left</div>
+            <div class="callname"><div class="av g2" style="width:54px;height:54px;font-size:19px">E</div><b>Elena V.</b><span>Talking about: your first two weeks on Hinge</span></div>
+            <div class="callself"></div>
+          </div>
+          <div class="callbar"><div class="cbtn">🎙</div><div class="cbtn">📷</div><div class="cbtn">💬</div><div class="cbtn end">✕</div></div>
+          <div class="chat" style="padding-top:10px">
+            <div class="ocard" style="width:100%">
+              <div class="ot"><div class="oi t">⏱</div><div><b>Booked earlier today</b><span>Fri 7:00 PM · reminder sent 15 min before</span></div><span class="os">CONFIRMED</span></div>
+              <div class="slots"><span class="slot on">Fri 7:00p</span><span class="slot">Fri 7:45p</span><span class="slot">Sat 10:00a</span></div>
+              <div class="onote">timer meters the session · overtime only if you both tap "extend"</div>
+            </div>
+          </div>
+        </div></div>
+        <p class="mlabel">G3 · Live session</p>
+      </div>
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="thead2"><div class="av g3 sm">P</div><div class="tw"><b>Priya N.</b><span>date planner · Austin</span></div></div>
+          <div class="engbar tealbar"><span class="edot"></span>CUSTOM REQUEST · QUOTED $35 · ACCEPTED<span class="est">delivered</span></div>
+          <div class="chat">
+            <div class="msg me">She said yes to Saturday!! Can you plan something that isn't dinner-boring? She likes weird museums &amp; good coffee</div>
+            <div class="qcard"><div class="qt">Priya's quote</div><b class="qname">First-date plan: Austin, non-boring</b><div class="qp">3-stop plan + timing + a backup if weather turns · $35</div><div class="qbtns"><div class="qb yes" style="background:#2F5D62">Accepted ✓</div></div></div>
+            <div class="ocard">
+              <div class="ot"><div class="oi">🗺</div><div><b>Your Saturday plan</b><span>Priya N. · built for her interests</span></div><span class="os">DELIVERED</span></div>
+              <div class="stop"><span class="sn">1</span><span><b>4:30p — Museum of the Weird</b>, Sixth St. Kitschy on purpose; gives you both material. 45 min max.</span></div>
+              <div class="stop"><span class="sn">2</span><span><b>5:30p — walk to Cenote</b> for coffee outside — golden-hour patio, easy to extend or end gracefully.</span></div>
+              <div class="stop"><span class="sn">3</span><span><b>If it's going great:</b> pinball at Pinballz — playful beats candlelit on a first date.</span></div>
+              <div class="onote">rain backup + "how to suggest it" script included below</div>
+            </div>
+          </div>
+          <div class="compose"><div class="cfield">Message Priya…</div><div class="csend">➤</div></div>
+        </div></div>
+        <p class="mlabel">G4 · Custom quote → plan</p>
+      </div>
+      <div class="notes">
+        <h4>Why they look this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>The timer is the meter for live work</b> — pinned, mutual, unambiguous. Overtime requires both parties to tap extend, so a session can never quietly overrun into money.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>Booking happens as a card in the thread</b> (slots, confirmation, reminders) — no separate scheduling app to context-switch into.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>The custom flow is the platform's closure property, visualized:</b> describe anything → coach quotes a price → accept → it becomes a normal tracked deliverable. No request type we didn't anticipate ever hits a dead end.</span></div>
+        <div class="note"><span class="nd">4</span><span><b>Deliverables carry judgment, not just facts:</b> "45 min max", "playful beats candlelit", a graceful-exit option. The formats are designed to show off the human expertise that justifies the price.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 subscription + help -->
+  <section>
+    <div class="sec-head"><span class="sec-num">12</span><h2>Ongoing coaching &amp; when something goes wrong</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="thead2"><div class="av g1 sm">M</div><div class="tw"><b>Maya R.</b><span>your wingman</span></div></div>
+          <div class="engbar"><span class="edot"></span>MONTHLY WINGMAN · $80/MO · RENEWS AUG 21<span class="est">active</span></div>
+          <div class="chat">
+            <div class="msg them">Weekly check-in 👋 How'd the Friday date go? And did Kate ever reply?<div><span class="pill free">INCLUDED</span></div></div>
+            <div class="msg me">Date was great actually!! second one planned. Kate ghosted tho</div>
+            <div class="msg them">Two-for-one week then. Kate: let it go — her reply pattern was fading before your last message, that one's not on you. Focus the energy on Friday #2.<div><span class="pill free">INCLUDED</span></div></div>
+            <div class="msg me">ok yeah. what should I plan for the second date?</div>
+            <div class="msg them">Something with her hands busy — cooking class or pottery. Second dates die in restaurants. Want me to find 3 options near her side of town?<div><span class="pill free">INCLUDED</span></div></div>
+          </div>
+          <div class="compose"><div class="cfield">Message Maya…</div><div class="csend">➤</div></div>
+        </div></div>
+        <p class="mlabel">G5 · Subscription coaching</p>
+      </div>
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="apphead"><div class="greet">Bio makeover — Dev K. · $30</div><h5>Get help with this purchase</h5></div>
+          <div style="padding-top:6px">
+            <div class="helpopt on"><span class="ho"></span><span>Request changes<span class="sub">Dev revises the deliverable — most issues end here</span></span></div>
+            <div class="helpopt"><span class="ho"></span><span>Request a refund<span class="sub">Your $30 is still in escrow — nothing has been paid out yet</span></span></div>
+            <div class="helpopt"><span class="ho"></span><span>Report this coach<span class="sub">Something felt off — tell us privately</span></span></div>
+          </div>
+          <div class="ffield" style="margin-top:8px"><label>What happened?</label><div class="finput ph">Both versions felt generic — nothing about my actual hobbies…</div></div>
+          <div class="cta" style="margin-top:4px">Send to Dev</div>
+          <p style="text-align:center; font-size:10px; color:#9A8C93; margin:10px 16px 16px; line-height:1.5">If you can't work it out, our team steps in within 24h.<br>Money never moves to the coach while a request is open.</p>
+        </div></div>
+        <p class="mlabel">G6 · Changes / refund</p>
+      </div>
+      <div class="notes">
+        <h4>Why they look this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>Subscriptions swap the meter for an INCLUDED badge</b> — same thread, same primitives, but the anxiety of per-message cost disappears. This is the natural graduation for a client who's found their coach.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>The coach initiates in subscription mode</b> (weekly check-ins) — retention comes from the coach feeling like a presence in your dating life, not a vending machine.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>The help flow leads with repair, not refund:</b> request-changes first, refund second, report third — matching both fairness and the actual frequency of outcomes.</span></div>
+        <div class="note"><span class="nd">4</span><span><b>Escrow makes the promise concrete:</b> "your $30 is still in escrow — nothing has been paid out." The refund isn't a courtesy we might extend; it's your money that hasn't left.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 supply variety + application -->
+  <section>
+    <div class="sec-head"><span class="sec-num">13</span><h2>The breadth of coaches &amp; how they get in</h2></div>
+    <div class="shelf">
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="apphead"><div class="greet">147 coaches</div><h5>Every kind of expert</h5></div>
+          <div class="chiprow"><span class="fchip">Openers</span><span class="fchip on">For women</span><span class="fchip">40+</span><span class="fchip">LGBTQ+</span><span class="fchip">Anxiety</span></div>
+          <div class="coachlist">
+            <div class="ccard">
+              <div class="top"><div class="av g2">E</div><div class="who"><div class="nm">Elena V. <span class="vtick">✓</span></div><div class="hl">Strategy for women — screening &amp; standards</div></div><div class="from"><b>$6</b><span>per reply</span></div></div>
+              <div class="meta"><span class="stars">★★★★★</span><span><b>4.9</b> (318)</span><span>~10 min reply</span></div>
+              <div class="spec"><span class="schip">Vetting matches</span><span class="schip">Safety-first</span><span class="schip t">Free intro call</span></div>
+            </div>
+            <div class="ccard">
+              <div class="top"><div class="av g3">M</div><div class="who"><div class="nm">Marcus H. <span class="vtick">✓</span></div><div class="hl">Dating again after divorce · 40+</div></div><div class="from"><b>$45</b><span>profile restart</span></div></div>
+              <div class="meta"><span class="stars">★★★★★</span><span><b>4.8</b> (141)</span><span>~3 hr turnaround</span></div>
+              <div class="spec"><span class="schip">Fresh start</span><span class="schip">Photo strategy</span></div>
+            </div>
+            <div class="ccard">
+              <div class="top"><div class="av g1">J</div><div class="who"><div class="nm">Jo A. <span class="vtick">✓</span></div><div class="hl">Queer dating specialist · they/them</div></div><div class="from"><b>$5</b><span>per reply</span></div></div>
+              <div class="meta"><span class="stars">★★★★★</span><span><b>5.0</b> (86)</span><span>~15 min reply</span></div>
+              <div class="spec"><span class="schip">Apps &amp; IRL</span><span class="schip">First dates</span></div>
+            </div>
+          </div>
+        </div></div>
+        <p class="mlabel">G7 · Supply breadth</p>
+      </div>
+      <div class="mock">
+        <div class="phone"><div class="screen">
+          <div class="sbar"><span>9:41</span><span class="icons">▮▮▮ ⏻</span></div>
+          <div class="apphead"><div class="greet">Become a coach</div><h5>Show us your eye</h5></div>
+          <div class="ffield"><label>Your specialty</label><div class="bopts" style="padding:2px 0"><span class="bo on">Convos</span><span class="bo on">Openers</span><span class="bo">Bio</span><span class="bo">Photos</span><span class="bo">Dates</span></div></div>
+          <div class="ffield"><label>Proof you're good</label><div class="finput ph">Links or screenshots — results, before/afters, a community you help…</div></div>
+          <div class="ffield"><label>The audition</label><div class="finput" style="font-size:11px; line-height:1.5">Here's a real (anonymized) dead conversation. Write the rescue reply and explain your thinking in 2 lines. ↓</div></div>
+          <div class="ffield"><div class="finput ph" style="min-height:52px">Your rescue reply…</div></div>
+          <div class="cta" style="margin-top:2px">Apply to coach</div>
+          <p style="text-align:center; font-size:10px; color:#9A8C93; margin:10px 16px 14px; line-height:1.5">We review every application by hand.<br>Payouts set up in ~5 min via Stripe once you're in.</p>
+        </div></div>
+        <p class="mlabel">G8 · Coach application</p>
+      </div>
+      <div class="notes">
+        <h4>Why they look this way</h4>
+        <div class="note"><span class="nd">1</span><span><b>The marketplace isn't one demographic.</b> Filters and specialties flex to whatever supply shows up — strategy for women, 40+ restarts, queer dating, approach anxiety. Specialties are coach-authored, so the catalog's language evolves with its experts.</span></div>
+        <div class="note"><span class="nd">2</span><span><b>Different experts, different natural price points</b> — $5 replies next to $45 deliverables next to free intro calls. The offering model absorbs all of it without special cases.</span></div>
+        <div class="note"><span class="nd">3</span><span><b>The application is an audition, not a résumé:</b> every applicant rescues the same dead conversation, giving us a directly comparable work sample — and the first cohort's quality bar is the product's reputation.</span></div>
+        <div class="note"><span class="nd">4</span><span><b>"Payouts in ~5 min"</b> — coach onboarding friction is supply-side churn; saying it's easy (because Stripe makes it easy) is part of recruiting.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">14</span><h2>System notes</h2></div>
+    <ul class="clean">
+      <li><strong>Billing model, precisely:</strong> every item is a normal Stripe charge at purchase time — saved card or Apple/Google Pay, one tap after the first purchase. Per-reply items charge per fulfillment on the saved card (batched into a single daily charge if several land the same day, so statements stay clean and per-transaction fees stay sane). Packs are just items that include N units. <em>A stored-balance wallet is a possible later optimization for heavy users — it is not the launch mental model.</em></li>
+      <li><strong>Component language:</strong> five money primitives render identically everywhere — <em>FREE pill</em> (sage), <em>consumption badge</em> (rose, mono), <em>offer/quote card</em> (always Accept/Decline), <em>order card</em> (PAID → DELIVERED → APPROVED in place), <em>engagement strip</em> (pinned terms). Learn them once, understand every screen.</li>
+      <li><strong>Dark mode</strong> ships day one — this app gets used at 11pm in bed; same rose/sage semantics on a plum-black ground.</li>
+      <li><strong>Motion:</strong> one signature moment — the consumption badge ticks ("6 left") when an answer lands. Everything else instant and quiet; respects reduced-motion.</li>
+      <li><strong>Accessibility:</strong> money semantics never rely on color alone (badges carry words), 4.5:1 minimum contrast, full keyboard/screen-reader coverage on web.</li>
+      <li><strong>Web first, app-shaped:</strong> mobile-web MVP (no app-store review risk for a dating-adjacent category at launch); desktop gives coaches a two-pane queue → thread workspace.</li>
+    </ul>
+    <div class="callout teal">
+      <span class="clab">What to prototype first</span>
+      <p>Two make-or-break moments, both testable before any backend exists: <strong>the purchase sheet</strong> (does tap-to-paid feel as light as an impulse buy?) and <strong>the thread</strong> (does being metered by a human feel fair and legible?). Build both as clickable prototypes and user-test the <em>feeling</em> of paying. Everything else on these pages is a known marketplace pattern.</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>Wing (working title) — UI/UX Pitch v2 · dollars-first</span>
+    <span>Mockups illustrative · palette &amp; type spec'd in-doc</span>
+  </footer>
+
+</div>
