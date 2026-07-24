@@ -307,8 +307,9 @@ function go(screen){
   state.screen=screen;
   document.querySelectorAll(".screen").forEach(s=>{ s.classList.remove("on"); s.style.display=""; });
   $("s-"+screen).classList.add("on");
-  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.tab===screen));
-  $("tabbar").style.display = (screen==="thread"||screen==="profile") ? "none":"flex";
+  const tabKey = screen==="thread" ? "inbox" : screen;
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.tab===tabKey));
+  $("tabbar").style.display = (screen==="profile") ? "none":"flex";
   if(screen==="discover") renderDiscover();
   if(screen==="inbox") renderInbox();
   if(screen==="purchases") renderPurchases();
