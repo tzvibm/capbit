@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens — ARCHITECTURE.md §17 */
+:root {
+  --bg: #fffbf8;
+  --surface: #ffffff;
+  --ink: #2a2230;
+  --ink-soft: #6e6068;
+  --line: #f0e4dd;
+  --accent: #d6456a;
+  --accent-soft: #fbeef1;
+  --positive: #2f5d62;
+  --positive-soft: #e9f2f0;
+  --gold: #e0a03c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17131a;
+    --surface: #201a22;
+    --ink: #f1eaee;
+    --ink-soft: #c4b8c0;
+    --line: #362e3b;
+    --accent: #f2718f;
+    --accent-soft: #3a2530;
+    --positive: #7fc0c3;
+    --positive-soft: #1e2e30;
+    --gold: #e0a64e;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #fffbf8;
+  --surface: #ffffff;
+  --ink: #2a2230;
+  --ink-soft: #6e6068;
+  --line: #f0e4dd;
+  --accent: #d6456a;
+  --accent-soft: #fbeef1;
+  --positive: #2f5d62;
+  --positive-soft: #e9f2f0;
+  --gold: #e0a03c;
+}
+
+:root[data-theme="dark"] {
+  --bg: #17131a;
+  --surface: #201a22;
+  --ink: #f1eaee;
+  --ink-soft: #c4b8c0;
+  --line: #362e3b;
+  --accent: #f2718f;
+  --accent-soft: #3a2530;
+  --positive: #7fc0c3;
+  --positive-soft: #1e2e30;
+  --gold: #e0a64e;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
