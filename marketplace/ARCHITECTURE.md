@@ -173,7 +173,9 @@ create table offerings (
   required_inputs jsonb not null default '[]',  -- [{key,label,type:'text'|'images',required}]
   first_unit_free boolean not null default false,
   active boolean not null default true,
-  sort int not null default 0
+  sort int not null default 0,
+  rating_avg numeric(3,2),          -- denormalized per-offering rating
+  rating_count int not null default 0
 );
 
 -- THREADS (unique client↔coach conversation)
@@ -254,16 +256,19 @@ create table ledger_entries (
 create index on ledger_entries (account);
 create index on ledger_entries (txn_id);
 
--- REVIEWS (one per completed engagement)
+-- REVIEWS (one per completed engagement — reviews are PER ITEM)
 create table reviews (
   id uuid primary key default gen_random_uuid(),
   engagement_id uuid unique not null references engagements(id),
+  offering_id uuid references offerings(id),   -- snapshot from engagement; null for ad-hoc quotes
   client_id uuid not null references profiles(id),
   coach_id uuid not null references profiles(id),
   stars int not null check (stars between 1 and 5),
   outcome_tags text[] not null default '{}',   -- 'got_reply','date_set','faster','better_profile'
   body text
 );
+create index on reviews (offering_id);
+create index on reviews (coach_id);
 
 -- DISPUTES / HELP REQUESTS
 create table help_requests (
@@ -442,7 +447,7 @@ All actions validate with zod, check auth + role, and return typed results. Name
 - **Discover**: server component; filters in searchParams; Postgres full-text (`to_tsvector` on display_name+headline+bio) + array-contains on specialties; order by rating_avg desc, rating_count desc. No search service.
 - **Thread**: virtualize only if needed (start simple). Message payloads render by `kind`; `engagement_update` renders OrderCard/state chips from snapshot payload so history stays correct even after later changes.
 - **Uploads**: client requests signed URL → uploads to Storage bucket `attachments/` → sends message with path. Images render blurred until tapped (CSS blur + click-to-reveal). A scheduled job deletes attachment objects older than `ATTACHMENT_TTL_DAYS` and nulls `attachment_path` (§12.4).
-- **Reviews**: prompt appears in-thread on completion + on the purchases page; only `approved/completed` engagements without a review; outcome tags are the four canonical strings (§5).
+- **Reviews are per item**: prompt appears in-thread on completion + on the purchases page, and names the completed item; only `approved/completed` engagements without a review; outcome tags are the four canonical strings (§5). `submitReview` copies `offering_id` from the engagement (null for ad-hoc quotes) and, in the same transaction, recomputes the denormalized aggregates at **both levels**: `offerings.rating_avg/rating_count` and `profiles.rating_avg/rating_count` (the coach roll-up = across all their reviews, including quote reviews). Menu rows, discover cards, and the coach profile render the per-offering rating next to price; reviews on the profile are filterable by offering.
 - **Coach queue**: one query across the coach's engagements: active chat engagements with client-last message (needs reply), `delivered=false` deliverables with `auto_approve_at` deadlines, open proposals, open help requests — sorted by urgency.
 - **Earnings**: tiles (post-fee week total, rating, repeat rate) + ledger rows for `coach:<id>`; payout row shows next scheduled payout (weekly job) and Connect status.
 
@@ -461,7 +466,7 @@ All actions validate with zod, check auth + role, and return typed results. Name
 
 ## 13. Seed data (`supabase/seed.sql` + `pnpm seed`)
 
-Create demo users (password `demo1234`): clients `jordan@demo.wing`, `alex@demo.wing`, `riley@demo.wing`; coaches matching the mockups — **Maya R.** (openers/conversations: $4 per-reply first-free, $25 pack of 10, $18 five-opener bundle, $50 live 30-min), **Dev K.** (bio: $30 makeover flat), **Sam T.** (photos: $5 per-photo, $20 four-photo review), **Elena V.** (strategy for women: $6 per-reply, free intro), **Marcus H.** (40+ restart: $45 flat), **Priya N.** (date planning: quote-only), **Jo A.** (queer dating: $5 per-reply). Seed: ~30 reviews with outcome tags; one thread per demo pairing in varied states (active pack partially consumed, delivered bio awaiting approval, accepted quote with delivered itinerary, open refund request); matching ledger entries so earnings pages are non-empty. Seed must run in mock payments mode and leave the ledger balanced.
+Create demo users (password `demo1234`): clients `jordan@demo.wing`, `alex@demo.wing`, `riley@demo.wing`; coaches matching the mockups — **Maya R.** (openers/conversations: $4 per-reply first-free, $25 pack of 10, $18 five-opener bundle, $50 live 30-min), **Dev K.** (bio: $30 makeover flat), **Sam T.** (photos: $5 per-photo, $20 four-photo review), **Elena V.** (strategy for women: $6 per-reply, free intro), **Marcus H.** (40+ restart: $45 flat), **Priya N.** (date planning: quote-only), **Jo A.** (queer dating: $5 per-reply). Seed: ~30 reviews with outcome tags, each linked to its offering so per-item ratings render on menus; one thread per demo pairing in varied states (active pack partially consumed, delivered bio awaiting approval, accepted quote with delivered itinerary, open refund request); matching ledger entries so earnings pages are non-empty. Seed must run in mock payments mode and leave the ledger balanced.
 
 ---
 
@@ -481,7 +486,7 @@ Create demo users (password `demo1234`): clients `jordan@demo.wing`, `alex@demo.
 
 **M2 — The thread.** Threads/messages/realtime, EngagementTray + money components, free vs fulfilling send with consumption transaction against the armed engagement, arming (auto-arm on purchase + client switch), packs & per-unit (qty picker + rebuy), deliverable flow with OrderCard + approve/auto-approve job, proposals/quotes. ✔ *Accept: e2e #1 and #3 pass, plus: two concurrent chat engagements in one thread — consumption follows the armed one, switching re-routes it, badges name their source.*
 
-**M3 — Reputation & queue.** Reviews (gating, outcome tags, aggregates), coach queue, earnings + weekly payout job, help requests + admin resolution (refund path), coach application + audition + admin approval. ✔ *Accept: e2e #2; refund resolution reverses escrow correctly.*
+**M3 — Reputation & queue.** Reviews (gating, outcome tags, per-offering + per-coach aggregates rendered on menu rows and profiles), coach queue, earnings + weekly payout job, help requests + admin resolution (refund path), coach application + audition + admin approval. ✔ *Accept: e2e #2; refund resolution reverses escrow correctly.*
 
 **M4 — Polish & launch readiness.** Dark mode, notifications + unread badges, report/block, rate limits, attachment TTL + privacy jobs, landing page, empty states, a11y pass, real-Stripe smoke test behind `PAYMENTS_MODE=stripe`. ✔ *Accept: full demo script on a phone-sized viewport, both themes, no dead ends.*
 

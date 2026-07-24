@@ -321,7 +321,7 @@
       <div class="step"><span class="n">2</span><p class="b"><b>Pick an item &amp; pay in dollars</b><span>Client chooses off the coach's menu and pays right then via Stripe (saved card / Apple Pay) — a plain one-time charge, no credits or wallet to pre-fund. This opens the engagement with explicit terms.</span></p></div>
       <div class="step"><span class="n">3</span><p class="b"><b>Start the chat</b><span>Client opens the thread with the coach, drops a screenshot of the match / conversation, asks their question.</span></p></div>
       <div class="step"><span class="n">4</span><p class="b"><b>Coach fulfills — metered by the engagement</b><span>Free clarifying messages cost nothing; fulfilling replies consume the engagement's terms (per-reply, pack counter, timer). Funds move client → escrow → coach earnings, minus platform fee.</span></p></div>
-      <div class="step"><span class="n">5</span><p class="b"><b>Rate</b><span>Client leaves a star rating + review. It aggregates onto the coach's profile and drives discovery.</span></p></div>
+      <div class="step"><span class="n">5</span><p class="b"><b>Rate the item</b><span>Client reviews the completed item itself (the pack, the bio makeover, the call). Ratings aggregate at two levels — per offering (shown on menu rows) and per coach — and drive discovery.</span></p></div>
       <div class="step"><span class="n">6</span><p class="b"><b>Coach cashes out</b><span>Earnings accrue to a Stripe Connect balance and pay out on schedule.</span></p></div>
     </div>
   </section>
@@ -388,7 +388,7 @@
           <tr><td><strong>Purchase sheet</strong></td><td class="mono-cell">client</td><td>One-tap Stripe payment (saved card / Apple Pay) for the chosen item</td></tr>
           <tr><td><strong>Chat thread</strong></td><td class="mono-cell">both</td><td>Messages, screenshot upload, pinned engagement terms &amp; live meter</td></tr>
           <tr><td><strong>Inbox</strong></td><td class="mono-cell">both</td><td>List of active threads, unread + last message</td></tr>
-          <tr><td><strong>Leave a review</strong></td><td class="mono-cell">client</td><td>Stars + text after a thread</td></tr>
+          <tr><td><strong>Leave a review</strong></td><td class="mono-cell">client</td><td>Stars + outcome tags per completed item; rolls up to offering &amp; coach ratings</td></tr>
           <tr><td><strong>Coach onboarding</strong></td><td class="mono-cell">coach</td><td>Specialties, pricing, Stripe Connect setup, sample work</td></tr>
           <tr><td><strong>Coach earnings</strong></td><td class="mono-cell">coach</td><td>Balance, ledger, payout status</td></tr>
         </tbody>
@@ -441,7 +441,7 @@
     </div>
     <p class="body" style="margin-top:22px">Beyond that, standard marketplace trust hygiene:</p>
     <ul class="clean">
-      <li><strong>Reviews &amp; ratings</strong> — the primary quality signal; a coach's aggregate rating and count drive ranking.</li>
+      <li><strong>Reviews &amp; ratings are per item</strong> — each review attaches to the completed engagement and its offering, so every menu row carries its own rating ("Opener rescue ★4.9 · 120") and the coach's overall score is the honest roll-up. A coach can't hide a weak offering behind a strong average, and buyers judge exactly the thing they're about to buy.</li>
       <li><strong>Response-time badge</strong> — sets client expectations and rewards active coaches.</li>
       <li><strong>Escrow on every purchase</strong> — the client's dollars are captured at purchase but only released to the coach on delivery/approval; enables clean refunds for disputes.</li>
       <li><strong>Report / block</strong> — table-stakes safety on any chat product.</li>
