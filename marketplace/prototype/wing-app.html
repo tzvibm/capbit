@@ -222,7 +222,7 @@
     </div>
     <div class="sechead">To fulfill</div>
     <div id="coachqueue"></div>
-    <div class="rnote" style="margin-top:6px">Fulfilling replies consume the client's armed item — you can always send free messages, never charge beyond their choice.</div>
+    <div class="rnote" style="margin-top:6px">Your answers draw from whatever item the client is using. Messages are always free — you can never charge beyond what they chose.</div>
     <div style="height:90px"></div>
   </div>
 
@@ -431,7 +431,7 @@ function coachSay(h,text,billable){
     if(billable===false){ pill={type:"free",label:"FREE"}; }
     else { const a=armed(h);
       if(a){ a.unitsUsed++; const left=a.unitsTotal-a.unitsUsed;
-        pill={type:"paid",label:`1 USED · ${a.title.toUpperCase().slice(0,14)} · ${left} LEFT`};
+        pill={type:"paid",label:`${a.unit==="photo"?"Photo":"Answer"} ${a.unitsUsed} of ${a.unitsTotal}`};
         if(left===0){ a.status="completed"; th.armedId=null; setTimeout(()=>promptReview(h,a),800); } }
       else pill={type:"free",label:"FREE"}; }
     th.messages.push({kind:"coach",text,pill,at:Date.now()});
@@ -445,12 +445,19 @@ function renderThread(){
   const prevInput=document.getElementById("cinput"); const keep=prevInput?prevInput.value:"";
   const a=armed(h);
   const others = th.engagements.length - (a?1:0);
-  const trayLabel = a? `ARMED: ${a.title.toUpperCase().slice(0,18)} · ${a.unitsTotal-a.unitsUsed} LEFT` : th.engagements.length? "NO CHAT ITEM ARMED — TAP TO MANAGE" : "NO ITEMS YET — BUY FROM "+c.name.split(" ")[0].toUpperCase()+"'S MENU";
+  const chatItems = th.engagements.filter(e=>e.scheme==="per_unit"||e.scheme==="pack");
+  const unitWord = a? (a.unit==="photo"?"photos":"answers") : "answers";
+  const trayLabel = a
+    ? `Using · ${a.title} — ${a.unitsTotal-a.unitsUsed} ${unitWord} left`
+    : chatItems.length ? "No answers left · Buy more →"
+    : th.engagements.length ? "Tap to see your items"
+    : `Browse ${c.name.split(" ")[0]}'s menu →`;
   $("s-thread").innerHTML = `
     <div class="topbar"><button class="backbtn" onclick="go('inbox')">‹</button>${avatar(c,"av-sm")}
       <span class="tw"><b>${c.name}</b><span>● online now</span></span>
       <button class="backbtn" style="margin-left:auto" onclick="openProfile('${h}')">menu</button></div>
     <button class="traybar" onclick="openTray()"><span class="edot"></span>${trayLabel}<span class="cnt">${th.engagements.length?`${th.engagements.length} item${th.engagements.length>1?"s":""} ▾`:""}</span></button>
+    ${a?`<div class="onote" style="padding:5px 12px 0">${c.name.split(" ")[0]}'s answers use this item · messages are always free</div>`:""}
     <div class="chat" id="chatlog">${th.messages.map(m=>renderMsg(m,h)).join("")}</div>
     <div class="compose">
       <input class="cfield" id="cinput" placeholder="Message ${c.name.split(" ")[0]}…" onkeydown="if(event.key==='Enter')sendMsg()">
@@ -503,17 +510,24 @@ function openTray(){
     ${th.engagements.map(e=>{
       const chatItem = e.scheme==="per_unit"||e.scheme==="pack";
       const active = e.status==="active" && e.unitsUsed<e.unitsTotal;
-      const isArmed = th.armedId===e.id;
-      const meta = chatItem? `${e.unitsTotal-e.unitsUsed} of ${e.unitsTotal} ${e.unit}s left` : e.status.replace("_"," ");
-      return `<button class="trayrow ${isArmed?"armed":""}" ${chatItem&&active?`onclick="armIt('${h}','${e.id}')"`:""}>
+      const inUse = th.armedId===e.id;
+      const word = e.unit==="photo"?"photos":"answers";
+      const meta = chatItem
+        ? (active? `${e.unitsTotal-e.unitsUsed} of ${e.unitsTotal} ${word} left` : `all ${e.unitsTotal} ${word} used`)
+        : e.status==="delivered" ? "Delivered — needs your approval"
+        : e.status==="booked" ? "Friday 7:00 PM"
+        : e.status.replace("_"," ");
+      return `<button class="trayrow ${inUse?"armed":""}" ${chatItem&&active&&!inUse?`onclick="armIt('${h}','${e.id}')"`:""}>
         ${chatItem?`<span class="radio"></span>`:`<span class="oi t" style="width:30px;height:30px;font-size:13px">${e.icon}</span>`}
-        <span style="min-width:0"><b style="font-size:13.5px">${e.title}</b><br><span style="font-size:11px;color:var(--ink-faint)">${meta}${isArmed?" · replies use this":""}</span></span>
-        <span class="itag ${isArmed?"a":"d"}" style="margin-left:auto">${isArmed?"ARMED": e.status==="delivered"?"REVIEW ›": e.status.replace("_"," ").toUpperCase()}</span></button>`;
+        <span style="min-width:0"><b style="font-size:13.5px">${e.title}</b><br><span style="font-size:11px;color:var(--ink-faint)">${meta}${inUse?" · in use":chatItem&&active?" · tap to use":""}</span></span>
+        <span class="itag ${inUse?"a":"d"}" style="margin-left:auto">${inUse?"IN USE": e.status==="delivered"?"REVIEW ›": e.status==="active"&&chatItem?"READY": e.status.replace("_"," ").toUpperCase()}</span></button>`;
     }).join("")}
     <button class="cta" style="background:var(--ink);color:var(--bg)" onclick="closeSheets();openProfile('${h}')">+ Add from ${c.name.split(" ")[0]}'s menu</button>`;
   openSheet("traysheet");
 }
-function armIt(h,id){ state.threads[h].armedId=id; toast("Armed — replies now use this item"); openTray(); renderThread(); }
+function armIt(h,id){ const th=state.threads[h]; th.armedId=id;
+  const e=th.engagements.find(x=>x.id===id);
+  toast("Now using · "+e.title); openTray(); renderThread(); }
 
 // ---------- reviews ----------
 function promptReview(h,e){
@@ -545,7 +559,7 @@ function renderInbox(){
   $("inboxlist").innerHTML = entries.length? entries.map(([h,t])=>{
     const c=COACHES[h]; const last=t.messages[t.messages.length-1];
     const a=armed(h);
-    const tag = a? `<span class="itag a">${a.title.toUpperCase().slice(0,10)} · ${a.unitsTotal-a.unitsUsed} LEFT</span>` :
+    const tag = a? `<span class="itag a">${a.unitsTotal-a.unitsUsed} ${a.unit==="photo"?"PHOTOS":"ANSWERS"} LEFT</span>` :
       t.engagements.some(e=>e.status==="delivered")? `<span class="itag d">DELIVERED</span>` : "";
     const snip = last.kind==="me"? "You: "+last.text : last.kind==="coach"? c.name.split(" ")[0]+": "+last.text : last.text;
     return `<button class="ibrow" onclick="openThread('${h}')">${avatar(c,"av-md")}
