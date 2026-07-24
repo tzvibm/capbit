@@ -64,6 +64,7 @@
   .meter.w{background:var(--warn-soft);color:var(--warn)}
   .snip{font-size:12.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
   .udot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:0 0 auto}
+  .rtime{font-size:10px;color:var(--ink-faint);font-family:ui-monospace,Menlo,monospace;flex:0 0 auto;align-self:flex-start;padding-top:3px}
   .coachstrip{display:flex;gap:14px;padding:4px 16px 12px;overflow-x:auto;scrollbar-width:none}
   .coachstrip::-webkit-scrollbar{display:none}
   .cs{text-align:center;flex:0 0 auto;width:58px}
@@ -121,7 +122,13 @@
   .itembar .cnt{margin-left:auto;flex:0 0 auto;opacity:.8}
   .itembar.warn{background:var(--warn-soft);color:var(--warn);border-bottom-color:var(--warn-soft)}
   .itembar.calm{background:var(--positive-soft);color:var(--positive)}
-  .chat{flex:1;padding:12px 12px 8px;display:flex;flex-direction:column;gap:9px;overflow-y:auto}
+  /* min-height:0 lets the chat shrink and scroll internally instead of growing
+     the screen and pushing the composer below the fold in long threads */
+  #s-thread{overflow:hidden}
+  .chat{flex:1;min-height:0;padding:12px 12px 8px;display:flex;flex-direction:column;gap:9px;overflow-y:auto}
+  /* without this, flex children shrink to fit and messages get squashed
+     instead of the chat scrolling */
+  .chat > *{flex:0 0 auto}
   .msg{max-width:84%;padding:9px 13px;border-radius:16px;font-size:14px}
   .msg.me{align-self:flex-end;background:var(--ink);color:var(--bg);border-bottom-right-radius:5px}
   .msg.them{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
@@ -385,7 +392,7 @@ function renderHome(){
     html+=active.map(([h,t])=>{
       const c=COACHES[h],last=t.messages[t.messages.length-1],m=threadMeter(h);
       const snip=last.kind==="me"?"You: "+last.text:last.kind==="answer"?first(c.name)+": "+last.a.r:last.kind==="coach"?first(c.name)+": "+last.text:last.text;
-      return `<button class="throw" onclick="openThread('${h}')">${avatar(c,"av-md")}<span class="iw"><span class="tnm">${c.name}${m?`<span class="meter ${m.cls}">${m.txt}</span>`:""}</span><span class="snip">${esc(snip)}</span></span>${t.unread?'<span class="udot"></span>':""}</button>`;
+      return `<button class="throw" onclick="openThread('${h}')">${avatar(c,"av-md")}<span class="iw"><span class="tnm">${c.name}${m?`<span class="meter ${m.cls}">${m.txt}</span>`:""}</span><span class="snip">${esc(snip)}</span></span><span class="rtime">${t.when||"now"}</span>${t.unread?'<span class="udot"></span>':""}</button>`;
     }).join("");
   }
   if(usedCoaches.length){
@@ -558,6 +565,14 @@ function renderMsg(m,h){
         <button class="aact dots" onclick="toast('Opens a dispute about this answer')">⋯</button>
       </div></div>`;
   }
+  if(m.kind==="offer"){
+    return `<div class="icard" style="border-color:var(--accent)">
+      <div class="ot"><span class="oi">✦</span><span><b>${esc(m.o.title)}</b><span>Offer from ${c.name}</span></span><span class="os w">${m.o.state||"OFFER"}</span></div>
+      <div style="font-size:13px;color:var(--ink-soft);margin-top:8px">${esc(m.o.desc)}</div>
+      ${m.o.state?`<div class="onote" style="margin-top:9px">accepted · ${money(m.o.price)} paid</div>`
+        :`<div class="obtns"><button class="qb yes" onclick="acceptOffer('${h}','${m.id}')">Accept · ${money(m.o.price)}</button><button class="qb no" onclick="toast('Declined — no charge')">Not now</button></div>
+          <div class="onote">expires in 7 days · you're only charged if you accept</div>`}</div>`;
+  }
   if(m.kind==="item"){
     const e=state.threads[h].engagements.find(x=>x.id===m.engId);if(!e)return"";
     const isCall=e.scheme==="live";
@@ -598,6 +613,20 @@ function pinMsg(id,btn){
   s.pinned=!s.pinned;
   if(btn){btn.textContent=s.pinned?"♥ Saved":"♡ Save";btn.classList.toggle("on",s.pinned);}
   toast(s.pinned?"Pinned to the top of Saved":"Unpinned");
+}
+function acceptOffer(h,mid){
+  const th=state.threads[h],c=COACHES[h];
+  const m=th.messages.find(x=>x.id===mid);if(!m||m.o.state)return;
+  m.o.state="ACCEPTED";
+  const eng={id:"e"+(++state.msgSeq),title:m.o.title,icon:"✦",scheme:"deliverable",unit:"answer",spec:"dates",
+    unitsTotal:1,unitsUsed:0,amount:m.o.price,status:"in_progress"};
+  th.engagements.push(eng);
+  state.purchases.unshift({icon:"✦",t:m.o.title,coach:c.name,amount:m.o.price,note:"custom quote",when:"just now"});
+  addMsg(h,{kind:"item",engId:eng.id});
+  toast("Paid "+money(m.o.price)+" · "+first(c.name)+" starts now");
+  renderThread();
+  coachFree(h,"On it — you'll have the full plan tonight.");
+  setTimeout(()=>{eng.status="delivered";if(state.screen==="thread"&&state.coach===h)renderThread();coachAnswer(h,true);renderTabs();},6500);
 }
 function approveItem(h,id){
   const e=state.threads[h].engagements.find(x=>x.id===id);e.status="completed";
@@ -726,6 +755,95 @@ function renderEarn(){
    <div style="height:20px"></div>`;
 }
 
+/* ---------------- demo seed ---------------- */
+function sMsg(h,m,when){ensureThread(h);m.id="m"+(++state.msgSeq);m.t=when;state.threads[h].messages.push(m);return m;}
+function sAns(h,a,label,spec,when,pinned){
+  const m=sMsg(h,{kind:"answer",a,label,spec},when);
+  state.saved.push({id:m.id,h,spec,title:label,a,when,pinned:!!pinned});
+  return m;
+}
+function sEng(h,e){ensureThread(h);state.threads[h].engagements.push(e);return e;}
+function seedDemo(){
+  state.favs=new Set(["maya","jo"]);
+
+  /* --- Maya: live pack, mid-conversation, unread --- */
+  const pack=sEng("maya",{id:"e-maya-pack",title:"Convo rescue pack",icon:"💬",scheme:"pack",unit:"answer",
+    spec:"conversations",unitsTotal:10,unitsUsed:4,amount:2500,status:"active"});
+  state.threads.maya.inUseId=pack.id;
+  sMsg("maya",{kind:"sys",text:"You bought Convo rescue pack · $25"},"Tue");
+  sMsg("maya",{kind:"me",text:"She stopped replying mid-convo 😩 can you look?"},"Tue");
+  sMsg("maya",{kind:"shot"},"Tue");
+  sMsg("maya",{kind:"coach",text:"Quick one before I dig in — how long since her last reply?"},"Tue");
+  sMsg("maya",{kind:"me",text:"3 days"},"Tue");
+  sAns("maya",COACHES.maya.answers[0],"ANSWER 1 OF 10","conversations","Tue",true);
+  sMsg("maya",{kind:"me",text:"sent it… she replied 😄"},"Wed");
+  sAns("maya",COACHES.maya.answers[1],"ANSWER 2 OF 10","conversations","Wed");
+  sMsg("maya",{kind:"me",text:"ok we've been going back and forth all day"},"Thu");
+  sAns("maya",COACHES.maya.answers[2],"ANSWER 3 OF 10","openers","Thu",true);
+  sMsg("maya",{kind:"me",text:"she said yes to thursday!!"},"Thu");
+  sMsg("maya",{kind:"coach",text:"Told you it was recoverable. Don't over-plan it — I'll help with the date if you want."},"Thu");
+  sAns("maya",COACHES.maya.answers[3],"ANSWER 4 OF 10","conversations","2m");
+  state.threads.maya.unread=1;state.threads.maya.when="2m";
+  state.answerIdx.maya=4;state.freeIdx.maya=2;
+
+  /* --- Dev: bio makeover DELIVERED, awaiting approval → Needs you --- */
+  const bio=sEng("dev",{id:"e-dev-bio",title:"Full bio makeover",icon:"📝",scheme:"deliverable",unit:"answer",
+    spec:"bio",unitsTotal:1,unitsUsed:0,amount:3000,status:"delivered"});
+  sMsg("dev",{kind:"sys",text:"You bought Full bio makeover · $30"},"Mon");
+  sMsg("dev",{kind:"me",text:"Here's my current bio + what I do for work"},"Mon");
+  sMsg("dev",{kind:"coach",text:"Perfect, all I need. Two versions by tonight — one playful, one grounded."},"Mon");
+  sMsg("dev",{kind:"item",engId:bio.id},"Mon");
+  sAns("dev",COACHES.dev.answers[0],"DELIVERED · FULL BIO MAKEOVER","bio","1h");
+  state.threads.dev.when="1h";state.threads.dev.unread=1;
+
+  /* --- Sam: photo verdicts part-used --- */
+  const ph=sEng("sam",{id:"e-sam-photos",title:"Photo verdicts",icon:"📸",scheme:"per_unit",unit:"photo",
+    spec:"photos",unitsTotal:4,unitsUsed:2,amount:2000,status:"active"});
+  state.threads.sam.inUseId=ph.id;
+  sMsg("sam",{kind:"sys",text:"You bought Photo verdicts · 4 photos · $20"},"Sun");
+  sMsg("sam",{kind:"me",text:"Be brutal — which ones are hurting me?"},"Sun");
+  sMsg("sam",{kind:"shot"},"Sun");
+  sAns("sam",COACHES.sam.answers[0],"PHOTO 1 OF 4","photos","Sun");
+  sAns("sam",COACHES.sam.answers[1],"PHOTO 2 OF 4","photos","Sun",true);
+  sMsg("sam",{kind:"coach",text:"Send the other two whenever — no rush."},"Sun");
+  state.threads.sam.when="Sun";state.answerIdx.sam=2;
+
+  /* --- Elena: completed, NOT rated → Needs you --- */
+  const el=sEng("elena",{id:"e-elena",title:"Screening second opinion",icon:"💬",scheme:"per_unit",unit:"answer",
+    spec:"conversations",unitsTotal:1,unitsUsed:1,amount:600,status:"completed"});
+  sMsg("elena",{kind:"sys",text:"You bought Screening second opinion · $6"},"Sat");
+  sMsg("elena",{kind:"me",text:"Is this guy wasting my time? 3 weeks of texting, no plan"},"Sat");
+  sAns("elena",COACHES.elena.answers[0],"ANSWER 1 OF 1","conversations","Sat");
+  sMsg("elena",{kind:"coach",text:"Let me know what he says. If he dodges again you have your answer."},"Sat");
+  state.threads.elena.when="Sat";
+
+  /* --- Priya: custom quote awaiting your decision --- */
+  sMsg("priya",{kind:"me",text:"She said yes to Saturday! Can you plan something that isn't dinner-boring? She likes weird museums & good coffee"},"Fri");
+  sMsg("priya",{kind:"coach",text:"Love it. Austin, right? Give me an hour."},"Fri");
+  sMsg("priya",{kind:"offer",o:{title:"First-date plan, Austin",desc:"3-stop plan with timing, a rain backup, and how to suggest it.",price:3500}},"Fri");
+  state.threads.priya.when="Fri";state.threads.priya.unread=1;
+
+  /* --- Jo: completed and rated (the quiet, happy past) --- */
+  const jo=sEng("jo",{id:"e-jo",title:"First-date gameplan",icon:"🗺",scheme:"deliverable",unit:"answer",
+    spec:"dates",unitsTotal:1,unitsUsed:0,amount:2200,status:"completed",reviewed:true});
+  sMsg("jo",{kind:"sys",text:"You bought First-date gameplan · $22"},"Jul 12");
+  sAns("jo",COACHES.jo.answers[0],"DELIVERED · FIRST-DATE GAMEPLAN","dates","Jul 12");
+  sMsg("jo",{kind:"me",text:"that record shop line worked lol"},"Jul 13");
+  sMsg("jo",{kind:"coach",text:"Of course it did 😌 come back anytime."},"Jul 13");
+  state.threads.jo.when="Jul 13";
+
+  /* --- purchase history --- */
+  state.purchases=[
+    {icon:"📝",t:"Full bio makeover",coach:"Dev K.",amount:3000,note:"awaiting your approval",when:"Mon"},
+    {icon:"💬",t:"Convo rescue pack",coach:"Maya R.",amount:2500,note:"6 of 10 answers left",when:"Tue"},
+    {icon:"📸",t:"Photo verdicts",coach:"Sam T.",amount:2000,note:"2 of 4 photos left",when:"Sun"},
+    {icon:"💬",t:"Screening second opinion",coach:"Elena V.",amount:600,note:"completed",when:"Sat"},
+    {icon:"🗺",t:"First-date gameplan",coach:"Jo A.",amount:2200,note:"completed · you rated ★★★★★",when:"Jul 12"},
+    {icon:"💬",t:"Opener rescue",coach:"Maya R.",amount:0,note:"first answer free",when:"Jul 10"}
+  ];
+  state.saved.reverse();
+}
+
 /* ---------------- boot ---------------- */
-renderTabs();renderHome();
+seedDemo();renderTabs();renderHome();
 </script>
