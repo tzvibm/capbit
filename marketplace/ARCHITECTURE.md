@@ -7,6 +7,8 @@ Complete, self-contained specification for **Wing**: a mobile-responsive multius
 > **How to use this document (instructions to the coding agent):**
 > Build milestones **M0 → M4 in order** (§15); each has acceptance criteria that must pass before the next begins. Where this spec is silent, prefer the simplest implementation consistent with the invariants in §2.5 and §6. Anything in §16 (out of scope) must NOT be built. **All money moves through `ledger.post()` and nothing else** (§6.2). **All behaviour is recorded through `events.emit()` and nothing else** (§2.5). Use the UI vocabulary in §1 verbatim — never expose internal names in the interface. Companion documents: *Flows & Wireframes* (every screen and path) and the *UI/UX Pitch* (visual design).
 
+**What changed in v2.1:** answers are rendered as cards rather than chat bubbles, with copyable payload blocks (`messages.payload` structure, §3); the inbox becomes **Home** with a needs-you strip; **favourites** and a **Saved** answer library are added (new tables, §3); client tabs are now Home · Discover · Saved · You. See `docs/UI-DESIGN.md`.
+
 **What changed in v2:** unified fulfilment strategies replacing per-scheme special-casing (§2.5); event log as a first spine (§2.5, §5); processor fees now modelled (§6.1); coach-failure SLA path added (§7); pack refunds priced à la carte (§6.6); free items excluded from review weight (§12.7); ranking contradiction resolved in favour of defect-rate (§11); `pg_trgm` replaces embeddings (§12.7); M2 split into three (§15); analytics instrumented from M1 (§2.5).
 
 ---
@@ -240,7 +242,11 @@ create table messages (
   thread_id uuid not null references threads(id),
   sender_id uuid not null references profiles(id),
   kind message_kind not null default 'text',
-  body text, payload jsonb, attachment_path text,
+  body text, attachment_path text,
+  -- For answers, payload carries the structure AnswerCard renders:
+  --   { reasoning: text, blocks: [{ type:'copy'|'verdict'|'file', text, meta? }] }
+  -- For offers: the offer terms. For item_update: the status snapshot.
+  payload jsonb,
   engagement_id uuid references engagements(id),  -- set ONLY by the server when this was an answer
   units_consumed int not null default 0,
   created_at timestamptz not null default now()
@@ -314,6 +320,27 @@ create table fraud_flags (
 
 create table thread_reads (thread_id uuid, user_id uuid, last_read_at timestamptz, primary key (thread_id, user_id));
 create table admins (user_id uuid primary key references profiles(id));
+
+-- FAVOURITES (private; the coach is never told)
+create table favourites (
+  user_id uuid not null references profiles(id),
+  coach_id uuid not null references profiles(id),
+  created_at timestamptz not null default now(),
+  primary key (user_id, coach_id)
+);
+
+-- SAVED ITEMS — the Saved tab. Every answer is auto-saved; `pinned` is the heart.
+create table saved_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id),
+  message_id uuid not null references messages(id),
+  engagement_id uuid references engagements(id),
+  specialty specialty,                 -- copied from the item, for filtering
+  pinned boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (user_id, message_id)
+);
+create index on saved_items (user_id, created_at desc);
 ```
 
 ### Materialized view — the only source of ranking and profile stats
@@ -354,6 +381,7 @@ create unique index on coach_stats (coach_id);
 | `engagements`, `ledger_entries`, `events`, `fraud_flags` | Read: own/participant. **No client writes at all** |
 | `reviews` | Read: public. Insert: client of a settled engagement with no existing review |
 | `help_requests`, `coach_applications` | Own rows; admins read all |
+| `favourites`, `saved_items` | Own rows only, read and write. **Coaches must not be able to read `favourites`** — it is a private bookmark, and exposing it would turn it into a social signal |
 
 ---
 
@@ -475,6 +503,8 @@ All validate with zod, check auth and role, and emit events.
 **Thread** `getOrCreateThread(coachId)` · `listThreads` · `listMessages(threadId,cursor)` · `sendMessage` (free) · `sendAnswer(threadId, engagementId, {body,payload?})` · `useItem(threadId, engagementId)` *(client only)* · `sendOffer(threadId, terms)` · `respondToOffer(messageId, accept)`
 **Delivery** `markDelivered(engagementId,{payload,attachmentPaths})` · `approveItem` · `requestChanges(engagementId, note)`
 **Reviews** `submitReview(engagementId,{stars,outcomeTags,body})`
+**Home** `getHomeFeed()` — one query returning: *needs-you* rows (items `delivered` awaiting approval, `late`, `settled` without a review, open offers, failed payments), active threads with their state meter, favourite + previously-used coaches, and the collapsed past list
+**Favourites & Saved** `toggleFavourite(coachId)` · `listFavourites()` · `listSaved({specialty?})` · `togglePinSaved(savedItemId)` — answers are inserted into `saved_items` automatically by `sendAnswer`, so the client never has to save manually
 **Help** `openHelpRequest(engagementId,type,body)` · `resolveHelpRequest(id,resolution)` *(admin)* · `refundLateItem(engagementId)` *(client, only when `late`)*
 **Coach** `submitCoachApplication` · `reviewApplication(id,approve)` *(admin)* · `startConnectOnboarding` · `getEarnings` · weekly payout job
 **Routes** `POST /api/stripe/webhook` (signature-verified, idempotent by event id) · `POST /api/uploads/sign` (png/jpg/webp/txt/pdf ≤ 10 MB)
@@ -489,10 +519,13 @@ One Supabase Realtime channel per thread (`thread:<id>`) on `messages` insert an
 
 ## 8. Frontend
 
-**The UI references are the *Flows & Wireframes* doc (structure, states, every path) and the *UI/UX Pitch* (visual design).** Rules:
+**`docs/UI-DESIGN.md` is the authoritative UI reference** (information architecture, every screen in wireframe, component rules). *Flows & Wireframes* covers every path; the *UI/UX Pitch* covers visual style. Rules:
 
-- **Mobile-first at 390 px**, then up. Desktop: discover becomes a grid; coaches get a two-pane inbox→thread workspace; max width 1100 px.
-- **Money components** (build once in `components/thread/`): `ItemBar` (in-use status + meter; expands to the items sheet with switch control when 2+ chat items), `ItemsSheet`, `AnswerBadge` ("Answer 5 of 10"), `FreeBadge`, `OfferCard` (Accept · $X / Not now), `OrderCard` (Paid → In progress → Delivered → Approved, files, approve/changes, auto-approve note), `PurchaseSheet`, `LateBanner` (refund CTA), `VerdictRow`, `OpenerRow` (copy button), `GroupedAnswer` (multiple bubbles, one answer).
+- **Mobile-first at 390 px**, then up. Desktop: discover becomes a grid; coaches get a two-pane queue→thread workspace; max width 1100 px.
+- **Information architecture** — client tabs: **Home · Discover · Saved · You**. Coach mode (toggled in You) swaps the bar to **Queue · Menu · Earnings · You** with a persistent hairline marking the mode. Purchases live under You, not a tab.
+- **Three visual registers in the thread**, and they must be instantly distinguishable: *message* (plain bubble, free), *answer* (bordered card with accent spine — the thing that was paid for), *item card* (purchase with a status timeline).
+- **Components** (build once in `components/thread/`): `AnswerCard` (header "ANSWER n OF m", reasoning, optional copyable payload blocks from `messages.payload`, actions Copy / Save / ⋯ where ⋯ opens a dispute against that specific answer), `MessageBubble`, `ItemBar` (one status line; `⌄` + count only when 2+ items), `ItemsDrawer` (radios on chat items only, completed dimmed, buy-more CTA), `ItemCard` (Paid → In progress → Delivered → Approved, files, actions, auto-approve note; updates in place, never duplicates), `OfferCard`, `PurchaseSheet`, `LateBanner`, `NeedsYouRow` (always states the consequence), `CoachCard` (price-forward, favourite heart, refund/return stats), `SavedCard` (copy primary).
+- **Copy feedback is required** on every copy action (`⧉ Copy` → `✓ Copied`, 1.5 s) — it is the most-used control in the product.
 - **Coach composer** = two explicit buttons — "Send free" and "Send answer · N of M" — never a hidden toggle; disabled with reason when nothing is available.
 - Dark mode via tokens (§17). Money semantics never colour-only. Respect `prefers-reduced-motion`.
 - Copy comes from `strings.ts` (i18n later); use §1 vocabulary verbatim.
@@ -546,9 +579,9 @@ Demo users (password `demo1234`): clients `jordan@`, `alex@`, `riley@demo.wing`;
 
 **M1 — Money rails & instrumentation.** `ledger.post` + `events.emit` + tests, `pricing.quote`, engagements + lifecycle, PurchaseSheet on mock provider, webhook, processor-fee recording, purchases page, **real Stripe Connect Express spike** (one live test account end-to-end — do not defer this), analytics view for first→second purchase. ✔ *Buy a flat item in mock mode; ledger balances; Connect onboarding proven.*
 
-**M2a — Thread.** Threads, messages, attachments, realtime, inbox, free messaging both sides. ✔ *Two users converse in real time.*
+**M2a — Thread & Home.** Threads, messages, attachments, realtime, free messaging both sides, **Home tab** (needs-you strip, active threads, your coaches, past), favourites. ✔ *Two users converse in real time; Home surfaces pending actions.*
 
-**M2b — Metering.** ChatStrategy, `ItemBar`/`ItemsSheet`, in-use selection + switching, `sendAnswer` consumption transaction, per-answer and pack purchases, rebuy. ✔ *e2e #1 and #4.*
+**M2b — Metering & answers.** ChatStrategy, `ItemBar`/`ItemsDrawer`, in-use selection + switching, `sendAnswer` consumption transaction, the structured answer composer and `AnswerCard`, auto-save into `saved_items`, **Saved tab**, per-answer and pack purchases, rebuy. ✔ *e2e #1 and #4; a purchased answer is copyable from Saved within two taps.*
 
 **M2c — Delivery & offers.** DeliveryStrategy, input forms, OrderCard, approve/changes, auto-approve job, offers/quotes, ScheduledStrategy (booking + external video link). ✔ *e2e #2 and #3.*
 
