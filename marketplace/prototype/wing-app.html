@@ -1,587 +1,731 @@
 <title>Wing — Interactive Prototype</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
-  :root {
+  :root{
     --bg:#FFFBF8; --surface:#FFFFFF; --ink:#2A2230; --ink-soft:#6E6068; --ink-faint:#9A8C93;
     --line:#F0E4DD; --line-soft:#F6ECE6; --accent:#D6456A; --accent-soft:#FBEEF1;
-    --positive:#2F5D62; --positive-soft:#E9F2F0; --gold:#E0A03C; --chip:#F4EBE7;
-    --shadow: 0 2px 10px -6px rgba(60,30,45,.2);
+    --positive:#2F5D62; --positive-soft:#E9F2F0; --gold:#E0A03C; --warn:#B77410; --warn-soft:#F5E9D6;
+    --chip:#F4EBE7; --shadow:0 2px 10px -6px rgba(60,30,45,.2);
   }
-  @media (prefers-color-scheme: dark) { :root {
+  @media (prefers-color-scheme:dark){:root{
     --bg:#17131A; --surface:#201A22; --ink:#F1EAEE; --ink-soft:#C4B8C0; --ink-faint:#8E8390;
     --line:#362E3B; --line-soft:#2A232F; --accent:#F2718F; --accent-soft:#3A2530;
-    --positive:#7FC0C3; --positive-soft:#1E2E30; --gold:#E0A64E; --chip:#2A232F;
-    --shadow: 0 2px 10px -6px rgba(0,0,0,.5);
+    --positive:#7FC0C3; --positive-soft:#1E2E30; --gold:#E0A64E; --warn:#E0A64E; --warn-soft:#2E2515;
+    --chip:#2A232F; --shadow:0 2px 10px -6px rgba(0,0,0,.5);
   }}
-  :root[data-theme="light"] {
-    --bg:#FFFBF8; --surface:#FFFFFF; --ink:#2A2230; --ink-soft:#6E6068; --ink-faint:#9A8C93;
-    --line:#F0E4DD; --line-soft:#F6ECE6; --accent:#D6456A; --accent-soft:#FBEEF1;
-    --positive:#2F5D62; --positive-soft:#E9F2F0; --gold:#E0A03C; --chip:#F4EBE7;
-    --shadow: 0 2px 10px -6px rgba(60,30,45,.2);
-  }
-  :root[data-theme="dark"] {
-    --bg:#17131A; --surface:#201A22; --ink:#F1EAEE; --ink-soft:#C4B8C0; --ink-faint:#8E8390;
-    --line:#362E3B; --line-soft:#2A232F; --accent:#F2718F; --accent-soft:#3A2530;
-    --positive:#7FC0C3; --positive-soft:#1E2E30; --gold:#E0A64E; --chip:#2A232F;
-    --shadow: 0 2px 10px -6px rgba(0,0,0,.5);
-  }
-  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { height:100%; }
-  body { margin:0; background:var(--bg); color:var(--ink); overscroll-behavior:none;
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  .serif { font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; }
-  .mono { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
-  button { font:inherit; border:none; background:none; color:inherit; padding:0; cursor:pointer; text-align:left; }
-  input,textarea { font:inherit; color:var(--ink); }
+  :root[data-theme="light"]{--bg:#FFFBF8;--surface:#FFFFFF;--ink:#2A2230;--ink-soft:#6E6068;--ink-faint:#9A8C93;--line:#F0E4DD;--line-soft:#F6ECE6;--accent:#D6456A;--accent-soft:#FBEEF1;--positive:#2F5D62;--positive-soft:#E9F2F0;--gold:#E0A03C;--warn:#B77410;--warn-soft:#F5E9D6;--chip:#F4EBE7;}
+  :root[data-theme="dark"]{--bg:#17131A;--surface:#201A22;--ink:#F1EAEE;--ink-soft:#C4B8C0;--ink-faint:#8E8390;--line:#362E3B;--line-soft:#2A232F;--accent:#F2718F;--accent-soft:#3A2530;--positive:#7FC0C3;--positive-soft:#1E2E30;--gold:#E0A64E;--warn:#E0A64E;--warn-soft:#2E2515;--chip:#2A232F;}
 
-  #app { max-width:520px; margin:0 auto; height:100vh; height:100svh; display:flex; flex-direction:column; position:relative; overflow:hidden; }
-  .screen { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; display:none; flex-direction:column; }
-  .screen.on { display:flex; }
-  .pad { padding:0 16px; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);overscroll-behavior:none;
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  button{font:inherit;border:none;background:none;color:inherit;padding:0;cursor:pointer;text-align:left}
+  input,textarea{font:inherit;color:var(--ink)}
 
-  /* header */
-  .apphead { padding:14px 16px 10px; }
-  .greet { font-size:11px; color:var(--ink-faint); font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
-  .apphead h1 { margin:2px 0 0; font-size:24px; font-weight:600; letter-spacing:-.01em; }
-  .topbar { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--bg); position:sticky; top:0; z-index:5; }
-  .backbtn { font-size:15px; color:var(--ink-faint); padding:4px 8px 4px 0; }
+  #app{max-width:520px;margin:0 auto;height:100vh;height:100svh;display:flex;flex-direction:column;position:relative;overflow:hidden}
+  .screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;flex-direction:column}
+  .screen.on{display:flex}
 
-  /* demo banner */
-  .demobar { background:var(--accent-soft); color:var(--accent); font-size:11.5px; font-weight:600; padding:7px 14px; display:flex; justify-content:space-between; align-items:center; }
+  .demobar{background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:600;padding:7px 14px;display:flex;justify-content:space-between;align-items:center;flex:0 0 auto}
+  .coachrule{height:3px;background:var(--positive);flex:0 0 auto;display:none}
+  .coachrule.on{display:block}
 
-  /* chips */
-  .chiprow { display:flex; gap:7px; padding:10px 16px 4px; overflow-x:auto; scrollbar-width:none; }
-  .chiprow::-webkit-scrollbar { display:none; }
-  .fchip { flex:0 0 auto; font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:999px; background:var(--surface); border:1px solid var(--line); color:var(--ink-soft); }
-  .fchip.on { background:var(--ink); color:var(--bg); border-color:var(--ink); }
-  .search { margin:10px 16px 0; display:block; width:calc(100% - 32px); background:var(--chip); border:none; border-radius:12px; padding:11px 14px; font-size:16px; }
-  .search::placeholder { color:var(--ink-faint); }
-  .search:focus { outline:2px solid var(--accent); }
+  .apphead{padding:14px 16px 8px}
+  .greet{font-size:11px;color:var(--ink-faint);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .apphead h1{margin:2px 0 0;font-size:25px;font-weight:600;letter-spacing:-.01em}
+  .topbar{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5}
+  .backbtn{font-size:15px;color:var(--ink-faint);padding:4px 8px 4px 0}
+  .sechead{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);padding:16px 16px 7px;display:flex;justify-content:space-between;align-items:center}
 
-  /* coach cards */
-  .list { padding:12px 14px 90px; display:flex; flex-direction:column; gap:10px; }
-  .ccard { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; box-shadow:var(--shadow); display:block; width:100%; }
-  .row { display:flex; gap:11px; align-items:center; }
-  .av { border-radius:50%; display:grid; place-items:center; color:#fff; font-weight:700; flex:0 0 auto; }
-  .av-lg { width:64px; height:64px; font-size:22px; } .av-md { width:46px; height:46px; font-size:17px; } .av-sm { width:30px; height:30px; font-size:12px; }
-  .nm { font-weight:700; font-size:15px; display:flex; gap:6px; align-items:center; }
-  .vtick { display:inline-grid; place-items:center; width:14px; height:14px; border-radius:50%; background:#2F8C6A; color:#fff; font-size:9px; font-weight:800; }
-  .hl { font-size:12.5px; color:var(--ink-faint); margin-top:1px; }
-  .fromp { margin-left:auto; text-align:right; flex:0 0 auto; }
-  .fromp b { display:block; font-size:15px; color:var(--accent); }
-  .fromp span { font-size:10.5px; color:var(--ink-faint); }
-  .meta { display:flex; gap:10px; margin-top:10px; font-size:12px; color:var(--ink-soft); align-items:center; flex-wrap:wrap; }
-  .stars { color:var(--gold); letter-spacing:1px; }
-  .spec { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
-  .schip { font-size:10.5px; font-weight:600; padding:4px 10px; border-radius:999px; background:var(--accent-soft); color:var(--accent); }
-  .schip.t { background:var(--positive-soft); color:var(--positive); }
+  .av{border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;flex:0 0 auto}
+  .av-lg{width:66px;height:66px;font-size:23px}.av-md{width:46px;height:46px;font-size:17px}
+  .av-sm{width:32px;height:32px;font-size:13px}.av-xs{width:44px;height:44px;font-size:16px}
+  .row{display:flex;gap:11px;align-items:center}
+  .nm{font-weight:700;font-size:15px;display:flex;gap:6px;align-items:center}
+  .vtick{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;background:#2F8C6A;color:#fff;font-size:9px;font-weight:800}
+  .hl{font-size:12.5px;color:var(--ink-faint);margin-top:1px}
+  .stars{color:var(--gold);letter-spacing:1px}
+
+  /* home */
+  .needs{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:14px;padding:12px 13px;margin:0 14px 8px;display:flex;gap:11px;align-items:center;width:calc(100% - 28px);box-shadow:var(--shadow)}
+  .needs .ni{width:30px;height:30px;border-radius:9px;background:var(--accent-soft);display:grid;place-items:center;font-size:14px;flex:0 0 auto}
+  .needs b{font-size:13.5px;display:block}
+  .needs span{font-size:11.5px;color:var(--ink-faint)}
+  .needs .arr{margin-left:auto;color:var(--ink-faint);flex:0 0 auto}
+  .throw{display:flex;gap:11px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line-soft);width:100%}
+  .throw .iw{min-width:0;flex:1}
+  .throw .tnm{display:flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700}
+  .meter{margin-left:auto;font-size:9.5px;font-weight:700;padding:2.5px 8px;border-radius:999px;font-family:ui-monospace,Menlo,monospace;letter-spacing:.03em;flex:0 0 auto}
+  .meter.a{background:var(--accent-soft);color:var(--accent)}
+  .meter.d{background:var(--positive-soft);color:var(--positive)}
+  .meter.w{background:var(--warn-soft);color:var(--warn)}
+  .snip{font-size:12.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .udot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:0 0 auto}
+  .coachstrip{display:flex;gap:14px;padding:4px 16px 12px;overflow-x:auto;scrollbar-width:none}
+  .coachstrip::-webkit-scrollbar{display:none}
+  .cs{text-align:center;flex:0 0 auto;width:58px}
+  .cs .av{margin:0 auto 4px;position:relative}
+  .cs .csn{font-size:10.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cs .fav{position:absolute;right:-2px;bottom:-2px;background:var(--bg);border-radius:50%;width:17px;height:17px;display:grid;place-items:center;font-size:9px;color:var(--accent)}
+  .cs.addc .av{background:var(--chip)!important;color:var(--ink-faint);border:1px dashed var(--ink-faint)}
+
+  /* discover */
+  .chiprow{display:flex;gap:7px;padding:10px 16px 4px;overflow-x:auto;scrollbar-width:none}
+  .chiprow::-webkit-scrollbar{display:none}
+  .fchip{flex:0 0 auto;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--ink-soft)}
+  .fchip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .search{margin:8px 16px 0;display:block;width:calc(100% - 32px);background:var(--chip);border:none;border-radius:12px;padding:11px 14px;font-size:16px}
+  .search::placeholder{color:var(--ink-faint)}
+  .search:focus{outline:2px solid var(--accent)}
+  .list{padding:10px 14px 24px;display:flex;flex-direction:column;gap:10px}
+  .ccard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow);position:relative}
+  .heart{position:absolute;right:10px;top:10px;font-size:19px;line-height:1;padding:4px;color:var(--ink-faint)}
+  .heart.on{color:var(--accent)}
+  .ccard .fromp{margin-left:auto;text-align:right;flex:0 0 auto;padding-right:26px}
+  .ccard .fromp b{display:block;font-size:15px;color:var(--accent)}
+  .ccard .fromp span{font-size:10.5px;color:var(--ink-faint)}
+  .meta{display:flex;gap:10px;margin-top:10px;font-size:12px;color:var(--ink-soft);align-items:center;flex-wrap:wrap}
+  .signals{font-size:11px;color:var(--positive);margin-top:4px;font-family:ui-monospace,Menlo,monospace}
+  .spec{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+  .schip{font-size:10.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+  .schip.t{background:var(--positive-soft);color:var(--positive)}
 
   /* profile */
-  .phero { text-align:center; padding:18px 16px 4px; }
-  .phero .av { margin:0 auto; }
-  .phero h2 { font-size:21px; margin:9px 0 2px; font-weight:600; }
-  .statrow { display:flex; margin:14px 16px 4px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:11px 0; }
-  .stat { flex:1; text-align:center; }
-  .stat + .stat { border-left:1px solid var(--line-soft); }
-  .stat b { display:block; font-size:15px; }
-  .stat span { font-size:10.5px; color:var(--ink-faint); }
-  .sechead { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); padding:16px 20px 8px; }
-  .offer { display:flex; align-items:center; gap:11px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin:0 14px 8px; width:calc(100% - 28px); }
-  .oi { width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-size:16px; background:var(--accent-soft); flex:0 0 auto; }
-  .oi.t { background:var(--positive-soft); } .oi.a { background:#F5E9D6; }
-  .ow { min-width:0; } .ow b { font-size:13.5px; display:block; }
-  .ow span { font-size:11px; color:var(--ink-faint); }
-  .op { margin-left:auto; font-weight:700; font-size:13.5px; color:var(--accent); white-space:nowrap; }
-  .rev { margin:2px 14px 9px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 14px; }
-  .rev .rt { display:flex; gap:8px; align-items:center; font-size:12px; font-weight:700; flex-wrap:wrap; }
-  .rev p { font-size:12.5px; color:var(--ink-soft); margin:5px 0 0; }
+  .phero{text-align:center;padding:18px 16px 4px}
+  .phero .av{margin:0 auto}
+  .phero h2{font-size:22px;margin:9px 0 2px;font-weight:600}
+  .statrow{display:flex;margin:14px 16px 4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 0}
+  .stat{flex:1;text-align:center}
+  .stat+.stat{border-left:1px solid var(--line-soft)}
+  .stat b{display:block;font-size:15px}
+  .stat span{font-size:10.5px;color:var(--ink-faint)}
+  .offer{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 14px 8px;width:calc(100% - 28px)}
+  .oi{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:var(--accent-soft);flex:0 0 auto}
+  .oi.t{background:var(--positive-soft)}.oi.a{background:var(--warn-soft)}
+  .ow{min-width:0}.ow b{font-size:13.5px;display:block}
+  .ow span{font-size:11px;color:var(--ink-faint)}
+  .op{margin-left:auto;font-weight:700;font-size:13.5px;color:var(--accent);white-space:nowrap}
+  .rev{margin:2px 14px 9px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .rev .rt{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700;flex-wrap:wrap}
+  .rev p{font-size:12.5px;color:var(--ink-soft);margin:5px 0 0}
+  .cta{display:block;width:calc(100% - 28px);margin:6px 14px 16px;background:var(--accent);color:#fff;text-align:center;font-weight:700;font-size:15px;border-radius:14px;padding:14px;box-shadow:0 6px 16px -8px rgba(214,69,106,.6)}
+  .cta.dark{background:var(--ink);color:var(--bg);box-shadow:none}
 
   /* thread */
-  .tw b { font-size:14px; display:block; } .tw span { font-size:10.5px; color:#2F8C6A; font-weight:600; }
-  .traybar { display:flex; align-items:center; gap:7px; padding:8px 14px; background:var(--accent-soft); border-bottom:1px solid var(--line); font-size:11px; font-weight:700; color:var(--accent); letter-spacing:.03em; width:100%; }
-  .traybar .edot { width:6px; height:6px; border-radius:50%; background:#2F8C6A; }
-  .traybar .cnt { margin-left:auto; color:var(--positive); }
-  .chat { flex:1; padding:12px 12px 8px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; }
-  .msg { max-width:84%; padding:9px 13px; border-radius:16px; font-size:14px; }
-  .msg.me { align-self:flex-end; background:var(--ink); color:var(--bg); border-bottom-right-radius:5px; }
-  .msg.them { align-self:flex-start; background:var(--surface); border:1px solid var(--line); border-bottom-left-radius:5px; }
-  .pill { display:inline-flex; gap:4px; font-size:9.5px; font-weight:700; letter-spacing:.05em; padding:3px 8px; border-radius:999px; margin-top:6px; font-family:ui-monospace,Menlo,monospace; }
-  .pill.free { background:var(--positive-soft); color:var(--positive); }
-  .pill.paid { background:var(--accent-soft); color:var(--accent); }
-  .ocard { align-self:flex-start; width:92%; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:12px 13px; }
-  .ocard .ot { display:flex; align-items:center; gap:9px; }
-  .ocard .ot b { font-size:13px; display:block; } .ocard .ot span { font-size:10.5px; color:var(--ink-faint); }
-  .os { margin-left:auto; font-size:9px; font-weight:700; padding:3px 8px; border-radius:999px; font-family:ui-monospace,Menlo,monospace; background:var(--positive-soft); color:var(--positive); flex:0 0 auto; }
-  .os.w { background:#F5E9D6; color:#B77410; }
-  .obtns { display:flex; gap:7px; margin-top:10px; }
-  .qb { flex:1; text-align:center; font-size:12.5px; font-weight:700; padding:9px 0; border-radius:10px; }
-  .qb.yes { background:var(--accent); color:#fff; }
-  .qb.no { background:var(--chip); color:var(--ink-soft); }
-  .onote { text-align:center; font-size:10px; color:var(--ink-faint); margin-top:8px; font-family:ui-monospace,Menlo,monospace; }
-  .compose { display:flex; gap:8px; align-items:center; padding:10px 12px calc(10px + env(safe-area-inset-bottom)); background:var(--surface); border-top:1px solid var(--line); }
-  .cfield { flex:1; min-width:0; background:var(--chip); border:none; border-radius:999px; padding:11px 15px; font-size:16px; }
-  .cfield:focus { outline:2px solid var(--accent); }
-  .csend { width:38px; height:38px; border-radius:50%; background:var(--accent); color:#fff; display:grid; place-items:center; font-size:15px; flex:0 0 auto; }
+  .tw b{font-size:14.5px;display:block}.tw span{font-size:10.5px;color:#2F8C6A;font-weight:600}
+  .itembar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--accent-soft);border-bottom:1px solid var(--line);font-size:12px;font-weight:600;color:var(--accent);width:100%}
+  .itembar .edot{width:6px;height:6px;border-radius:50%;background:#2F8C6A;flex:0 0 auto}
+  .itembar .cnt{margin-left:auto;flex:0 0 auto;opacity:.8}
+  .itembar.warn{background:var(--warn-soft);color:var(--warn);border-bottom-color:var(--warn-soft)}
+  .itembar.calm{background:var(--positive-soft);color:var(--positive)}
+  .chat{flex:1;padding:12px 12px 8px;display:flex;flex-direction:column;gap:9px;overflow-y:auto}
+  .msg{max-width:84%;padding:9px 13px;border-radius:16px;font-size:14px}
+  .msg.me{align-self:flex-end;background:var(--ink);color:var(--bg);border-bottom-right-radius:5px}
+  .msg.them{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
+  .freetag{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.05em;color:var(--positive);background:var(--positive-soft);padding:2px 7px;border-radius:999px;margin-top:6px;font-family:ui-monospace,Menlo,monospace}
+  .shot{align-self:flex-end;width:62%;border-radius:13px;border:1px solid var(--line);overflow:hidden;background:var(--surface)}
+  .shot .simg{height:62px;background:linear-gradient(160deg,#EFE2DA 25%,#E5D3CE 25% 50%,#EFE2DA 50% 75%,#E5D3CE 75%);position:relative}
+  .shot .simg::after{content:"⌁ hinge_convo.png";position:absolute;inset:auto 0 0 0;font-size:9px;padding:3px 8px;background:rgba(42,34,48,.82);color:#FFF7F2;font-family:ui-monospace,Menlo,monospace}
 
-  /* inbox / purchases */
-  .ibrow { display:flex; gap:11px; align-items:center; padding:13px 16px; border-bottom:1px solid var(--line-soft); width:100%; }
-  .ibrow .iw { min-width:0; flex:1; }
-  .isnip { font-size:12px; color:var(--ink-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px; }
-  .itag { font-size:8.5px; font-weight:700; padding:2.5px 7px; border-radius:999px; letter-spacing:.04em; font-family:ui-monospace,Menlo,monospace; }
-  .itag.a { background:var(--accent-soft); color:var(--accent); }
-  .itag.d { background:var(--positive-soft); color:var(--positive); }
-  .itime { margin-left:auto; font-size:10px; color:var(--ink-faint); font-family:ui-monospace,Menlo,monospace; flex:0 0 auto; }
-  .rrow { display:flex; gap:11px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line-soft); }
-  .ramt { margin-left:auto; font-weight:700; font-family:ui-monospace,Menlo,monospace; font-size:13.5px; }
-  .rnote { margin:14px 16px; background:var(--positive-soft); border-radius:12px; padding:10px 14px; font-size:12px; color:var(--positive); }
-  .empty { text-align:center; color:var(--ink-faint); padding:48px 30px; font-size:13.5px; }
-  .empty .serif { font-size:19px; color:var(--ink); display:block; margin-bottom:6px; }
+  /* ANSWER CARD — the headline of v2 */
+  .acard{align-self:flex-start;width:93%;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .ahead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;background:var(--accent-soft);font-family:ui-monospace,Menlo,monospace;font-size:9.5px;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+  .ahead .who{opacity:.75;font-weight:600}
+  .abody{padding:11px 12px 4px;font-size:14px;line-height:1.5}
+  .ablock{margin:8px 12px 4px;border:1px solid var(--line);border-radius:11px;background:var(--bg);padding:10px 12px;font-size:13.5px;line-height:1.45}
+  .ablock .blab{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.07em;color:var(--ink-faint);display:block;margin-bottom:4px}
+  .ablock .bcopy{display:block;width:100%;margin-top:8px;text-align:center;font-size:11.5px;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:6px}
+  .aacts{display:flex;gap:6px;padding:9px 12px 11px}
+  .aact{flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--chip);border-radius:9px;padding:7px 0}
+  .aact.on{color:var(--accent);background:var(--accent-soft)}
+  .aact.dots{flex:0 0 44px}
 
-  /* coach dashboard */
-  .etile { margin:10px 14px; background:var(--ink); border-radius:16px; padding:16px 18px; color:var(--bg); }
-  .etile .el { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; opacity:.7; font-weight:600; }
-  .etile .ev { font-family:ui-monospace,Menlo,monospace; font-size:30px; font-weight:700; margin-top:2px; }
-  .etile .es { font-size:11.5px; opacity:.75; margin-top:4px; }
-  .etiles2 { display:flex; gap:8px; margin:0 14px 10px; }
-  .et2 { flex:1; background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:11px 13px; }
-  .et2 b { font-family:ui-monospace,Menlo,monospace; font-size:16px; display:block; }
-  .et2 span { font-size:10px; color:var(--ink-faint); }
-  .qrow { margin:0 14px 8px; background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:11px 13px; }
-  .due { margin-left:auto; font-size:9px; color:#B77410; font-weight:700; background:#F5E9D6; padding:3px 8px; border-radius:999px; white-space:nowrap; font-family:ui-monospace,Menlo,monospace; flex:0 0 auto; }
+  .icard{align-self:flex-start;width:93%;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 13px}
+  .icard.warn{border-color:var(--warn)}
+  .icard .ot{display:flex;align-items:center;gap:9px}
+  .icard .ot b{font-size:13.5px;display:block}.icard .ot span{font-size:10.5px;color:var(--ink-faint)}
+  .os{margin-left:auto;font-size:9px;font-weight:700;padding:3px 8px;border-radius:999px;font-family:ui-monospace,Menlo,monospace;background:var(--positive-soft);color:var(--positive);flex:0 0 auto}
+  .os.w{background:var(--warn-soft);color:var(--warn)}
+  .tline{display:flex;margin:11px 2px 3px}
+  .tstep{flex:1;text-align:center;font-size:8.5px;color:var(--ink-faint);font-family:ui-monospace,Menlo,monospace}
+  .tstep::before{content:"";display:block;width:9px;height:9px;border-radius:50%;background:var(--positive);margin:0 auto 4px}
+  .tstep.pend::before{background:var(--line)}
+  .tstep.cur::before{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .filechip{display:flex;align-items:center;gap:8px;background:var(--chip);border-radius:10px;padding:8px 10px;margin-top:10px;font-size:11.5px;font-weight:600}
+  .obtns{display:flex;gap:7px;margin-top:10px}
+  .qb{flex:1;text-align:center;font-size:12.5px;font-weight:700;padding:9px 0;border-radius:10px}
+  .qb.yes{background:var(--accent);color:#fff}
+  .qb.no{background:var(--chip);color:var(--ink-soft)}
+  .onote{text-align:center;font-size:10px;color:var(--ink-faint);margin-top:8px;font-family:ui-monospace,Menlo,monospace}
+  .compose{display:flex;gap:8px;align-items:center;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line);flex:0 0 auto}
+  .cfield{flex:1;min-width:0;background:var(--chip);border:none;border-radius:999px;padding:11px 15px;font-size:16px}
+  .cfield:focus{outline:2px solid var(--accent)}
+  .csend{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:15px;flex:0 0 auto}
 
-  /* tabbar */
-  .tabbar { display:flex; border-top:1px solid var(--line); background:var(--surface); padding-bottom:env(safe-area-inset-bottom); }
-  .tab { flex:1; text-align:center; padding:9px 0 7px; font-size:10px; font-weight:600; color:var(--ink-faint); }
-  .tab .ticon { display:block; font-size:19px; margin-bottom:1px; }
-  .tab.on { color:var(--accent); }
+  /* saved */
+  .scard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin:0 14px 9px}
+  .scard .sh{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;font-weight:700;letter-spacing:.06em;color:var(--accent);display:flex;justify-content:space-between;gap:8px}
+  .scard .sb{font-size:13.5px;margin-top:6px;line-height:1.45}
+  .scard .sacts{display:flex;gap:6px;margin-top:9px}
 
-  /* sheets & overlays */
-  .scrim { position:absolute; inset:0; background:rgba(20,12,18,.45); z-index:20; display:none; }
-  .scrim.on { display:block; }
-  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--surface); border-radius:22px 22px 0 0; padding:14px 18px calc(20px + env(safe-area-inset-bottom)); z-index:21; transform:translateY(105%); transition:transform .28s cubic-bezier(.3,.9,.3,1); max-height:82%; overflow-y:auto; }
-  .sheet.on { transform:translateY(0); }
-  @media (prefers-reduced-motion: reduce){ .sheet { transition:none; } }
-  .grab { width:38px; height:4px; border-radius:999px; background:var(--line); margin:0 auto 14px; }
-  .srow { display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--line-soft); padding:11px 2px; font-size:13px; color:var(--ink-soft); }
-  .srow b { color:var(--ink); font-weight:600; }
-  .paybtn { display:block; width:100%; margin-top:14px; background:#000; color:#fff; border-radius:14px; text-align:center; padding:15px; font-weight:700; font-size:16px; }
-  :root[data-theme="dark"] .paybtn, .paybtn { background:#000; }
-  .paynote { text-align:center; font-size:11px; color:var(--ink-faint); margin-top:10px; line-height:1.5; }
-  .trayrow { display:flex; gap:11px; align-items:center; background:var(--bg); border:1px solid var(--line); border-radius:13px; padding:12px 13px; margin-bottom:8px; width:100%; }
-  .radio { width:18px; height:18px; border-radius:50%; border:2px solid var(--line); flex:0 0 auto; }
-  .trayrow.armed .radio { border-color:var(--accent); background:radial-gradient(circle, var(--accent) 42%, transparent 48%); }
-  .bigstars { display:flex; justify-content:center; gap:8px; font-size:34px; color:var(--line); margin:12px 0 4px; }
-  .bigstars button.lit { color:var(--gold); }
-  .outchips { display:flex; gap:7px; justify-content:center; flex-wrap:wrap; margin:12px 0 4px; }
-  .ochip { font-size:12px; font-weight:600; padding:7px 13px; border-radius:999px; background:var(--bg); border:1px solid var(--line); color:var(--ink-soft); }
-  .ochip.on { background:var(--positive-soft); border-color:var(--positive); color:var(--positive); }
-  .revfield { width:100%; margin-top:12px; background:var(--chip); border:none; border-radius:12px; padding:12px 13px; font-size:16px; min-height:64px; resize:none; }
-  .cta { display:block; width:100%; margin-top:12px; background:var(--accent); color:#fff; border-radius:14px; text-align:center; padding:14px; font-weight:700; font-size:15px; }
-  .toast { position:absolute; left:50%; transform:translateX(-50%) translateY(20px); bottom:90px; background:var(--ink); color:var(--bg); font-size:13px; font-weight:600; padding:10px 18px; border-radius:999px; opacity:0; transition:all .25s; z-index:40; pointer-events:none; white-space:nowrap; box-shadow:var(--shadow); }
-  .toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
-  .typing { align-self:flex-start; color:var(--ink-faint); font-size:12px; padding:2px 6px; }
+  /* you */
+  .yrow{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line-soft);width:100%;font-size:14.5px}
+  .yrow .yi{width:22px;text-align:center;font-size:16px;flex:0 0 auto}
+  .yrow .arr{margin-left:auto;color:var(--ink-faint)}
+  .modecard{margin:12px 14px;background:var(--positive-soft);border:1px solid var(--positive);border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:11px;width:calc(100% - 28px)}
+  .modecard b{font-size:14px;display:block;color:var(--positive)}
+  .modecard span{font-size:11.5px;color:var(--ink-soft)}
+
+  /* coach */
+  .etile{margin:10px 14px;background:var(--ink);border-radius:16px;padding:16px 18px;color:var(--bg)}
+  .etile .el{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.7;font-weight:600}
+  .etile .ev{font-family:ui-monospace,Menlo,monospace;font-size:30px;font-weight:700;margin-top:2px}
+  .etile .es{font-size:11.5px;opacity:.75;margin-top:4px}
+  .etiles2{display:flex;gap:8px;margin:0 14px 10px}
+  .et2{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 13px}
+  .et2 b{font-family:ui-monospace,Menlo,monospace;font-size:16px;display:block}
+  .et2 span{font-size:9.5px;color:var(--ink-faint)}
+  .qrow{margin:0 14px 8px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 13px}
+  .qrow.late{border-color:var(--warn);background:var(--warn-soft)}
+  .due{margin-left:auto;font-size:9px;color:var(--warn);font-weight:700;background:var(--bg);padding:3px 8px;border-radius:999px;white-space:nowrap;font-family:ui-monospace,Menlo,monospace;flex:0 0 auto}
+  .due.ok{color:var(--positive)}
+
+  .empty{text-align:center;color:var(--ink-faint);padding:40px 30px;font-size:13.5px}
+  .empty .serif{font-size:20px;color:var(--ink);display:block;margin-bottom:8px}
+
+  /* tabs + sheets */
+  .tabbar{display:flex;border-top:1px solid var(--line);background:var(--surface);padding-bottom:env(safe-area-inset-bottom);flex:0 0 auto}
+  .tab{flex:1;text-align:center;padding:9px 0 7px;font-size:10px;font-weight:600;color:var(--ink-faint)}
+  .tab .ticon{display:block;font-size:19px;margin-bottom:1px}
+  .tab.on{color:var(--accent)}
+  .scrim{position:absolute;inset:0;background:rgba(20,12,18,.45);z-index:20;display:none}
+  .scrim.on{display:block}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:22px 22px 0 0;padding:14px 18px calc(20px + env(safe-area-inset-bottom));z-index:21;transform:translateY(105%);transition:transform .28s cubic-bezier(.3,.9,.3,1);max-height:84%;overflow-y:auto}
+  .sheet.on{transform:translateY(0)}
+  @media (prefers-reduced-motion:reduce){.sheet{transition:none}}
+  .grab{width:38px;height:4px;border-radius:999px;background:var(--line);margin:0 auto 14px}
+  .srow{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line-soft);padding:11px 2px;font-size:13px;color:var(--ink-soft)}
+  .srow b{color:var(--ink);font-weight:600}
+  .paybtn{display:block;width:100%;margin-top:14px;background:#000;color:#fff;border-radius:14px;text-align:center;padding:15px;font-weight:700;font-size:16px}
+  .paynote{text-align:center;font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.5}
+  .trayrow{display:flex;gap:11px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:13px;padding:12px 13px;margin-bottom:8px;width:100%}
+  .trayrow.inuse{border-color:var(--accent)}
+  .trayrow.done{opacity:.55}
+  .radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:0 0 auto}
+  .trayrow.inuse .radio{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 42%,transparent 48%)}
+  .bigstars{display:flex;justify-content:center;gap:8px;font-size:34px;color:var(--line);margin:12px 0 4px}
+  .bigstars button.lit{color:var(--gold)}
+  .outchips{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:12px 0 4px}
+  .ochip{font-size:12px;font-weight:600;padding:7px 13px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--ink-soft)}
+  .ochip.on{background:var(--positive-soft);border-color:var(--positive);color:var(--positive)}
+  .revfield{width:100%;margin-top:12px;background:var(--chip);border:none;border-radius:12px;padding:12px 13px;font-size:16px;min-height:64px;resize:none}
+  .toast{position:absolute;left:50%;transform:translateX(-50%) translateY(20px);bottom:92px;background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;padding:10px 18px;border-radius:999px;opacity:0;transition:all .25s;z-index:40;pointer-events:none;white-space:nowrap;box-shadow:var(--shadow)}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 
 <div id="app">
-  <div class="demobar" id="demobar"><span>Clickable demo — payments simulated, nothing is real</span><button onclick="document.getElementById('demobar').style.display='none'" style="font-size:15px;padding:0 2px">✕</button></div>
+  <div class="demobar" id="demobar"><span>Clickable demo — payments simulated, nothing is real</span><button onclick="this.parentNode.style.display='none'" style="font-size:15px;padding:0 2px">✕</button></div>
+  <div class="coachrule" id="coachrule"></div>
 
-  <!-- DISCOVER -->
-  <div class="screen on" id="s-discover">
-    <div class="apphead"><div class="greet" id="greet">Your wing awaits</div><h1 class="serif">Who do you need?</h1></div>
-    <input class="search" id="q" placeholder='Search coaches, e.g. "openers"…' oninput="state.query=this.value; renderDiscover()">
+  <div class="screen on" id="s-home"></div>
+  <div class="screen" id="s-discover">
+    <div class="apphead"><div class="greet">find someone good at this</div><h1 class="serif">Who do you need?</h1></div>
+    <input class="search" id="q" placeholder="Search coaches, e.g. openers…" oninput="state.query=this.value;renderDiscover()">
     <div class="chiprow" id="chips"></div>
+    <div id="favstrip"></div>
     <div class="list" id="coachlist"></div>
   </div>
-
-  <!-- PROFILE -->
   <div class="screen" id="s-profile"></div>
-
-  <!-- THREAD -->
   <div class="screen" id="s-thread"></div>
+  <div class="screen" id="s-saved"></div>
+  <div class="screen" id="s-you"></div>
+  <div class="screen" id="s-coach"></div>
+  <div class="screen" id="s-menu"></div>
+  <div class="screen" id="s-earn"></div>
 
-  <!-- INBOX -->
-  <div class="screen" id="s-inbox">
-    <div class="apphead"><div class="greet" id="inboxcount"></div><h1 class="serif">Inbox</h1></div>
-    <div id="inboxlist" style="padding-bottom:90px"></div>
-  </div>
-
-  <!-- PURCHASES -->
-  <div class="screen" id="s-purchases">
-    <div class="apphead"><div class="greet">All charges in plain dollars</div><h1 class="serif">Purchases</h1></div>
-    <div id="purchlist" style="padding-bottom:20px"></div>
-  </div>
-
-  <!-- COACH VIEW -->
-  <div class="screen" id="s-coach">
-    <div class="apphead"><div class="greet">Coach view · Maya R.</div><h1 class="serif">This week</h1></div>
-    <div class="etile"><div class="el">You've earned</div><div class="ev">$312.40</div><div class="es">▲ 22% vs last week · after the 20% platform fee</div></div>
-    <div class="etiles2">
-      <div class="et2"><b>4.9 ★</b><span>rating</span></div>
-      <div class="et2"><b>38</b><span>clients this week</span></div>
-      <div class="et2"><b>92%</b><span>repeat rate</span></div>
-    </div>
-    <div class="sechead">To fulfill</div>
-    <div id="coachqueue"></div>
-    <div class="rnote" style="margin-top:6px">Your answers draw from whatever item the client is using. Messages are always free — you can never charge beyond what they chose.</div>
-    <div style="height:90px"></div>
-  </div>
-
-  <!-- overlays -->
   <div class="scrim" id="scrim" onclick="closeSheets()"></div>
   <div class="sheet" id="paysheet"></div>
   <div class="sheet" id="traysheet"></div>
   <div class="sheet" id="revsheet"></div>
   <div class="toast" id="toast"></div>
-
-  <div class="tabbar" id="tabbar">
-    <button class="tab on" data-tab="discover" onclick="go('discover')"><span class="ticon">🔍</span>Discover</button>
-    <button class="tab" data-tab="inbox" onclick="go('inbox')"><span class="ticon">💬</span>Inbox<span id="unread"></span></button>
-    <button class="tab" data-tab="purchases" onclick="go('purchases')"><span class="ticon">🧾</span>Purchases</button>
-    <button class="tab" data-tab="coach" onclick="go('coach')"><span class="ticon">🪶</span>Coach</button>
-  </div>
+  <div class="tabbar" id="tabbar"></div>
 </div>
 
 <script>
-// ---------- data ----------
-const COACHES = {
-  maya:{h:"maya",name:"Maya R.",tick:1,head:"Opener & conversation specialist",tag:"I fix dead conversations.",g:["#E4506F","#B23A6E"],rating:4.9,count:212,clients:1408,resp:"~5 min",specs:["openers","conversations"],badges:["First reply free"],replies:[
-    "Ok, looked at it. Your last two texts were both questions — that reads needy after a gap. Send one confident statement instead.",
-    "Try this: reference her dog-park story with zero pressure — “just saw a golden retriever argue with a pigeon and thought of you.” Callback, easy yes.",
-    "Good sign she used an emoji. Mirror her energy but shorter — she wrote 3 lines, you write 1 great one. Ask nothing this time.",
-    "Now wait. Seriously — nothing for 24h. The silence does more work than any message here."]},
-  dev:{h:"dev",name:"Dev K.",tick:1,head:"Bio doctor · ex-copywriter",tag:"Bios that get right-swipes.",g:["#2F5D62","#4E8C7F"],rating:4.8,count:167,clients:640,resp:"~2 hr",specs:["bio"],badges:[],replies:[
-    "Got everything I need. You'll have two versions tonight — one playful, one grounded.",
-    "Version 1 leans on your pottery thing. It's your best hook by far — specific beats impressive every time."]},
-  sam:{h:"sam",name:"Sam T.",tick:1,head:"Photo lineup strategist",tag:"Keep, cut, or reshoot — with reasons.",g:["#B77410","#D6A03F"],rating:4.7,count:94,clients:410,resp:"~1 hr",specs:["photos"],badges:["Pack deals"],replies:[
-    "Photo 1: lead with it — warm light, real smile, mid-laugh. Photo 2: gym mirror, cut it. Reads try-hard and costs more than it earns.",
-    "Photo 3: great setting, bad crop. Retake landscape, step back two meters. Then your lineup is genuinely strong."]},
-  elena:{h:"elena",name:"Elena V.",tick:1,head:"Strategy for women — screening & standards",tag:"Invest only in matches worth your time.",g:["#2F5D62","#7FA8A0"],rating:4.9,count:318,clients:1920,resp:"~10 min",specs:["conversations","dates"],badges:["Free intro call"],replies:[
-    "Read the thread. He answers fast but never asks anything back — that's consumption, not interest. Watch for one more exchange, then decide.",
-    "You don't need a clever reply here. You need a filter question: ask what his week looks like. Planners reveal themselves immediately."]},
-  marcus:{h:"marcus",name:"Marcus H.",tick:1,head:"Dating again after divorce · 40+",tag:"Apps changed. Catch up without the cringe.",g:["#B77410","#8A5A2B"],rating:4.8,count:141,clients:380,resp:"~3 hr",specs:["bio","photos"],badges:[],replies:[
-    "First rule of the restart: your profile should sound like you at dinner, not you at an interview. Send me what you have."]},
-  priya:{h:"priya",name:"Priya N.",tick:1,head:"Date planner · knows every city",tag:"First dates die in loud restaurants.",g:["#E4506F","#D6A03F"],rating:5.0,count:58,clients:210,resp:"~4 hr",specs:["dates","custom"],badges:["Quote anything"],replies:[
-    "Love it. Give me the city, her interests, and your budget — I'll quote you a full plan with a rain backup."]},
-  jo:{h:"jo",name:"Jo A.",tick:1,head:"Queer dating specialist · they/them",tag:"Lived experience, not recycled advice.",g:["#E4506F","#7C4DBE"],rating:5.0,count:86,clients:340,resp:"~15 min",specs:["openers","conversations","dates"],badges:[],replies:[
-    "Okay this thread is better than you think. They double-texted you — that's momentum. Suggest the thing you both mentioned, casually, this week."]}
+/* ---------------- data ---------------- */
+const COACHES={
+ maya:{h:"maya",name:"Maya R.",head:"Opener & conversation specialist",tag:"I fix dead conversations.",g:["#E4506F","#B23A6E"],rating:4.9,count:212,clients:1408,resp:"~5 min",refunds:"0.3%",repeat:"71%",specs:["openers","conversations"],badges:["First answer free"],
+  answers:[{r:"Good news, this is recoverable. Your last two texts were both questions — that reads needy after a gap.",c:"just saw a golden retriever argue with a pigeon and thought of your dog-park story"},
+           {r:"She used an emoji, that's momentum. Mirror her energy but shorter — she wrote three lines, you write one good one. Ask nothing this time.",c:"ok the pigeon has officially replaced my alarm clock. how was the market?"},
+           {r:"Now you ask her out. Specific, low-stakes, one option not three — options make it feel like scheduling.",c:"there's a tiny coffee place near the park doing pour-overs. thursday evening?"},
+           {r:"Do nothing for 24 hours. Seriously. The silence does more work than any message I could write here.",c:null}],
+  frees:["Quick one before I dig in — how long since her last reply?","Got it. Give me two minutes.","Nice, that's the right instinct."]},
+ dev:{h:"dev",name:"Dev K.",head:"Bio doctor · ex-copywriter",tag:"Bios that get right-swipes.",g:["#2F5D62","#4E8C7F"],rating:4.8,count:167,clients:640,resp:"~2 hr",refunds:"0.6%",repeat:"54%",specs:["bio"],badges:[],
+  answers:[{r:"Your bio is a list of adjectives. Nobody swipes on adjectives — they swipe on a scene they can picture.",c:"Potter by weekend, decent cook by necessity. Looking for someone to argue with about whether pineapple belongs anywhere."}],
+  frees:["Got everything I need — two versions by tonight.","Version 1 leans on your pottery thing. It's your best hook by far."]},
+ sam:{h:"sam",name:"Sam T.",head:"Photo lineup strategist",tag:"Keep, cut, or reshoot — with reasons.",g:["#B77410","#D6A03F"],rating:4.7,count:94,clients:410,resp:"~1 hr",refunds:"1.1%",repeat:"48%",specs:["photos"],badges:["Pack deals"],
+  answers:[{r:"Photo 1 — KEEP, lead with it. Warm light, real smile, mid-laugh. Photo 2 — CUT. Gym mirror reads try-hard and costs you more than it earns.",c:null},
+           {r:"Photo 3 — RESHOOT. Great setting, bad crop. Landscape, step back two metres, same time of day.",c:null}],
+  frees:["Send them over whenever.","Looking now."]},
+ elena:{h:"elena",name:"Elena V.",head:"Strategy for women — screening & standards",tag:"Invest only in matches worth your time.",g:["#2F5D62","#7FA8A0"],rating:4.9,count:318,clients:1920,resp:"~10 min",refunds:"0.2%",repeat:"78%",specs:["conversations","dates"],badges:["Free intro call"],
+  answers:[{r:"He answers fast but never asks anything back. That's consumption, not interest. You don't need a cleverer reply — you need a filter question.",c:"what does your week actually look like?"}],
+  frees:["Send me the thread.","Reading it now."]},
+ marcus:{h:"marcus",name:"Marcus H.",head:"Dating again after divorce · 40+",tag:"Apps changed. Catch up without the cringe.",g:["#B77410","#8A5A2B"],rating:4.8,count:141,clients:380,resp:"~3 hr",refunds:"0.5%",repeat:"61%",specs:["bio","photos"],badges:[],
+  answers:[{r:"First rule of the restart: your profile should sound like you at dinner, not you at an interview.",c:null}],frees:["Take your time, send what you have."]},
+ priya:{h:"priya",name:"Priya N.",head:"Date planner · knows every city",tag:"First dates die in loud restaurants.",g:["#E4506F","#D6A03F"],rating:5.0,count:58,clients:210,resp:"~4 hr",refunds:"0%",repeat:"66%",specs:["dates","custom"],badges:["Quote anything"],
+  answers:[{r:"Three stops, ninety minutes, easy to extend or end gracefully. Museum of the Weird at 4:30, coffee at Cenote for golden hour, pinball if it's going well.",c:null}],
+  frees:["Give me the city and her interests and I'll quote you."]},
+ jo:{h:"jo",name:"Jo A.",head:"Queer dating specialist · they/them",tag:"Lived experience, not recycled advice.",g:["#E4506F","#7C4DBE"],rating:5.0,count:86,clients:340,resp:"~15 min",refunds:"0.4%",repeat:"69%",specs:["openers","conversations","dates"],badges:[],
+  answers:[{r:"They double-texted you — that's momentum, not desperation. Suggest the thing you both mentioned, casually, this week.",c:"you can't mention that record shop and then not take me. saturday?"}],
+  frees:["This thread is better than you think."]}
 };
-const OFFERS = [
-  {id:"maya-opener",c:"maya",icon:"💬",t:"Opener rescue",d:"Per reply · first one free",spec:"openers",scheme:"per_unit",unit:"reply",price:400,r:4.9,rc:120,qty:[1,3,5]},
-  {id:"maya-pack",c:"maya",icon:"💬",t:"Convo rescue pack",d:"10 replies, use anytime",spec:"conversations",scheme:"pack",unit:"reply",units:10,price:2500,r:4.9,rc:64},
-  {id:"maya-openers5",c:"maya",icon:"📝",t:"5 custom openers",d:"Written for a specific match",spec:"openers",scheme:"deliverable",price:1800,r:4.8,rc:41},
-  {id:"maya-call",c:"maya",icon:"⏱",t:"Live strategy call",d:"30 min · video",spec:"conversations",scheme:"live",price:5000,r:5.0,rc:28},
-  {id:"dev-bio",c:"dev",icon:"📝",t:"Full bio makeover",d:"Two versions + prompt picks",spec:"bio",scheme:"deliverable",price:3000,r:4.8,rc:129},
-  {id:"dev-prompts",c:"dev",icon:"📝",t:"Prompt punch-up",d:"Three prompts, rewritten",spec:"bio",scheme:"deliverable",price:1500,r:4.7,rc:38},
-  {id:"sam-photo",c:"sam",icon:"📸",t:"Photo verdicts",d:"Per photo: keep / cut / reshoot",spec:"photos",scheme:"per_unit",unit:"photo",price:500,r:4.7,rc:71,qty:[2,4,8]},
-  {id:"sam-lineup",c:"sam",icon:"📸",t:"Full lineup review",d:"8 photos → best 5, ordered",spec:"photos",scheme:"deliverable",price:2000,r:4.8,rc:23},
-  {id:"elena-reply",c:"elena",icon:"💬",t:"Screening second opinion",d:"Is he worth your time?",spec:"conversations",scheme:"per_unit",unit:"reply",price:600,r:4.9,rc:204,qty:[1,3,5]},
-  {id:"elena-call",c:"elena",icon:"⏱",t:"Free intro call",d:"15 min · see if we fit",spec:"dates",scheme:"live",price:0,r:4.9,rc:88},
-  {id:"marcus-restart",c:"marcus",icon:"📝",t:"Profile restart",d:"Bio + photos + app choice",spec:"bio",scheme:"deliverable",price:4500,r:4.8,rc:96},
-  {id:"priya-quote",c:"priya",icon:"✦",t:"Plan me a date",d:"Describe it — Priya quotes a price",spec:"dates",scheme:"quote",price:0,r:null,rc:0},
-  {id:"jo-reply",c:"jo",icon:"💬",t:"Conversation help",d:"Send the thread, get the next move",spec:"conversations",scheme:"per_unit",unit:"reply",price:500,r:5.0,rc:62,qty:[1,3,5]},
-  {id:"jo-firstdate",c:"jo",icon:"🗺",t:"First-date gameplan",d:"Venue, talking points, exit plan",spec:"dates",scheme:"deliverable",price:2200,r:5.0,rc:18}
+const OFFERS=[
+ {id:"maya-opener",c:"maya",icon:"💬",t:"Opener rescue",d:"Per answer · first one free",spec:"openers",scheme:"per_unit",unit:"answer",price:400,r:4.9,rc:120,qty:[1,3,5]},
+ {id:"maya-pack",c:"maya",icon:"💬",t:"Convo rescue pack",d:"10 answers, use anytime",spec:"conversations",scheme:"pack",unit:"answer",units:10,price:2500,r:4.9,rc:64},
+ {id:"maya-openers5",c:"maya",icon:"📝",t:"5 custom openers",d:"Written for one match",spec:"openers",scheme:"deliverable",price:1800,r:4.8,rc:41},
+ {id:"maya-call",c:"maya",icon:"⏱",t:"Live strategy call",d:"30 min · video",spec:"conversations",scheme:"live",price:5000,r:5.0,rc:28},
+ {id:"dev-bio",c:"dev",icon:"📝",t:"Full bio makeover",d:"Two versions + prompt picks",spec:"bio",scheme:"deliverable",price:3000,r:4.8,rc:129},
+ {id:"dev-prompts",c:"dev",icon:"📝",t:"Prompt punch-up",d:"Three prompts, rewritten",spec:"bio",scheme:"deliverable",price:1500,r:4.7,rc:38},
+ {id:"sam-photo",c:"sam",icon:"📸",t:"Photo verdicts",d:"Keep / cut / reshoot, per photo",spec:"photos",scheme:"per_unit",unit:"photo",price:500,r:4.7,rc:71,qty:[2,4,8]},
+ {id:"sam-lineup",c:"sam",icon:"📸",t:"Full lineup review",d:"8 photos → best 5, ordered",spec:"photos",scheme:"deliverable",price:2000,r:4.8,rc:23},
+ {id:"elena-reply",c:"elena",icon:"💬",t:"Screening second opinion",d:"Is he worth your time?",spec:"conversations",scheme:"per_unit",unit:"answer",price:600,r:4.9,rc:204,qty:[1,3,5]},
+ {id:"elena-call",c:"elena",icon:"⏱",t:"Free intro call",d:"15 min · see if we fit",spec:"dates",scheme:"live",price:0,r:4.9,rc:88},
+ {id:"marcus-restart",c:"marcus",icon:"📝",t:"Profile restart",d:"Bio + photos + app choice",spec:"bio",scheme:"deliverable",price:4500,r:4.8,rc:96},
+ {id:"priya-quote",c:"priya",icon:"✦",t:"Plan me a date",d:"Describe it — Priya quotes",spec:"dates",scheme:"quote",price:0,r:null,rc:0},
+ {id:"jo-reply",c:"jo",icon:"💬",t:"Conversation help",d:"Send the thread, get the next move",spec:"conversations",scheme:"per_unit",unit:"answer",price:500,r:5.0,rc:62,qty:[1,3,5]},
+ {id:"jo-firstdate",c:"jo",icon:"🗺",t:"First-date gameplan",d:"Venue, talking points, exit plan",spec:"dates",scheme:"deliverable",price:2200,r:5.0,rc:18}
 ];
-const REVIEWS = {
-  maya:[{s:5,who:"J., 2 days ago",item:"Convo rescue pack",body:"Sent her a convo that was dead for a week. Her two lines got a reply in an hour. Date's on Friday."},
-        {s:5,who:"T., 5 days ago",item:"Opener rescue",body:"The pigeon line worked. I don't know how she does it."}],
-  dev:[{s:5,who:"A., 3 days ago",item:"Full bio makeover",body:"Matches tripled in a week. The pottery hook was genius."}],
-  sam:[{s:5,who:"K., 4 days ago",item:"Photo verdicts",body:"Brutal and correct. Cut my gym selfie, matches went up."}],
-  elena:[{s:5,who:"S., yesterday",item:"Screening second opinion",body:"She spotted the breadcrumbing in one screenshot. Saved me a month."}],
-  marcus:[{s:5,who:"D., last week",item:"Profile restart",body:"First date in six years, two weeks after the rebuild."}],
-  priya:[{s:5,who:"L., 6 days ago",item:"Custom date plan",body:"Museum-then-pinball was perfect. Second date booked."}],
-  jo:[{s:5,who:"C., 2 days ago",item:"Conversation help",body:"Finally advice that gets how queer dating apps actually work."}]
-};
-const SPECS = {openers:"Openers",bio:"Bio",photos:"Photos",conversations:"Convos",dates:"Dates",custom:"Custom"};
+const REVIEWS={maya:{s:5,who:"J., 2 days ago",item:"Convo rescue pack",body:"Sent her a convo that was dead for a week. Her two lines got a reply in an hour. Date's on Friday."},
+ dev:{s:5,who:"A., 3 days ago",item:"Full bio makeover",body:"Matches tripled in a week. The pottery hook was genius."},
+ sam:{s:5,who:"K., 4 days ago",item:"Photo verdicts",body:"Brutal and correct. Cut my gym selfie, matches went up."},
+ elena:{s:5,who:"S., yesterday",item:"Screening second opinion",body:"She spotted the breadcrumbing in one screenshot. Saved me a month."},
+ marcus:{s:5,who:"D., last week",item:"Profile restart",body:"First date in six years, two weeks after the rebuild."},
+ priya:{s:5,who:"L., 6 days ago",item:"Custom date plan",body:"Museum-then-pinball was perfect. Second date booked."},
+ jo:{s:5,who:"C., 2 days ago",item:"Conversation help",body:"Finally advice that gets how queer dating apps actually work."}};
+const SPECS={openers:"Openers",bio:"Bio",photos:"Photos",conversations:"Convos",dates:"Dates"};
 
-// ---------- state ----------
-const state = { screen:"discover", filter:null, query:"", coach:null,
-  threads:{}, purchases:[], pendingOffer:null, pendingQty:1, replyIdx:{}, revTarget:null };
-const $ = id => document.getElementById(id);
-const money = c => c%100===0? "$"+c/100 : "$"+(c/100).toFixed(2);
-const avatar = (c,cls)=>`<span class="av ${cls}" style="background:linear-gradient(135deg,${c.g[0]},${c.g[1]})">${c.name[0]}</span>`;
+/* ---------------- state ---------------- */
+const state={screen:"home",mode:"client",filter:null,query:"",coach:null,
+  favs:new Set(["maya"]),threads:{},purchases:[],saved:[],savedFilter:null,
+  pendingOffer:null,pendingQty:1,answerIdx:{},freeIdx:{},revTarget:null,msgSeq:0};
+const $=id=>document.getElementById(id);
+const money=c=>c%100===0?"$"+c/100:"$"+(c/100).toFixed(2);
+const first=n=>n.split(" ")[0];
+const avatar=(c,cls)=>`<span class="av ${cls}" style="background:linear-gradient(135deg,${c.g[0]},${c.g[1]})">${c.name[0]}</span>`;
+const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 let toastTimer;
-function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("on"),2400); }
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("on"),2200);}
 
-// ---------- nav ----------
-function go(screen){
-  state.screen=screen;
-  document.querySelectorAll(".screen").forEach(s=>{ s.classList.remove("on"); s.style.display=""; });
-  $("s-"+screen).classList.add("on");
-  const tabKey = screen==="thread" ? "inbox" : screen;
-  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.tab===tabKey));
-  $("tabbar").style.display = (screen==="profile") ? "none":"flex";
-  if(screen==="discover") renderDiscover();
-  if(screen==="inbox") renderInbox();
-  if(screen==="purchases") renderPurchases();
-  if(screen==="coach") renderCoachQueue();
+/* ---------------- nav ---------------- */
+const CLIENT_TABS=[["home","⌂","Home"],["discover","⌕","Discover"],["saved","♡","Saved"],["you","⊙","You"]];
+const COACH_TABS=[["coach","⚑","Queue"],["menu","☰","Menu"],["earn","$","Earnings"],["you","⊙","You"]];
+function renderTabs(){
+  const tabs=state.mode==="client"?CLIENT_TABS:COACH_TABS;
+  const unread=Object.values(state.threads).reduce((n,t)=>n+t.unread,0);
+  const needs=needsYou().length;
+  $("tabbar").innerHTML=tabs.map(([k,i,l])=>{
+    const badge=(state.mode==="client"&&k==="home"&&(unread+needs))?` (${unread+needs})`:"";
+    return `<button class="tab ${state.screen===k||(state.screen==="thread"&&k==="home")||(state.screen==="profile"&&k==="discover")?"on":""}" data-tab="${k}" onclick="go('${k}')"><span class="ticon">${i}</span>${l}${badge}</button>`;
+  }).join("");
+  $("coachrule").classList.toggle("on",state.mode==="coach");
 }
-function closeSheets(){ $("scrim").classList.remove("on"); ["paysheet","traysheet","revsheet"].forEach(s=>$(s).classList.remove("on")); }
-function openSheet(id){ $("scrim").classList.add("on"); $(id).classList.add("on"); }
+function go(s){
+  state.screen=s;
+  document.querySelectorAll(".screen").forEach(x=>{x.classList.remove("on");x.style.display="";});
+  $("s-"+s).classList.add("on");
+  $("tabbar").style.display=(s==="profile")?"none":"flex";
+  if(s==="home")renderHome();
+  if(s==="discover")renderDiscover();
+  if(s==="saved")renderSaved();
+  if(s==="you")renderYou();
+  if(s==="coach")renderCoach();
+  if(s==="menu")renderMenu();
+  if(s==="earn")renderEarn();
+  renderTabs();
+}
+function closeSheets(){$("scrim").classList.remove("on");["paysheet","traysheet","revsheet"].forEach(s=>$(s).classList.remove("on"));}
+function openSheet(id){$("scrim").classList.add("on");$(id).classList.add("on");}
 
-// ---------- discover ----------
-function renderDiscover(){
-  const chips = [["all","All"],...Object.entries(SPECS).filter(([k])=>k!=="custom")];
-  $("chips").innerHTML = chips.map(([k,l])=>`<button class="fchip ${ (state.filter||"all")===k?"on":"" }" onclick="state.filter='${k}'==='all'?null:'${k}'; renderDiscover()">${l}</button>`).join("");
-  const q = state.query.toLowerCase();
-  const list = Object.values(COACHES).filter(c=>{
-    const matchesFilter = !state.filter || c.specs.includes(state.filter);
-    const matchesQ = !q || c.name.toLowerCase().includes(q) || c.head.toLowerCase().includes(q) || c.specs.some(s=>SPECS[s].toLowerCase().includes(q));
-    return matchesFilter && matchesQ;
-  });
-  $("coachlist").innerHTML = list.length? list.map(c=>{
-    const from = OFFERS.filter(o=>o.c===c.h && o.price>0).sort((a,b)=>a.price-b.price)[0];
-    const fromHtml = from
-      ? `<b>from ${money(from.price)}</b><span>${from.unit?("per "+from.unit):from.scheme==="deliverable"?"deliverable":"session"}</span>`
-      : `<b>ask</b><span>custom quote</span>`;
-    return `<button class="ccard" onclick="openProfile('${c.h}')">
-      <span class="row">${avatar(c,"av-md")}
-        <span style="min-width:0"><span class="nm">${c.name} ${c.tick?'<span class="vtick">✓</span>':''}</span><span class="hl">${c.head}</span></span>
-        <span class="fromp">${fromHtml}</span>
-      </span>
-      <span class="meta"><span class="stars">${"★".repeat(Math.round(c.rating))}</span><span><b>${c.rating}</b> (${c.count})</span><span>${c.resp} reply</span></span>
+/* ---------------- home ---------------- */
+function needsYou(){
+  const out=[];
+  Object.entries(state.threads).forEach(([h,t])=>t.engagements.forEach(e=>{
+    if(e.status==="delivered")out.push({h,e,kind:"approve"});
+    else if(e.status==="completed"&&!e.reviewed)out.push({h,e,kind:"rate"});
+  }));
+  return out;
+}
+function threadMeter(h){
+  const t=state.threads[h],a=inUse(h);
+  if(a)return{cls:"a",txt:`${a.unitsTotal-a.unitsUsed} ${a.unit==="photo"?"PHOTOS":"ANSWERS"}`};
+  const d=t.engagements.find(e=>e.status==="delivered");if(d)return{cls:"d",txt:"DELIVERED"};
+  const b=t.engagements.find(e=>e.status==="booked");if(b)return{cls:"w",txt:"FRI 7:00"};
+  const p=t.engagements.find(e=>e.status==="in_progress");if(p)return{cls:"w",txt:"IN PROGRESS"};
+  return null;
+}
+function renderHome(){
+  const ny=needsYou();
+  const active=Object.entries(state.threads).filter(([,t])=>t.messages.length);
+  const usedCoaches=[...new Set([...state.favs,...active.map(([h])=>h)])];
+  let html=`<div class="apphead"><div class="greet">${new Date().toLocaleDateString(undefined,{weekday:"long"})}</div><h1 class="serif">Your coaching</h1></div>`;
+  if(ny.length){
+    html+=`<div class="sechead">Needs you · ${ny.length}</div>`;
+    html+=ny.map(({h,e,kind})=>{
+      const c=COACHES[h];
+      return kind==="approve"
+       ?`<button class="needs" onclick="openThread('${h}')"><span class="ni">✓</span><span><b>Approve your ${e.title.toLowerCase()}</b><span>${c.name} · delivered · ${money(e.amount)} releases on approval</span></span><span class="arr">›</span></button>`
+       :`<button class="needs" onclick="promptReview('${h}','${e.id}')"><span class="ni">★</span><span><b>Rate your ${e.title.toLowerCase()}</b><span>${c.name} · completed</span></span><span class="arr">›</span></button>`;
+    }).join("");
+  }
+  if(active.length){
+    html+=`<div class="sechead">Active</div>`;
+    html+=active.map(([h,t])=>{
+      const c=COACHES[h],last=t.messages[t.messages.length-1],m=threadMeter(h);
+      const snip=last.kind==="me"?"You: "+last.text:last.kind==="answer"?first(c.name)+": "+last.a.r:last.kind==="coach"?first(c.name)+": "+last.text:last.text;
+      return `<button class="throw" onclick="openThread('${h}')">${avatar(c,"av-md")}<span class="iw"><span class="tnm">${c.name}${m?`<span class="meter ${m.cls}">${m.txt}</span>`:""}</span><span class="snip">${esc(snip)}</span></span>${t.unread?'<span class="udot"></span>':""}</button>`;
+    }).join("");
+  }
+  if(usedCoaches.length){
+    html+=`<div class="sechead">Your coaches</div><div class="coachstrip">`;
+    html+=usedCoaches.map(h=>{const c=COACHES[h];
+      return `<button class="cs" onclick="openProfile('${h}')">${avatar(c,"av-xs")}${state.favs.has(h)?'<span class="fav">♥</span>':""}<span class="csn">${first(c.name)}</span></button>`;}).join("");
+    html+=`<button class="cs addc" onclick="go('discover')"><span class="av av-xs">+</span><span class="csn">find</span></button></div>`;
+  }
+  if(!ny.length&&!active.length){
+    html+=`<div class="empty"><span class="serif">Nothing here yet.</span>Find someone who's good at the part you're stuck on.<div class="cta" style="margin:16px auto 0;max-width:220px" onclick="go('discover')">Browse coaches</div></div>
+    <div class="sechead">Popular right now</div><div class="list">${["maya","elena"].map(h=>coachCard(COACHES[h])).join("")}</div>`;
+  }
+  $("s-home").innerHTML=html+`<div style="height:16px"></div>`;
+}
+
+/* ---------------- discover ---------------- */
+function coachCard(c){
+  const from=OFFERS.filter(o=>o.c===c.h&&o.price>0).sort((a,b)=>a.price-b.price)[0];
+  const fh=from?`<b>from ${money(from.price)}</b><span>${from.unit?"per "+from.unit:from.scheme==="deliverable"?"deliverable":"session"}</span>`:`<b>ask</b><span>custom quote</span>`;
+  return `<div class="ccard">
+    <button class="heart ${state.favs.has(c.h)?"on":""}" onclick="event.stopPropagation();toggleFav('${c.h}')">${state.favs.has(c.h)?"♥":"♡"}</button>
+    <button onclick="openProfile('${c.h}')" style="display:block;width:100%">
+      <span class="row">${avatar(c,"av-md")}<span style="min-width:0"><span class="nm">${c.name} <span class="vtick">✓</span></span><span class="hl">${c.head}</span></span><span class="fromp">${fh}</span></span>
+      <span class="meta"><span class="stars">${"★".repeat(Math.round(c.rating))}</span><span><b>${c.rating}</b> (${c.count})</span><span>${c.resp}</span></span>
+      <span class="signals">${c.refunds} refunds · ${c.repeat} come back</span>
       <span class="spec">${c.specs.map(s=>`<span class="schip">${SPECS[s]}</span>`).join("")}${c.badges.map(b=>`<span class="schip t">${b}</span>`).join("")}</span>
-    </button>`;
-  }).join("") : `<div class="empty"><span class="serif">No coaches for that yet</span>We're recruiting — try another filter.</div>`;
+    </button></div>`;
+}
+function toggleFav(h){state.favs.has(h)?state.favs.delete(h):state.favs.add(h);
+  toast(state.favs.has(h)?"Added to your coaches":"Removed");
+  if(state.screen==="discover")renderDiscover();if(state.screen==="profile")openProfile(h,true);if(state.screen==="home")renderHome();}
+function renderDiscover(){
+  const chips=[["all","All"],...Object.entries(SPECS),["fav","♥ Favourites"]];
+  $("chips").innerHTML=chips.map(([k,l])=>`<button class="fchip ${(state.filter||"all")===k?"on":""}" onclick="state.filter='${k}'==='all'?null:'${k}';renderDiscover()">${l}</button>`).join("");
+  const q=state.query.toLowerCase();
+  const list=Object.values(COACHES).filter(c=>{
+    const f=!state.filter||(state.filter==="fav"?state.favs.has(c.h):c.specs.includes(state.filter));
+    const m=!q||c.name.toLowerCase().includes(q)||c.head.toLowerCase().includes(q)||c.specs.some(s=>SPECS[s].toLowerCase().includes(q));
+    return f&&m;});
+  const favs=[...state.favs];
+  $("favstrip").innerHTML=(favs.length&&!state.filter&&!q)?`<div class="sechead">Your coaches</div><div class="coachstrip">${favs.map(h=>{const c=COACHES[h];return `<button class="cs" onclick="openProfile('${h}')">${avatar(c,"av-xs")}<span class="fav">♥</span><span class="csn">${first(c.name)}</span></button>`;}).join("")}</div>`:"";
+  $("coachlist").innerHTML=list.length?list.map(coachCard).join(""):`<div class="empty"><span class="serif">No coaches for that yet</span>We're recruiting — try another filter.</div>`;
 }
 
-// ---------- profile ----------
-function openProfile(h){
-  state.coach=h; const c=COACHES[h];
-  const offers = OFFERS.filter(o=>o.c===h);
-  const revs = REVIEWS[h]||[];
-  $("s-profile").innerHTML = `
-    <div class="topbar"><button class="backbtn" onclick="go('discover')">‹ Back</button></div>
-    <div class="phero">${avatar(c,"av-lg")}<h2 class="serif">${c.name} <span class="vtick" style="vertical-align:2px">✓</span></h2><div class="hl">“${c.tag}”</div></div>
-    <div class="statrow">
-      <div class="stat"><b>${c.rating} ★</b><span>${c.count} reviews</span></div>
-      <div class="stat"><b>${c.clients.toLocaleString()}</b><span>clients helped</span></div>
-      <div class="stat"><b>${c.resp}</b><span>response</span></div>
-    </div>
-    <div class="sechead">${c.name.split(" ")[0]}'s menu</div>
-    ${offers.map(o=>`<button class="offer" onclick="startPurchase('${o.id}')">
-      <span class="oi ${o.scheme==="live"?"t":o.scheme==="quote"?"a":""}">${o.icon}</span>
-      <span class="ow"><b>${o.t}</b><span>${o.d}${o.r?` · <span class="stars">★</span>${o.r} (${o.rc})`:""}</span></span>
-      <span class="op">${o.scheme==="quote"?"ask": o.price===0?"free" : money(o.price)}</span>
-    </button>`).join("")}
-    ${revs.length?`<div class="sechead">Latest review · ${revs[0].item}</div>
-    <div class="rev"><div class="rt"><span class="stars">${"★".repeat(revs[0].s)}</span><span>— ${revs[0].who}</span></div><p>“${revs[0].body}”</p></div>`:""}
-    <div style="height:24px"></div>`;
+/* ---------------- profile ---------------- */
+function openProfile(h,keep){
+  state.coach=h;const c=COACHES[h],rv=REVIEWS[h];
+  $("s-profile").innerHTML=`<div class="topbar"><button class="backbtn" onclick="go('${state.screen==='profile'&&keep?'discover':'discover'}')">‹ Back</button>
+    <button class="heart ${state.favs.has(h)?"on":""}" style="position:static;margin-left:auto" onclick="toggleFav('${h}')">${state.favs.has(h)?"♥":"♡"}</button></div>
+    <div class="phero">${avatar(c,"av-lg")}<h2 class="serif">${c.name} <span class="vtick" style="vertical-align:3px">✓</span></h2><div class="hl">“${c.tag}”</div></div>
+    <div class="statrow"><div class="stat"><b>${c.rating} ★</b><span>${c.count} reviews</span></div><div class="stat"><b>${c.clients.toLocaleString()}</b><span>clients</span></div><div class="stat"><b>${c.resp}</b><span>response</span></div></div>
+    <div style="text-align:center;font-size:11.5px;color:var(--positive);font-family:ui-monospace,Menlo,monospace;margin-top:8px">${c.refunds} refunds · ${c.repeat} come back</div>
+    <div class="sechead">${first(c.name)}'s menu</div>
+    ${OFFERS.filter(o=>o.c===h).map(o=>`<button class="offer" onclick="startPurchase('${o.id}')"><span class="oi ${o.scheme==="live"?"t":o.scheme==="quote"?"a":""}">${o.icon}</span><span class="ow"><b>${o.t}</b><span>${o.d}${o.r?` · <span class="stars">★</span>${o.r} (${o.rc})`:""}</span></span><span class="op">${o.scheme==="quote"?"ask":o.price===0?"free":money(o.price)}</span></button>`).join("")}
+    <div class="sechead">Latest review · ${rv.item}</div>
+    <div class="rev"><div class="rt"><span class="stars">${"★".repeat(rv.s)}</span><span>— ${rv.who}</span></div><p>“${rv.body}”</p></div>
+    <button class="cta" onclick="openThread('${h}')">Message ${first(c.name)}</button>`;
   go("profile");
 }
 
-// ---------- purchase ----------
-function startPurchase(offerId){
-  const o = OFFERS.find(x=>x.id===offerId); const c = COACHES[o.c];
-  state.pendingOffer=o; state.pendingQty = o.qty? o.qty[0] : 1;
-  if(o.scheme==="quote"){ ensureThread(o.c); addMsg(o.c,{kind:"sys",text:"Describe what you need below — "+c.name.split(" ")[0]+" will quote a price."}); openThread(o.c); toast("Tell "+c.name.split(" ")[0]+" what you need"); return; }
-  renderPaySheet();
-  openSheet("paysheet");
+/* ---------------- purchase ---------------- */
+function startPurchase(id){
+  const o=OFFERS.find(x=>x.id===id),c=COACHES[o.c];
+  state.pendingOffer=o;state.pendingQty=o.qty?o.qty[0]:1;
+  if(o.scheme==="quote"){ensureThread(o.c);addMsg(o.c,{kind:"sys",text:"Describe what you need — "+first(c.name)+" will send you a price."});openThread(o.c);return;}
+  renderPay();openSheet("paysheet");
 }
-function renderPaySheet(){
-  const o=state.pendingOffer, c=COACHES[o.c];
-  const qty=state.pendingQty;
-  const total = o.scheme==="per_unit"? o.price*qty : o.price;
-  $("paysheet").innerHTML = `
-    <div class="grab"></div>
-    <div class="row"><span class="oi" style="width:42px;height:42px;font-size:18px">${o.icon}</span>
-      <span style="min-width:0"><b style="font-size:15px">${o.t}</b><br><span style="font-size:12px;color:var(--ink-faint)">${c.name} · ${o.d}</span></span>
-      <span style="margin-left:auto;font-weight:800;font-size:18px" class="mono">${total===0?"free":money(total)}</span></div>
-    ${o.qty? `<div class="srow" style="margin-top:10px"><span>How many ${o.unit}s?</span><b>${o.qty.map(n=>`<button onclick="state.pendingQty=${n};renderPaySheet()" style="padding:5px 12px;border-radius:9px;margin-left:5px;font-weight:700;${n===qty?"background:var(--ink);color:var(--bg)":"background:var(--chip)"}">${n}</button>`).join("")}</b></div>`:""}
-    <div class="srow"><span>Pay with</span><b class="mono">Visa ··4242 ›</b></div>
-    <div class="srow"><span>${c.name.split(" ")[0]} typically replies in</span><b>${c.resp}</b></div>
-    <div class="srow"><span>Protection</span><b>Refund if not delivered</b></div>
-    <button class="paybtn" onclick="confirmPurchase()"> Pay ${total===0?"$0":money(total)}</button>
-    <p class="paynote">Charged now, once. ${c.name.split(" ")[0]} starts after payment.<br>No subscription · no balance to top up</p>`;
+function renderPay(){
+  const o=state.pendingOffer,c=COACHES[o.c],qty=state.pendingQty;
+  const total=o.scheme==="per_unit"?o.price*qty:o.price;
+  $("paysheet").innerHTML=`<div class="grab"></div>
+   <div class="row"><span class="oi" style="width:42px;height:42px;font-size:18px">${o.icon}</span><span style="min-width:0"><b style="font-size:15px">${o.t}</b><br><span style="font-size:12px;color:var(--ink-faint)">${c.name} · ${o.d}</span></span><span class="mono" style="margin-left:auto;font-weight:800;font-size:18px">${total===0?"free":money(total)}</span></div>
+   ${o.qty?`<div class="srow" style="margin-top:10px"><span>How many ${o.unit}s?</span><b>${o.qty.map(n=>`<button onclick="state.pendingQty=${n};renderPay()" style="padding:6px 13px;border-radius:9px;margin-left:5px;font-weight:700;${n===qty?"background:var(--ink);color:var(--bg)":"background:var(--chip)"}">${n}</button>`).join("")}</b></div>`:""}
+   <div class="srow"><span>Pay with</span><b class="mono">Visa ··4242 ›</b></div>
+   <div class="srow"><span>${first(c.name)} replies in</span><b>${c.resp}</b></div>
+   <div class="srow"><span>Protection</span><b>Refund if not delivered</b></div>
+   <button class="paybtn" onclick="confirmPurchase()"> Pay ${total===0?"$0":money(total)}</button>
+   <p class="paynote">Charged now, once. ${first(c.name)} starts after payment.<br>No subscription · no balance to top up</p>`;
 }
 function confirmPurchase(){
-  const o=state.pendingOffer, c=COACHES[o.c], qty=state.pendingQty;
-  const total = o.scheme==="per_unit"? o.price*qty : o.price;
-  closeSheets();
-  ensureThread(o.c);
-  const th = state.threads[o.c];
-  const eng = { id:"e"+Date.now(), offerId:o.id, title:o.t, icon:o.icon, scheme:o.scheme, unit:o.unit,
-    unitsTotal: o.scheme==="pack"? o.units : o.scheme==="per_unit"? qty : 1,
-    unitsUsed:0, amount:total, status: o.scheme==="deliverable"?"in_progress": o.scheme==="live"?"booked":"active" };
+  const o=state.pendingOffer,c=COACHES[o.c],qty=state.pendingQty;
+  const total=o.scheme==="per_unit"?o.price*qty:o.price;
+  closeSheets();ensureThread(o.c);const th=state.threads[o.c];
+  const eng={id:"e"+(++state.msgSeq),offerId:o.id,title:o.t,icon:o.icon,scheme:o.scheme,unit:o.unit||"answer",spec:o.spec,
+    unitsTotal:o.scheme==="pack"?o.units:o.scheme==="per_unit"?qty:1,unitsUsed:0,amount:total,
+    status:o.scheme==="deliverable"?"in_progress":o.scheme==="live"?"booked":"active"};
   th.engagements.push(eng);
-  if(o.scheme==="per_unit"||o.scheme==="pack"){ th.armedId = eng.id; }
-  state.purchases.unshift({icon:o.icon,t:o.t,coach:c.name,amount:total,note: o.scheme==="pack"?`${o.units} ${o.unit}s`: o.scheme==="per_unit"?`${qty} ${o.unit}${qty>1?"s":""}`: o.scheme==="live"?"session":"deliverable"});
-  addMsg(o.c,{kind:"sys",text:`You bought ${o.t}${total?` · ${money(total)}`:""}`});
+  if(o.scheme==="per_unit"||o.scheme==="pack")th.inUseId=eng.id;
+  state.purchases.unshift({icon:o.icon,t:o.t,coach:c.name,amount:total,note:o.scheme==="pack"?`${o.units} ${o.unit}s`:o.scheme==="per_unit"?`${qty} ${o.unit}${qty>1?"s":""}`:o.scheme==="live"?"session":"deliverable"});
+  addMsg(o.c,{kind:"sys",text:`You bought ${o.t}${total?" · "+money(total):""}`});
   if(o.scheme==="deliverable"){
-    addMsg(o.c,{kind:"order",engId:eng.id});
-    setTimeout(()=>{ eng.status="delivered"; if(state.screen==="thread"&&state.coach===o.c) renderThread(); coachSay(o.c,"Delivered! Open the card above — and tell me if anything misses.",false); }, 6000);
-    coachSay(o.c, COACHES[o.c].replies[0], false);
-  } else if(o.scheme==="live"){
-    addMsg(o.c,{kind:"call",engId:eng.id});
-    coachSay(o.c,"Booked! Bring your messiest conversation — that's where the gold is.",false);
-  } else {
-    coachSay(o.c,"Got it — send me the situation. Screenshot or just describe it. First question's on me if I need context 🙂",false);
+    addMsg(o.c,{kind:"item",engId:eng.id});
+    coachFree(o.c,"On it — you'll have this back shortly.");
+    setTimeout(()=>{eng.status="delivered";if(state.screen==="thread"&&state.coach===o.c)renderThread();
+      coachAnswer(o.c,true);renderTabs();},6500);
+  }else if(o.scheme==="live"){
+    addMsg(o.c,{kind:"item",engId:eng.id});
+    coachFree(o.c,"Booked. Bring your messiest conversation — that's where the gold is.");
+  }else{
+    coachFree(o.c,"Got it — send me the situation. Screenshot or just describe it.");
   }
-  toast(total? "Paid "+money(total)+" · "+c.name.split(" ")[0]+" starts now" : "Booked — free");
+  toast(total?"Paid "+money(total):"Booked — free");
   openThread(o.c);
 }
 
-// ---------- thread ----------
-function ensureThread(h){ if(!state.threads[h]) state.threads[h]={messages:[],engagements:[],armedId:null,unread:0}; }
-function addMsg(h,m){ ensureThread(h); m.at=Date.now(); state.threads[h].messages.push(m); }
-function armed(h){ const th=state.threads[h]; if(!th) return null; return th.engagements.find(e=>e.id===th.armedId && e.unitsUsed<e.unitsTotal && e.status==="active")||null; }
-function coachSay(h,text,billable){
-  ensureThread(h);
-  setTimeout(()=>{ const th=state.threads[h];
-    let pill=null;
-    if(billable===false){ pill={type:"free",label:"FREE"}; }
-    else { const a=armed(h);
-      if(a){ a.unitsUsed++; const left=a.unitsTotal-a.unitsUsed;
-        pill={type:"paid",label:`${a.unit==="photo"?"Photo":"Answer"} ${a.unitsUsed} of ${a.unitsTotal}`};
-        if(left===0){ a.status="completed"; th.armedId=null; setTimeout(()=>promptReview(h,a),800); } }
-      else pill={type:"free",label:"FREE"}; }
-    th.messages.push({kind:"coach",text,pill,at:Date.now()});
-    if(state.screen==="thread" && state.coach===h) renderThread(); else th.unread++;
-    renderTabs();
-  }, 1400+Math.random()*900);
+/* ---------------- thread ---------------- */
+function ensureThread(h){if(!state.threads[h])state.threads[h]={messages:[],engagements:[],inUseId:null,unread:0};}
+function addMsg(h,m){ensureThread(h);m.id="m"+(++state.msgSeq);state.threads[h].messages.push(m);}
+function inUse(h){const t=state.threads[h];if(!t)return null;return t.engagements.find(e=>e.id===t.inUseId&&e.status==="active"&&e.unitsUsed<e.unitsTotal)||null;}
+function coachFree(h,text){setTimeout(()=>{addMsg(h,{kind:"coach",text});bump(h);},1200+Math.random()*700);}
+function coachAnswer(h,forDeliverable){
+  setTimeout(()=>{
+    const c=COACHES[h],th=state.threads[h];
+    const i=(state.answerIdx[h]||0);state.answerIdx[h]=i+1;
+    const a=c.answers[i%c.answers.length];
+    const eng=forDeliverable?th.engagements.find(e=>e.status==="delivered"):inUse(h);
+    let label=null;
+    if(eng&&!forDeliverable){eng.unitsUsed++;
+      label=`${eng.unit==="photo"?"PHOTO":"ANSWER"} ${eng.unitsUsed} OF ${eng.unitsTotal}`;
+      if(eng.unitsUsed>=eng.unitsTotal){eng.status="completed";th.inUseId=null;setTimeout(()=>promptReview(h,eng.id),900);}
+    } else if(forDeliverable&&eng){label="DELIVERED · "+eng.title.toUpperCase();}
+    const msg={kind:"answer",a,label,engId:eng?eng.id:null,spec:eng?eng.spec:null,saved:true};
+    addMsg(h,msg);
+    state.saved.unshift({id:msg.id,h,spec:eng?eng.spec:"openers",title:eng?eng.title:"Answer",a,when:"just now",pinned:false});
+    bump(h);
+  },1500+Math.random()*800);
 }
-function openThread(h){ state.coach=h; ensureThread(h); state.threads[h].unread=0; renderThread(); go("thread"); renderTabs(); }
+function bump(h){const th=state.threads[h];
+  if(state.screen==="thread"&&state.coach===h)renderThread();else{th.unread++;if(state.screen==="home")renderHome();}
+  renderTabs();}
+function openThread(h){state.coach=h;ensureThread(h);state.threads[h].unread=0;renderThread();go("thread");}
+function barFor(h){
+  const t=state.threads[h],c=COACHES[h],a=inUse(h);
+  const chat=t.engagements.filter(e=>e.scheme==="per_unit"||e.scheme==="pack");
+  const d=t.engagements.find(e=>e.status==="delivered");
+  if(a){const w=a.unit==="photo"?"photos":"answers";return{cls:"",txt:`Using · ${a.title} — ${a.unitsTotal-a.unitsUsed} ${w} left`};}
+  if(d)return{cls:"calm",txt:`${d.title} — approve to release ${money(d.amount)} →`};
+  if(chat.length)return{cls:"warn",txt:"No answers left · Buy more →"};
+  if(t.engagements.length)return{cls:"calm",txt:"Tap to see your items"};
+  return{cls:"calm",txt:`Browse ${first(c.name)}'s menu →`};
+}
 function renderThread(){
-  const h=state.coach, c=COACHES[h], th=state.threads[h];
-  const prevInput=document.getElementById("cinput"); const keep=prevInput?prevInput.value:"";
-  const a=armed(h);
-  const others = th.engagements.length - (a?1:0);
-  const chatItems = th.engagements.filter(e=>e.scheme==="per_unit"||e.scheme==="pack");
-  const unitWord = a? (a.unit==="photo"?"photos":"answers") : "answers";
-  const trayLabel = a
-    ? `Using · ${a.title} — ${a.unitsTotal-a.unitsUsed} ${unitWord} left`
-    : chatItems.length ? "No answers left · Buy more →"
-    : th.engagements.length ? "Tap to see your items"
-    : `Browse ${c.name.split(" ")[0]}'s menu →`;
-  $("s-thread").innerHTML = `
-    <div class="topbar"><button class="backbtn" onclick="go('inbox')">‹</button>${avatar(c,"av-sm")}
-      <span class="tw"><b>${c.name}</b><span>● online now</span></span>
-      <button class="backbtn" style="margin-left:auto" onclick="openProfile('${h}')">menu</button></div>
-    <button class="traybar" onclick="openTray()"><span class="edot"></span>${trayLabel}<span class="cnt">${th.engagements.length?`${th.engagements.length} item${th.engagements.length>1?"s":""} ▾`:""}</span></button>
-    ${a?`<div class="onote" style="padding:5px 12px 0">${c.name.split(" ")[0]}'s answers use this item · messages are always free</div>`:""}
-    <div class="chat" id="chatlog">${th.messages.map(m=>renderMsg(m,h)).join("")}</div>
-    <div class="compose">
-      <input class="cfield" id="cinput" placeholder="Message ${c.name.split(" ")[0]}…" onkeydown="if(event.key==='Enter')sendMsg()">
-      <button class="csend" onclick="sendMsg()">➤</button>
-    </div>`;
-  if(keep) $("cinput").value=keep;
-  const log=$("chatlog"); log.scrollTop=log.scrollHeight;
+  const h=state.coach,c=COACHES[h],t=state.threads[h];
+  const prev=$("cinput"),keep=prev?prev.value:"";
+  const bar=barFor(h);
+  $("s-thread").innerHTML=`<div class="topbar"><button class="backbtn" onclick="go('home')">‹</button>${avatar(c,"av-sm")}
+     <span class="tw"><b>${c.name}</b><span>● online now</span></span>
+     <button class="backbtn" style="margin-left:auto" onclick="openProfile('${h}')">menu</button></div>
+    <button class="itembar ${bar.cls}" onclick="openTray()"><span class="edot"></span>${bar.txt}<span class="cnt">${t.engagements.length?t.engagements.length+" ⌄":""}</span></button>
+    <div class="chat" id="chatlog">${t.messages.map(m=>renderMsg(m,h)).join("")}</div>
+    <div class="compose"><input class="cfield" id="cinput" placeholder="Message ${first(c.name)}…" onkeydown="if(event.key==='Enter')sendMsg()"><button class="csend" onclick="sendMsg()">➤</button></div>`;
+  if(keep)$("cinput").value=keep;
+  const l=$("chatlog");l.scrollTop=l.scrollHeight;
 }
 function renderMsg(m,h){
-  if(m.kind==="sys") return `<div class="onote" style="align-self:center">${m.text}</div>`;
-  if(m.kind==="me") return `<div class="msg me">${m.text}</div>`;
-  if(m.kind==="coach") return `<div class="msg them">${m.text}${m.pill?`<div><span class="pill ${m.pill.type}">${m.pill.label}</span></div>`:""}</div>`;
-  if(m.kind==="order"){ const e=state.threads[h].engagements.find(x=>x.id===m.engId);
-    const done = e.status==="delivered"||e.status==="approved";
-    return `<div class="ocard"><div class="ot"><span class="oi t">${e.icon}</span><span><b>${e.title}</b><span>${COACHES[h].name} · ${money(e.amount)}</span></span><span class="os ${done?"":"w"}">${e.status.replace("_"," ").toUpperCase()}</span></div>
-      ${e.status==="delivered"?`<div class="obtns"><button class="qb yes" onclick="approveOrder('${h}','${e.id}')">Approve</button><button class="qb no" onclick="toast('Change request sent (demo)')">Request changes</button></div><div class="onote">${money(e.amount)} releases to ${COACHES[h].name.split(" ")[0]} on approval · auto-approves in 3 days</div>`
-      : e.status==="approved"?`<div class="onote">approved · ${money(e.amount)} released to ${COACHES[h].name.split(" ")[0]}</div>`
-      : `<div class="onote">in progress — usually ${COACHES[h].resp}</div>`}</div>`; }
-  if(m.kind==="call"){ const e=state.threads[h].engagements.find(x=>x.id===m.engId);
-    return `<div class="ocard"><div class="ot"><span class="oi t">⏱</span><span><b>${e.title}</b><span>Fri 7:00 PM · confirmed</span></span><span class="os">BOOKED</span></div><div class="onote">timer meters the session · overtime only if you both tap extend</div></div>`; }
+  const c=COACHES[h];
+  if(m.kind==="sys")return `<div class="onote" style="align-self:center">${esc(m.text)}</div>`;
+  if(m.kind==="me")return `<div class="msg me">${esc(m.text)}</div>`;
+  if(m.kind==="shot")return `<div class="shot"><div class="simg"></div></div>`;
+  if(m.kind==="coach")return `<div class="msg them">${esc(m.text)}<div><span class="freetag">FREE</span></div></div>`;
+  if(m.kind==="answer"){
+    const sv=state.saved.find(s=>s.id===m.id);
+    return `<div class="acard">
+      <div class="ahead"><span>${m.label||"ANSWER"}</span><span class="who">${first(c.name)} · now</span></div>
+      <div class="abody">${esc(m.a.r)}</div>
+      ${m.a.c?`<div class="ablock"><span class="blab">SEND THIS</span>${esc(m.a.c)}<button class="bcopy" onclick="copyMsg('${m.id}',this)">⧉ Copy</button></div>`:""}
+      <div class="aacts">
+        ${m.a.c?`<button class="aact" onclick="copyMsg('${m.id}',this)">⧉ Copy</button>`:""}
+        <button class="aact ${sv&&sv.pinned?"on":""}" onclick="pinMsg('${m.id}',this)">${sv&&sv.pinned?"♥ Saved":"♡ Save"}</button>
+        <button class="aact dots" onclick="toast('Opens a dispute about this answer')">⋯</button>
+      </div></div>`;
+  }
+  if(m.kind==="item"){
+    const e=state.threads[h].engagements.find(x=>x.id===m.engId);if(!e)return"";
+    const isCall=e.scheme==="live";
+    const steps=isCall?[]:["Paid","In prog","Deliv","Appr"];
+    const cur=e.status==="in_progress"?1:e.status==="delivered"?2:3;
+    return `<div class="icard"><div class="ot"><span class="oi t">${e.icon}</span><span><b>${e.title}</b><span>${c.name} · ${money(e.amount)}</span></span><span class="os ${e.status==="in_progress"?"w":""}">${isCall?"BOOKED":e.status.replace("_"," ").toUpperCase()}</span></div>
+      ${isCall?`<div class="onote" style="margin-top:9px">Friday 7:00 PM · reminder 15 min before</div>`
+      :`<div class="tline">${steps.map((s,i)=>`<span class="tstep ${i<cur?"":i===cur?"cur":"pend"}">${s}</span>`).join("")}</div>
+        ${e.status==="delivered"?`<div class="filechip">📎 ${e.title.toLowerCase().replace(/ /g,"_")}.txt</div>
+          <div class="obtns"><button class="qb yes" onclick="approveItem('${h}','${e.id}')">Approve</button><button class="qb no" onclick="toast('Change request sent')">Request changes</button></div>
+          <div class="onote">${money(e.amount)} releases on approval · auto-approves Friday</div>`
+        :e.status==="approved"||e.status==="completed"?`<div class="onote">approved · ${money(e.amount)} released to ${first(c.name)}</div>`
+        :`<div class="onote">in progress — usually ${c.resp}</div>`}`}
+      </div>`;
+  }
   return "";
 }
 function sendMsg(){
-  const inp=$("cinput"); const text=inp.value.trim(); if(!text) return;
-  const h=state.coach; addMsg(h,{kind:"me",text}); inp.value="";
-  renderThread();
-  const th=state.threads[h]; const c=COACHES[h];
-  const idx = state.replyIdx[h]||0;
-  const a=armed(h);
-  const firstFree = idx===0 && th.engagements.some(e=>e.offerId&&e.offerId.includes("opener"));
-  const reply = c.replies[idx % c.replies.length];
-  state.replyIdx[h]=idx+1;
-  if(idx===0 && a) coachSay(h,"Quick one before I dig in — how long since her last reply?",false);
-  else coachSay(h, reply, firstFree? false : undefined);
+  const i=$("cinput"),txt=i.value.trim();if(!txt)return;
+  const h=state.coach;addMsg(h,{kind:"me",text:txt});i.value="";renderThread();
+  const n=(state.freeIdx[h]||0);state.freeIdx[h]=n+1;
+  const c=COACHES[h];
+  if(n===0&&inUse(h))coachFree(h,c.frees[0]);
+  else if(inUse(h))coachAnswer(h);
+  else coachFree(h,c.frees[Math.min(n,c.frees.length-1)]);
 }
-function approveOrder(h,engId){
-  const th=state.threads[h]; const e=th.engagements.find(x=>x.id===engId);
-  e.status="approved";
-  toast(money(e.amount)+" released to "+COACHES[h].name.split(" ")[0]);
-  renderThread();
-  setTimeout(()=>promptReview(h,e),700);
+function copyMsg(id,btn){
+  const h=state.coach||(state.saved.find(s=>s.id===id)||{}).h;
+  let txt=null;
+  Object.values(state.threads).forEach(t=>t.messages.forEach(m=>{if(m.id===id&&m.a)txt=m.a.c||m.a.r;}));
+  if(!txt){const s=state.saved.find(x=>x.id===id);if(s)txt=s.a.c||s.a.r;}
+  try{navigator.clipboard&&navigator.clipboard.writeText(txt||"");}catch(e){}
+  if(btn){const o=btn.textContent;btn.textContent="✓ Copied";setTimeout(()=>btn.textContent=o,1500);}
+  toast("Copied — paste it in your dating app");
+}
+function pinMsg(id,btn){
+  const s=state.saved.find(x=>x.id===id);if(!s)return;
+  s.pinned=!s.pinned;
+  if(btn){btn.textContent=s.pinned?"♥ Saved":"♡ Save";btn.classList.toggle("on",s.pinned);}
+  toast(s.pinned?"Pinned to the top of Saved":"Unpinned");
+}
+function approveItem(h,id){
+  const e=state.threads[h].engagements.find(x=>x.id===id);e.status="completed";
+  toast(money(e.amount)+" released to "+first(COACHES[h].name));
+  renderThread();setTimeout(()=>promptReview(h,id),700);
 }
 
-// ---------- tray ----------
+/* ---------------- items drawer ---------------- */
 function openTray(){
-  const h=state.coach, th=state.threads[h], c=COACHES[h];
-  if(!th.engagements.length){ openProfile(h); return; }
-  $("traysheet").innerHTML = `<div class="grab"></div>
-    <div class="sechead" style="padding:0 4px 10px">Your items with ${c.name.split(" ")[0]}</div>
-    ${th.engagements.map(e=>{
-      const chatItem = e.scheme==="per_unit"||e.scheme==="pack";
-      const active = e.status==="active" && e.unitsUsed<e.unitsTotal;
-      const inUse = th.armedId===e.id;
-      const word = e.unit==="photo"?"photos":"answers";
-      const meta = chatItem
-        ? (active? `${e.unitsTotal-e.unitsUsed} of ${e.unitsTotal} ${word} left` : `all ${e.unitsTotal} ${word} used`)
-        : e.status==="delivered" ? "Delivered — needs your approval"
-        : e.status==="booked" ? "Friday 7:00 PM"
-        : e.status.replace("_"," ");
-      return `<button class="trayrow ${inUse?"armed":""}" ${chatItem&&active&&!inUse?`onclick="armIt('${h}','${e.id}')"`:""}>
-        ${chatItem?`<span class="radio"></span>`:`<span class="oi t" style="width:30px;height:30px;font-size:13px">${e.icon}</span>`}
-        <span style="min-width:0"><b style="font-size:13.5px">${e.title}</b><br><span style="font-size:11px;color:var(--ink-faint)">${meta}${inUse?" · in use":chatItem&&active?" · tap to use":""}</span></span>
-        <span class="itag ${inUse?"a":"d"}" style="margin-left:auto">${inUse?"IN USE": e.status==="delivered"?"REVIEW ›": e.status==="active"&&chatItem?"READY": e.status.replace("_"," ").toUpperCase()}</span></button>`;
-    }).join("")}
-    <button class="cta" style="background:var(--ink);color:var(--bg)" onclick="closeSheets();openProfile('${h}')">+ Add from ${c.name.split(" ")[0]}'s menu</button>`;
+  const h=state.coach,t=state.threads[h],c=COACHES[h];
+  if(!t.engagements.length){openProfile(h);return;}
+  $("traysheet").innerHTML=`<div class="grab"></div><div class="sechead" style="padding:0 2px 10px">Your items with ${first(c.name)}</div>
+   ${t.engagements.map(e=>{
+     const chat=e.scheme==="per_unit"||e.scheme==="pack";
+     const live=e.status==="active"&&e.unitsUsed<e.unitsTotal;
+     const use=t.inUseId===e.id&&live;
+     const w=e.unit==="photo"?"photos":"answers";
+     const meta=chat?(live?`${e.unitsTotal-e.unitsUsed} of ${e.unitsTotal} ${w} left`:`all ${e.unitsTotal} ${w} used`)
+       :e.status==="delivered"?"Delivered — needs your approval"
+       :e.status==="booked"?"Friday 7:00 PM"
+       :e.status==="completed"?"Completed":"In progress";
+     const tag=use?"IN USE":e.status==="delivered"?"APPROVE ›":e.status==="completed"?"DONE":chat&&live?"READY":e.status==="booked"?"BOOKED":"ACTIVE";
+     return `<button class="trayrow ${use?"inuse":""} ${e.status==="completed"?"done":""}" ${chat&&live&&!use?`onclick="useItem('${h}','${e.id}')"`:`onclick="closeSheets()"`}>
+       ${chat?'<span class="radio"></span>':`<span class="oi t" style="width:32px;height:32px;font-size:14px">${e.icon}</span>`}
+       <span style="min-width:0"><b style="font-size:13.5px">${e.title}</b><br><span style="font-size:11.5px;color:var(--ink-faint)">${meta}${use?" · in use":chat&&live?" · tap to use":""}</span></span>
+       <span class="meter ${use?"a":"d"}" style="margin-left:auto">${tag}</span></button>`;}).join("")}
+   <button class="cta dark" style="width:100%;margin:8px 0 0" onclick="closeSheets();openProfile('${h}')">+ Buy from ${first(c.name)}'s menu</button>`;
   openSheet("traysheet");
 }
-function armIt(h,id){ const th=state.threads[h]; th.armedId=id;
-  const e=th.engagements.find(x=>x.id===id);
-  toast("Now using · "+e.title); openTray(); renderThread(); }
+function useItem(h,id){state.threads[h].inUseId=id;const e=state.threads[h].engagements.find(x=>x.id===id);
+  toast("Now using · "+e.title);openTray();renderThread();}
 
-// ---------- reviews ----------
-function promptReview(h,e){
-  state.revTarget={h,e,stars:5,tags:new Set(["got_reply"])};
-  renderRevSheet(); openSheet("revsheet");
+/* ---------------- reviews ---------------- */
+function promptReview(h,engId){
+  const e=state.threads[h].engagements.find(x=>x.id===engId);if(!e)return;
+  state.revTarget={h,e,stars:5,tags:new Set(["got_reply"])};renderRev();openSheet("revsheet");
 }
-function renderRevSheet(){
-  const {h,e,stars,tags}=state.revTarget; const c=COACHES[h];
-  const chipDefs=[["got_reply","Got a reply 🎉"],["date_set","Date set"],["faster","Fast"],["better_profile","Better profile"]];
-  $("revsheet").innerHTML = `<div class="grab"></div>
-    <div style="text-align:center">${avatar(c,"av-md")}<h2 class="serif" style="margin:8px 0 2px;font-size:19px">How was ${c.name.split(" ")[0]}?</h2>
-    <div style="font-size:12px;color:var(--ink-faint)">${e.title} · completed just now</div></div>
-    <div class="bigstars">${[1,2,3,4,5].map(n=>`<button class="${n<=stars?"lit":""}" onclick="state.revTarget.stars=${n};renderRevSheet()">★</button>`).join("")}</div>
-    <div class="outchips">${chipDefs.map(([k,l])=>`<button class="ochip ${tags.has(k)?"on":""}" onclick="state.revTarget.tags.has('${k}')?state.revTarget.tags.delete('${k}'):state.revTarget.tags.add('${k}');renderRevSheet()">${l}</button>`).join("")}</div>
-    <textarea class="revfield" placeholder="What happened? Results help other daters choose…"></textarea>
-    <button class="cta" onclick="submitReview()">Post review</button>
-    <div class="onote" style="margin-top:10px">this rating lands on “${e.title}” and on ${c.name.split(" ")[0]}'s overall score</div>`;
+function renderRev(){
+  const {h,e,stars,tags}=state.revTarget,c=COACHES[h];
+  const defs=[["got_reply","Got a reply 🎉"],["date_set","Date set"],["faster","Fast"],["better_profile","Better profile"]];
+  $("revsheet").innerHTML=`<div class="grab"></div><div style="text-align:center">${avatar(c,"av-md")}
+    <h2 class="serif" style="margin:8px 0 2px;font-size:20px">How was ${first(c.name)}?</h2>
+    <div style="font-size:12px;color:var(--ink-faint)">${e.title} · completed</div></div>
+   <div class="bigstars">${[1,2,3,4,5].map(n=>`<button class="${n<=stars?"lit":""}" onclick="state.revTarget.stars=${n};renderRev()">★</button>`).join("")}</div>
+   <div class="outchips">${defs.map(([k,l])=>`<button class="ochip ${tags.has(k)?"on":""}" onclick="state.revTarget.tags.has('${k}')?state.revTarget.tags.delete('${k}'):state.revTarget.tags.add('${k}');renderRev()">${l}</button>`).join("")}</div>
+   <textarea class="revfield" placeholder="What happened? Results help other daters choose…"></textarea>
+   <button class="cta" style="width:100%;margin:12px 0 0" onclick="submitRev()">Post review</button>
+   <div class="onote" style="margin-top:10px">rates “${e.title}” and ${first(c.name)}'s overall score</div>`;
 }
-function submitReview(){ const {h,e,stars}=state.revTarget; closeSheets(); toast("★".repeat(stars)+" posted on "+e.title); }
+function submitRev(){const {h,e,stars}=state.revTarget;e.reviewed=true;closeSheets();
+  toast("★".repeat(stars)+" posted on "+e.title);if(state.screen==="home")renderHome();renderTabs();}
 
-// ---------- inbox / purchases / coach ----------
-function renderTabs(){
-  const unread = Object.values(state.threads).reduce((n,t)=>n+t.unread,0);
-  $("unread").textContent = unread? " ("+unread+")" : "";
-}
-function renderInbox(){
-  const entries = Object.entries(state.threads).filter(([,t])=>t.messages.length);
-  $("inboxcount").textContent = entries.length? entries.length+" conversation"+(entries.length>1?"s":"") : "Start one from Discover";
-  $("inboxlist").innerHTML = entries.length? entries.map(([h,t])=>{
-    const c=COACHES[h]; const last=t.messages[t.messages.length-1];
-    const a=armed(h);
-    const tag = a? `<span class="itag a">${a.unitsTotal-a.unitsUsed} ${a.unit==="photo"?"PHOTOS":"ANSWERS"} LEFT</span>` :
-      t.engagements.some(e=>e.status==="delivered")? `<span class="itag d">DELIVERED</span>` : "";
-    const snip = last.kind==="me"? "You: "+last.text : last.kind==="coach"? c.name.split(" ")[0]+": "+last.text : last.text;
-    return `<button class="ibrow" onclick="openThread('${h}')">${avatar(c,"av-md")}
-      <span class="iw"><span class="nm" style="font-size:14px">${c.name} ${tag}</span><span class="isnip">${snip}</span></span>
-      ${t.unread?`<span style="width:9px;height:9px;border-radius:50%;background:var(--accent);flex:0 0 auto"></span>`:""}</button>`;
-  }).join("") : `<div class="empty"><span class="serif">No conversations yet</span>Find a coach in Discover and buy something small — a first reply is often free.</div>`;
-}
-function renderPurchases(){
-  $("purchlist").innerHTML = state.purchases.length? state.purchases.map(p=>`
-    <div class="rrow"><span class="oi">${p.icon}</span><span><b style="font-size:13.5px">${p.t} — ${p.coach}</b><br><span style="font-size:11px;color:var(--ink-faint)">just now · Visa ··4242 · ${p.note}</span></span><span class="ramt">${p.amount?money(p.amount):"free"}</span></div>`).join("")
-    + `<div class="rnote">Every purchase is a one-time card charge with an emailed receipt — nothing recurring unless you subscribe to a coach.</div>`
-    : `<div class="empty"><span class="serif">No purchases yet</span>Everything you buy shows up here in plain dollars.</div>`;
-}
-function renderCoachQueue(){
-  const rows=[["💬","Jordan — pack reply waiting","Convo rescue · screenshot attached","~5 MIN GOAL"],
-              ["📝","Alex — 5 opener bundle","Paid $18 · inputs received","DUE 22H"],
-              ["✦","Riley — custom request","“Help planning a first date in Austin”","SEND QUOTE"]];
-  $("coachqueue").innerHTML = rows.map(([i,t,d,due])=>`<div class="qrow"><div class="row"><span class="oi t">${i}</span><span style="min-width:0"><b style="font-size:13px">${t}</b><br><span style="font-size:11px;color:var(--ink-faint)">${d}</span></span><span class="due">${due}</span></div></div>`).join("");
+/* ---------------- saved ---------------- */
+function renderSaved(){
+  const specs=[...new Set(state.saved.map(s=>s.spec))];
+  const list=state.saved.filter(s=>!state.savedFilter||s.spec===state.savedFilter)
+    .sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
+  $("s-saved").innerHTML=`<div class="apphead"><div class="greet">your advice, one tap away</div><h1 class="serif">Saved</h1></div>
+   ${specs.length?`<div class="chiprow"><button class="fchip ${!state.savedFilter?"on":""}" onclick="state.savedFilter=null;renderSaved()">All</button>
+     ${specs.map(s=>`<button class="fchip ${state.savedFilter===s?"on":""}" onclick="state.savedFilter='${s}';renderSaved()">${SPECS[s]||s}</button>`).join("")}</div>`:""}
+   ${list.length?`<div style="padding-top:10px">`+list.map(s=>{const c=COACHES[s.h];
+     return `<div class="scard"><div class="sh"><span>${(SPECS[s.spec]||"ANSWER").toUpperCase()} · ${c.name}</span><span style="opacity:.6">${s.when}</span></div>
+       <div class="sb">${esc(s.a.c||s.a.r)}</div>
+       <div class="sacts">${s.a.c?`<button class="aact" onclick="copyMsg('${s.id}',this)">⧉ Copy</button>`:""}
+        <button class="aact ${s.pinned?"on":""}" onclick="pinMsg('${s.id}',this);renderSaved()">${s.pinned?"♥ Pinned":"♡ Pin"}</button>
+        <button class="aact" onclick="openThread('${s.h}')">Open chat</button></div></div>`;}).join("")+`</div>`
+    :`<div class="empty"><span class="serif">Nothing saved yet</span>Answers you buy show up here so you can find them when you need them.</div>`}
+   <div style="height:20px"></div>`;
 }
 
-// ---------- boot ----------
-const hour=new Date().getHours();
-$("greet").textContent = (hour<12?"Good morning":hour<18?"Good afternoon":"Good evening")+" · your wing awaits";
-renderDiscover(); renderTabs();
+/* ---------------- you ---------------- */
+function renderYou(){
+  $("s-you").innerHTML=`<div class="apphead"><div class="greet">account</div><h1 class="serif">You</h1></div>
+   <div class="throw" style="border-bottom:none"><span class="av av-md" style="background:linear-gradient(135deg,#6E6068,#2A2230)">J</span>
+     <span class="iw"><span class="tnm">Jordan</span><span class="snip">jordan@demo.wing · Edit profile</span></span></div>
+   <button class="modecard" onclick="switchMode()"><span style="font-size:19px">⚑</span><span><b>${state.mode==="client"?"Switch to coach mode":"Back to client mode"}</b><span>${state.mode==="client"?"Your queue, menu and earnings":"Browse and buy as a client"}</span></span><span style="margin-left:auto">›</span></button>
+   <button class="yrow" onclick="toast('Receipts — '+state.purchases.length+' purchases')"><span class="yi">🧾</span>Purchases &amp; receipts<span class="arr">${state.purchases.length}  ›</span></button>
+   <button class="yrow" onclick="state.filter='fav';go('discover')"><span class="yi">♥</span>Favourite coaches<span class="arr">${state.favs.size}  ›</span></button>
+   <button class="yrow" onclick="toast('Notification settings')"><span class="yi">🔔</span>Notifications<span class="arr">›</span></button>
+   <button class="yrow" onclick="toast('Screenshots auto-delete after 30 days')"><span class="yi">🔒</span>Privacy &amp; data<span class="arr">›</span></button>
+   <button class="yrow" onclick="toast('Help centre')"><span class="yi">？</span>Help<span class="arr">›</span></button>
+   <button class="yrow" onclick="toggleTheme()"><span class="yi">⚙</span>Appearance<span class="arr">${document.documentElement.dataset.theme||"auto"}  ›</span></button>
+   ${state.purchases.length?`<div class="sechead">Recent purchases</div>${state.purchases.slice(0,4).map(p=>`<div class="throw"><span class="oi">${p.icon}</span><span class="iw"><span class="tnm" style="font-size:13.5px">${p.t}</span><span class="snip">${p.coach} · ${p.note}</span></span><span class="mono" style="font-weight:700">${p.amount?money(p.amount):"free"}</span></div>`).join("")}`:""}
+   <div style="height:20px"></div>`;
+}
+function switchMode(){state.mode=state.mode==="client"?"coach":"client";
+  toast(state.mode==="coach"?"Coach mode":"Client mode");go(state.mode==="coach"?"coach":"home");}
+function toggleTheme(){const d=document.documentElement;
+  d.dataset.theme=d.dataset.theme==="dark"?"light":d.dataset.theme==="light"?"":"dark";renderYou();}
+
+/* ---------------- coach ---------------- */
+function renderCoach(){
+  $("s-coach").innerHTML=`<div class="apphead"><div class="greet">coach mode · Maya R.</div><h1 class="serif">To fulfil</h1></div>
+   <div class="sechead" style="color:var(--warn)">⚠ Late · 1</div>
+   <div class="qrow late"><div class="row"><span class="oi a">📝</span><span style="min-width:0"><b style="font-size:13.5px">Alex — 5 opener bundle</b><br><span style="font-size:11.5px;color:var(--ink-soft)">Promised 2h · ordered 3 days ago</span></span><span class="due">AUTO-REFUNDS 4H</span></div></div>
+   <div class="sechead">Waiting</div>
+   <div class="qrow"><div class="row"><span class="oi">💬</span><span style="min-width:0"><b style="font-size:13.5px">Jordan — answer waiting</b><br><span style="font-size:11.5px;color:var(--ink-soft)">Convo pack · screenshot attached</span></span><span class="due ok">~5 MIN GOAL</span></div></div>
+   <div class="qrow"><div class="row"><span class="oi a">✦</span><span style="min-width:0"><b style="font-size:13.5px">Riley — custom request</b><br><span style="font-size:11.5px;color:var(--ink-soft)">“first date in Austin”</span></span></div>
+     <div class="obtns"><button class="qb yes" onclick="toast('Quote sent · $35')">Quote a price</button><button class="qb no" onclick="toast('Declined politely')">Decline</button></div></div>
+   <div class="sechead">Today</div>
+   <div class="etiles2"><div class="et2"><b>7</b><span>answers sent</span></div><div class="et2"><b>$46</b><span>earned</span></div><div class="et2"><b>4 min</b><span>avg reply</span></div></div>
+   <div style="height:20px"></div>`;
+}
+function renderMenu(){
+  const mine=OFFERS.filter(o=>o.c==="maya");
+  $("s-menu").innerHTML=`<div class="apphead"><div class="greet">coach mode · what you sell</div><h1 class="serif">Your menu</h1></div>
+   ${mine.map(o=>`<div class="offer" style="cursor:default"><span class="oi ${o.scheme==="live"?"t":o.scheme==="quote"?"a":""}">${o.icon}</span><span class="ow"><b>${o.t}</b><span>${o.d}${o.r?` · ★${o.r} (${o.rc})`:""}</span></span><span class="op">${o.scheme==="quote"?"ask":o.price===0?"free":money(o.price)}</span></div>`).join("")}
+   <div class="sechead">Add an item</div>
+   <div class="qrow"><div style="font-size:12.5px;color:var(--ink-soft)">
+     <b style="color:var(--ink)">1 · What do you help with?</b><br>[Openers ✓] [Bio] [Photos] [Convos] [Dates]<br><br>
+     <b style="color:var(--ink)">2 · How do you deliver it?</b><br>[In chat ✓] [Send back work] [Live call]<br><br>
+     <b style="color:var(--ink)">3 · How do you charge?</b><br>[Per answer ✓] [One price] [Pack] [Ask me]<br><br>
+     Price <b class="mono" style="color:var(--ink)">$4.00</b> per answer → you keep <b class="mono" style="color:var(--positive)">$3.20</b></div>
+     <button class="qb yes" style="margin-top:10px" onclick="toast('Published to your menu')">Publish</button></div>
+   <div style="height:20px"></div>`;
+}
+function renderEarn(){
+  $("s-earn").innerHTML=`<div class="apphead"><div class="greet">coach mode</div><h1 class="serif">This week</h1></div>
+   <div class="etile"><div class="el">You've earned</div><div class="ev">$312.40</div><div class="es">▲ 22% vs last week · after the 20% platform fee</div></div>
+   <div class="etiles2"><div class="et2"><b>4.9 ★</b><span>rating</span></div><div class="et2"><b>0.3%</b><span>refunds</span></div><div class="et2"><b>92%</b><span>repeat</span></div></div>
+   <div class="sechead">Next payout</div>
+   <div class="qrow"><div class="row"><span class="oi t">$</span><span><b style="font-size:13.5px">Friday</b><br><span style="font-size:11.5px;color:var(--ink-soft)">to bank ··1123</span></span><span class="mono" style="margin-left:auto;font-weight:700">$286.20</span></div></div>
+   <div class="sechead">Recent</div>
+   ${[["💬","Jordan — answer","Convo pack","+$2.00"],["📝","Priya — bio approved","released on approval","+$24.00"],["💬","Alex — openers delivered","5 openers","+$14.40"]].map(([i,t,d,a])=>
+     `<div class="throw"><span class="oi">${i}</span><span class="iw"><span class="tnm" style="font-size:13.5px">${t}</span><span class="snip">${d}</span></span><span class="mono" style="font-weight:700;color:var(--positive)">${a}</span></div>`).join("")}
+   <div style="height:20px"></div>`;
+}
+
+/* ---------------- boot ---------------- */
+renderTabs();renderHome();
 </script>
