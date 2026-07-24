@@ -209,6 +209,12 @@ create table engagements (
   completed_at timestamptz
 );
 
+-- A thread holds MANY engagements (active pack + delivered bio + booked call
+-- simultaneously). Exactly one chat-metered engagement may be "armed" per
+-- thread; fulfilling replies consume the armed one only. (Added here because
+-- engagements is defined after threads.)
+alter table threads add column armed_engagement_id uuid references engagements(id);
+
 -- MESSAGES
 create table messages (
   id uuid primary key default gen_random_uuid(),
@@ -334,7 +340,7 @@ Each runs in **one Postgres transaction**, inserts balanced legs sharing a `txn_
 
 1. Client taps an offering → server action `createEngagement` snapshots terms, computes `amount_cents` + `fee_cents`, creates PaymentIntent (`metadata.engagement_id`), returns client secret → PurchaseSheet confirms payment.
 2. Webhook `payment_intent.succeeded` → verify signature → `recordPurchase` → status `active` → system message `engagement_update` into the thread.
-3. Coach fulfills. For chat schemes: the composer's **Fulfill toggle** calls `sendFulfillingMessage` (server action): single transaction checks `units_used < units_total` → inserts message with `units_consumed` → inserts `usage_event` → increments `units_used`. Free messages skip all of this.
+3. Coach fulfills. For chat schemes: the composer's **Fulfill toggle** calls `sendFulfillingMessage(threadId, engagementId, …)` (server action): single transaction verifies the engagement is **the thread's armed engagement** (`threads.armed_engagement_id`), is `active`, and has `units_used < units_total` → inserts message with `units_consumed` → inserts `usage_event` → increments `units_used`. Free messages skip all of this. See §6.7 for arming rules.
 4. Deliverable/live: coach calls `markDelivered` (attaches files/payload) → status `delivered`, `auto_approve_at = now() + AUTO_APPROVE_DAYS`.
 5. Client `approve` (or the auto-approve job fires) → status `approved` → `releaseEscrow` → status `completed` → review prompt.
    Chat engagements auto-complete when `units_used = units_total` (release then too); partially-used engagements auto-release **consumed value only** after `AUTO_APPROVE_DAYS` of thread inactivity, refunding the remainder — implement as one scheduled job (§12.4).
@@ -358,7 +364,17 @@ interface PaymentsProvider {
 
 `mock.ts`: succeeds instantly, and the PurchaseSheet in mock mode shows a fake "Pay" that directly invokes the same webhook-handler logic (call the handler function, not the HTTP route). **All demos, tests, and seed flows run in mock mode.**
 
-### 6.6 Per-reply purchases (MVP simplification)
+### 6.6 Multiple engagements per thread — the "armed" rule
+
+A thread holds any number of engagements over its lifetime, concurrently and sequentially. Disambiguation:
+
+- **Card-scoped engagements** (deliverable, live, quote): always addressed by their own card/id — never ambiguous; any number may coexist.
+- **Chat-metered engagements** (per_unit, pack): at most **one is armed** per thread (`threads.armed_engagement_id`). Fulfilling replies consume the armed engagement only.
+- **Arming**: a newly funded chat-metered engagement auto-arms itself (in the purchase webhook path). The client switches via `armEngagement(threadId, engagementId)` (validates: caller is the thread's client, engagement is theirs, chat-metered, `active` with units remaining). **The coach can never arm.** If nothing is armed or the armed item is exhausted, `sendFulfillingMessage` fails and the UI disables Fulfill — the coach can still send free messages and proposals.
+- **Attribution**: consumption badges, `usage_events`, and receipts always reference their engagement, and the UI renders the name ("1 used · Convo pack · 5 left") so thread history doubles as a receipt trail.
+- On engagement completion/refund, if it was armed, null out `armed_engagement_id` (same transaction).
+
+### 6.7 Per-reply purchases (MVP simplification)
 
 MVP sells per-unit chat help as **small prepaid quantities**: a per_unit offering's purchase sheet lets the client pick qty 1 / 3 / 5 (one charge, e.g. 3 replies = $12) — creating a normal engagement with `units_total = qty`. One-tap **"Buy another reply"** re-purchase (off-session PaymentIntent on the saved card) when units run out. Daily micro-charge batching is **phase 2** — do not build now.
 
@@ -391,7 +407,7 @@ All actions validate with zod, check auth + role, and return typed results. Name
 **Marketplace** — `listCoaches({specialty?, priceMaxCents?, minRating?, query?, cursor?})`, `getCoachProfile(handle)`.
 **Offerings (coach)** — `createOffering`, `updateOffering`, `setOfferingActive`, `reorderOfferings`.
 **Purchases** — `createEngagement({offeringId | proposalMessageId, qty?, clientInputs})`, `cancelPendingEngagement`, `rebuyUnits(engagementId, qty)`.
-**Thread** — `getOrCreateThread(coachId)`, `listThreads()`, `listMessages(threadId, cursor)`, `sendMessage(threadId, {body?, attachmentPath?})` (free), `sendFulfillingMessage(threadId, engagementId, {body, payload?})`, `proposeEngagement(threadId, terms)`, `respondToProposal(messageId, accept)`.
+**Thread** — `getOrCreateThread(coachId)`, `listThreads()`, `listMessages(threadId, cursor)`, `sendMessage(threadId, {body?, attachmentPath?})` (free), `sendFulfillingMessage(threadId, engagementId, {body, payload?})`, `armEngagement(threadId, engagementId)` (client only; §6.6), `proposeEngagement(threadId, terms)`, `respondToProposal(messageId, accept)`.
 **Deliverables** — `markDelivered(engagementId, {payload, attachmentPaths})`, `approveEngagement(engagementId)`, `requestChanges(engagementId, note)`.
 **Reviews** — `submitReview(engagementId, {stars, outcomeTags, body})`.
 **Help** — `openHelpRequest(engagementId, type, body)`, `resolveHelpRequest(id, resolution)` (admin).
@@ -414,7 +430,7 @@ All actions validate with zod, check auth + role, and return typed results. Name
 
 - **Mobile-first**: every screen designed at 390 px, then adapted up. Desktop: discover becomes a grid; the thread becomes a two-pane inbox→thread layout for coaches; max content width 1100 px.
 - **Money component language** (build once in `components/thread/`, reuse everywhere):
-  `EngagementStrip` (pinned terms + meter: "$4/reply · $8 so far" | "7 of 10 left" | timer | order status), `ConsumptionBadge` (rose, mono: "1 REPLY USED · 6 LEFT"), `FreeBadge` (sage: FREE / INCLUDED), `ProposalCard` (Accept·$X / Not now), `OrderCard` (PAID → IN PROGRESS → DELIVERED → APPROVED timeline, file chips, approve/request-changes, auto-approve note), `PurchaseSheet` (bottom sheet: item, price, payment method, one Pay button, "Charged now, once" note), `VerdictRow` (KEEP/CUT/RESHOOT), `OpenerRow` (numbered + copy-to-clipboard), `GroupedAnswer` (rose spine, one consumption for multiple bubbles).
+  `EngagementTray` (pinned bar: armed item's meter — "$4/reply · $8 so far" | "7 of 10 left" | timer — plus "+N items ▾"; expands to a bottom sheet listing every engagement in the thread with status/meters, an arming radio on chat-metered items, and "Add from menu"), `ConsumptionBadge` (rose, mono, names its engagement: "1 USED · CONVO PACK · 6 LEFT"), `FreeBadge` (sage: FREE / INCLUDED), `ProposalCard` (Accept·$X / Not now), `OrderCard` (PAID → IN PROGRESS → DELIVERED → APPROVED timeline, file chips, approve/request-changes, auto-approve note), `PurchaseSheet` (bottom sheet: item, price, payment method, one Pay button, "Charged now, once" note), `VerdictRow` (KEEP/CUT/RESHOOT), `OpenerRow` (numbered + copy-to-clipboard), `GroupedAnswer` (rose spine, one consumption for multiple bubbles).
 - Composer (coach side) has a **Free / Fulfill toggle**, defaulting per engagement state; client composer is always free.
 - Dark mode: token-level via CSS custom properties (§17), `prefers-color-scheme` + `data-theme` override; ships in M4.
 - Accessibility: money semantics never color-only (badges carry words); focus states; `prefers-reduced-motion`; 4.5:1 contrast.
@@ -463,7 +479,7 @@ Create demo users (password `demo1234`): clients `jordan@demo.wing`, `alex@demo.
 
 **M1 — Money rails.** Ledger + tests, engagements + state machine, PurchaseSheet with mock provider, webhook handler, purchases page, Connect onboarding stub, admin allowlist. ✔ *Accept: buy a flat item end-to-end in mock mode; ledger balanced; unit tests green.*
 
-**M2 — The thread.** Threads/messages/realtime, EngagementStrip + money components, free vs fulfilling send with consumption transaction, packs & per-unit (qty picker + rebuy), deliverable flow with OrderCard + approve/auto-approve job, proposals/quotes. ✔ *Accept: e2e #1 and #3 pass.*
+**M2 — The thread.** Threads/messages/realtime, EngagementTray + money components, free vs fulfilling send with consumption transaction against the armed engagement, arming (auto-arm on purchase + client switch), packs & per-unit (qty picker + rebuy), deliverable flow with OrderCard + approve/auto-approve job, proposals/quotes. ✔ *Accept: e2e #1 and #3 pass, plus: two concurrent chat engagements in one thread — consumption follows the armed one, switching re-routes it, badges name their source.*
 
 **M3 — Reputation & queue.** Reviews (gating, outcome tags, aggregates), coach queue, earnings + weekly payout job, help requests + admin resolution (refund path), coach application + audition + admin approval. ✔ *Accept: e2e #2; refund resolution reverses escrow correctly.*
 
