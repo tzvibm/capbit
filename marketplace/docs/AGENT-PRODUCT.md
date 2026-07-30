@@ -85,6 +85,8 @@ Scopes **concatenate, never override**. Match scopes never co-occur in one conte
 
 `MATCH.md` holds **state and history, never portraiture** — no personality assessment, no appearance, no inferred psychology. This is now a product decision rather than a legal one, since there is no marketplace to protect, but it stays for two reasons: it is what makes user-owned exportable memory a credible trust claim, and GDPR Art. 6(1)(f) balancing still weighs profile detail and comprehensiveness on a non-consenting third party.
 
+**Score the interaction, never the person.** Sales AI computes deal-health from behavioural signals — Gong reads 300+ per conversation and finds an optimal ~43/57 talk ratio — and the same metadata is available here from reply latency, length ratio, who initiates, who asks questions. Compute it. **But never surface it as a number attached to a human.** In sales both parties know a sale is being attempted; in dating the other person does not, which is exactly why *"deal health: Acme 34/100"* is unremarkable and *"Priya 34/100"* is repellent. A score attached to a person is portraiture by another name. *"This conversation has lost momentum"* carries the same information and is about the thing the user actually controls (`SALES-PARALLEL.md` §9).
+
 ## 6. Skills
 
 Progressive disclosure — name and description indexed at ~40 tokens, body loaded on trigger. This is load-bearing: eight playbooks stuffed is ~6,400 tokens and roughly doubles the request into the degradation range; indexed it is ~320.
@@ -93,13 +95,15 @@ Progressive disclosure — name and description indexed at ~40 tokens, body load
 skills/
   opener/            "First message to a new match"
   convo-rescue/      "A conversation has stalled or gone cold"
-  screening/         "Is this person worth more time?"
+  screening/         "Is this person worth more time?"        ← qualification
   date-plan/         "Planning or deciding about a date"
   the-call/          "When the right advice is to send nothing"
   bio-review/        "Improving profile text"
   photo-lineup/      "Choosing and ordering photos"
   post-date/         "Debrief after meeting"
 ```
+
+**Screening is qualification; everything else is discovery**, and sales keeps these strictly apart: *"qualification tells you whether to pursue a deal, discovery tells you how to win it"* (`SALES-PARALLEL.md` §2). Conflating them is why generic dating advice is useless — the screening job's correct answer is frequently *disengage*, which no reply-generator will produce, and which is The Call wearing a different costume.
 
 Each skill declares its playbook **and its renderer**, so a photo lineup renders as a grid and a bio review as a diff. Adding a job type is adding a directory.
 
@@ -133,11 +137,43 @@ The most under-built thing in the category, and the sharpest differentiation. **
 | **Verification** | The **diagnosis** — "here's my read, is that right?" | **The user can check it** | 1, when the read drives the advice |
 | **Constraint** | Blocking unknowns — "anything I should know?" | The user knows it | Rare; only when a wrong assumption is costly |
 
+### 8.1 Gap flagging — insight that costs no question budget
+
+The strongest single transfer from sales AI (`SALES-PARALLEL.md` §3). Deal tooling's most valuable move is noticing what is **absent** from the state and naming it — *"no champion identified by stage three."* **What's missing is more informative than what's present, and surfacing it requires asking nothing.**
+
+Direct equivalents, all computable from state already held:
+
+- *"Four weeks in and she has never asked you a question."*
+- *"You've suggested meeting in none of your last three conversations."*
+- *"She's proposed a time twice; both times you deflected."*
+- *"Every message you've sent has been after 10pm."*
+
+These are the moments that feel like being noticed, they spend zero question budget, and they are the natural content for the **Insights** surface — previously the weakest-specified part of this document. Gap detection is a scheduled pass over match state, not part of the request path.
+
 **The verification question is the important one and it is new.** Elicitation asks what you want. Verification confirms what the agent *thinks is happening* before it acts on it:
 
 > *"Reading this, it looks like you're more invested than she is right now — she replies but never starts. Does that match how it feels?"*
 
 Everything about that is user-checkable. They have ground truth the agent doesn't — that she's been travelling, that they met in person last week, that the flat replies are just how she texts. And getting it wrong is the failure that most damages trust, because a confident misread of your situation is worse than no advice.
+
+## 8.2 Output policy: drafting
+
+Restated here because it previously lived only in a parked document, and updated with evidence from the sales side.
+
+**The agent drafts send-ready text.** Two absolute rules: **every send-ready block is labelled with who wrote it**, and **the agent never presents itself as a person**. Beyond that, readiness to draft **decays as the stakes rise** — free at the opener stage, offered alongside a caution mid-conversation, and at commitment stage the default is to push the user to write it themselves.
+
+The evidence for that decay curve now comes from two directions, and they only look contradictory:
+
+| Comparison | Result |
+|---|---|
+| AI drafting vs an **unaided average person** | **AI wins** — dating openers ~60% vs 48% positive response |
+| Fully autonomous AI vs **a human writing with AI-gathered research** | **AI loses by 40–60%** — sales outreach ([Cotera](https://cotera.co/articles/ai-sales-agent-guide)) |
+
+Both are true, and together they locate the optimum: **machine researches and structures, human writes.** That beats AI-alone and unaided-human-alone.
+
+**So the draft is not the deliverable — the read is, and the draft comes with it.** Every draft arrives with the research visible (what's actually going on, the two things in her last message worth picking up) and a **"make it yours"** step presented as the strong move rather than as friction. That is the highest-performing configuration measured in the analogous domain, and it costs nothing to default to.
+
+The warning attached to the same research is the one to design against: AI outreach that is *"technically personalised but emotionally vacant… and recipients can tell."* That is chatfishing described from the sender's side, with a measured price.
 
 ---
 

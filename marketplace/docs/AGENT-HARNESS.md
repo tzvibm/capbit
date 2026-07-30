@@ -27,6 +27,16 @@ One "what are you looking for?" question is the standard approach and it is clos
 
 That is ~216 meaningful combinations before constraints. Most are irrelevant to any given question, which is the fact the whole design exploits.
 
+**The schema is staged, not fixed** (`SALES-PARALLEL.md` §1). Sales learned this over decades: asking a prospect for budget, timeline and decision process on the first call "is interrogation, not discovery," so frameworks layer — BANT for screening, CHAMP for discovery, MEDDIC for deal qualification. Light early, heavy only once the thing is real.
+
+| Stage | Fields tracked | Note |
+|---|---|---|
+| **New match** | Interested? · What are you after? · Are they responsive? | Three fields, two inferable from a screenshot |
+| **Active** | + timeline · reciprocity · investment appetite | Earned by the conversation continuing |
+| **Real** (met, or heading there) | + constraints · worries · self-presentation | Only for matches that reached stakes |
+
+A single fixed six-dimension vector forces either an interrogation on match one or fields that stay empty forever. Staged depth removes that choice and makes the two-question budget in §7 comfortable rather than tight.
+
 **A seventh variable lives elsewhere.** *What this user is habitually bad at* — over-questioning, double-texting, disappearing when anxious — is a property of the person, not the match. It belongs in the `you/` memory scope (`AI-LANDSCAPE.md` §22), persists across every match, and is the thing that compounds into a real asset.
 
 ## 2. Goal is per match, and it is unstable
