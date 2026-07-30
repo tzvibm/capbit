@@ -150,6 +150,10 @@ Direct equivalents, all computable from state already held:
 
 These are the moments that feel like being noticed, they spend zero question budget, and they are the natural content for the **Insights** surface — previously the weakest-specified part of this document. Gap detection is a scheduled pass over match state, not part of the request path.
 
+**Gap flagging is structurally impossible for every competitor, and that is not a coincidence.** It requires *subject memory* — facts extracted from screenshots and persisted against a match — which `CONTEXT-STRATEGY.md` §1.5 confirms **nobody in the category has**, including the one product that markets it. The entire category extracts signal from a screenshot, uses it once, and discards it. You cannot notice that she has never asked a question if each screenshot is judged in isolation and then thrown away.
+
+So the best idea taken from sales AI and the one universally absent capability are the same thing. **Subject memory is the load-bearing differentiator**, and reciprocity trends, gap flagging and outcome linking are not separate features but consequences of keeping what everyone else throws away.
+
 **The verification question is the important one and it is new.** Elicitation asks what you want. Verification confirms what the agent *thinks is happening* before it acts on it:
 
 > *"Reading this, it looks like you're more invested than she is right now — she replies but never starts. Does that match how it feels?"*

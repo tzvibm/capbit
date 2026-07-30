@@ -22,7 +22,7 @@ Answers up front:
 | **RIZZER** | — | Pick a vibe → generate. Optional custom prompt, or a **"Random"** button | Vibe selector | None |
 | **YourMove AI** | 300k users | "Real-time learning… tailored to each user's style" — marketing language, no mechanism described | Unclear | None found |
 | **Roast** | — | AI scoring + human expert review | Profile-scoped, not conversational | N/A |
-| **Wingman.live** | Minor | **"Keeps each conversation in its own memory bank for better follow-ups"**; "memory-aware chat support" ([TextVibe](https://textvibe.app/blog/best-dating-text-helper-apps/)) | Unclear | **Yes — the only one** |
+| **Wingman.live** | Minor | Markets "each conversation in its own memory bank" and "memory-aware chat support" ([TextVibe](https://textvibe.app/blog/best-dating-text-helper-apps/)). **Direct testing found this means assistant-chat history only** — see §1.5 | Unclear | **No** — screenshot facts are discarded |
 
 ## 1.5 "Do they maintain thread context?" — three different questions
 
@@ -31,8 +31,34 @@ Calling these products "stateless" is imprecise and undersells them. There are t
 | Sense | Rizz et al. | Notes |
 |---|---|---|
 | **1 · Within-request context** — does the model see the conversation? | **Yes, richly** | The screenshot *is* the thread. The model sees who said what, order, lengths, often timestamps. "RIZZ AI chat processes conversation history to understand tone, context, and the best response approach" |
-| **2 · Persisted history** — is anything saved between sessions? | **Sometimes, as an archive** | Rizz has "History Tracking that allows you to save and review your past conversations to learn what works best" — framed for *the user* to review. Some variants explicitly save nothing at all ("does not save any chat history or screenshots"), so it varies by build |
-| **3 · Per-match identity and state** — does it know this is the same person as last Tuesday, what was advised, and whether it worked? | **No — nothing found** | Only Wingman.live claims "each conversation in its own memory bank." No evidence any major product links a screenshot to a persistent match record |
+| **2 · Conversation memory** — does it remember what *you* said to *it*? | **Sometimes** | Ordinary assistant chat history. Rizz's "History Tracking" is an archive for the user to browse; Wingman.live persists the user's dialogue with the AI |
+| **3 · Subject memory** — does it remember what's true about *the match*, extracted from screenshots? | **No. Nobody.** | See below — including Wingman.live, the one product that appeared to claim it |
+
+### The distinction that actually matters: conversation memory vs subject memory
+
+**Corrected by direct product testing, which supersedes the desk research.** I had recorded Wingman.live as the one exception, on the strength of a third-party listicle claiming it "keeps each conversation in its own memory bank." Hands-on testing found otherwise: **it persists the user's dialogue with the assistant, but not the match — not the messages, not the facts extracted from screenshots.** The screenshot is consumed to generate a reply and then discarded.
+
+So the corrected finding is cleaner and stronger than what it replaces: **no product in the category holds subject memory.** And a secondary lesson worth carrying — *memory claims in this category are marketing copy, not architecture.* This is the second time a vendor's stated feature (Rizz's "history tracking", Wingman's "memory bank") turned out to describe something materially weaker than it sounds. Treat any future competitor memory claim as unverified until someone uses the product.
+
+**Why conversation memory is nearly worthless here**, which is what makes the distinction load-bearing rather than pedantic:
+
+- The valuable state is about **the match**, not about the user's chat with the assistant.
+- Users don't have long conversations with these tools. They upload, take the reply, and leave. There is very little dialogue to remember.
+- So remembering the assistant chat while discarding the screenshot is **remembering the wrapper and throwing away the contents.**
+
+**What discarding the screenshot costs**, concretely:
+
+| Capability | Requires subject memory? |
+|---|---|
+| Generate a reply to *this* screenshot | No — sense 1 suffices |
+| Notice a trend — *is this getting better or worse?* | **Yes** |
+| **Gap flagging** — *"four weeks and she has never asked you a question"* | **Yes, absolutely** |
+| Link advice to outcome — *did what I suggested last time work?* | **Yes** |
+| Anything in the Insights surface | **Yes** |
+
+That third row matters most. **Gap flagging — the strongest idea taken from sales AI (`SALES-PARALLEL.md` §3) — is structurally impossible without subject memory.** You cannot observe that she has never asked a question if every screenshot is evaluated in isolation and then thrown away. The best available differentiator and the one universally missing capability turn out to be the same thing.
+
+**Implementation note — match identity.** Subject memory needs to know which match a screenshot belongs to. The simple answer is that the user picks from their match list, which is one tap and is how the Matches tab works anyway. A cheaper trick is available as a refinement: consecutive screenshots of the same thread **overlap**, since dating apps render recent history, so a new upload can often be matched to an existing thread by content overlap with the stored tail. Treat that as a friction-remover with a manual fallback, not as the primary mechanism.
 
 **Sense 1 is the reason one prompt works well enough to build a $15M business, and it deserves respect.** A screenshot is a dense, well-structured context payload that the user assembles for free. Any claim that these products "have no context" is wrong.
 
@@ -67,7 +93,7 @@ Across the whole category, absent:
 
 - **Goal inference of any kind.** No intent model, no elicitation, no questions asked before answering.
 - **Reciprocity assessment** — the highest-leverage variable per `AGENT-HARNESS.md` §4, and it's free from screenshot metadata. Nobody computes it.
-- **Cross-session per-match state**, except Wingman.live's claim.
+- **Cross-session subject memory.** No exceptions — Wingman.live markets it and does not have it (§1.5).
 - **Any escalation path.** No product in the category can say "this one needs a person," because none has a person.
 - **Outcome capture.** Nobody asks whether the suggested message actually worked, so nobody can learn from it or prove it works.
 
@@ -171,17 +197,21 @@ Ordered by preference:
 
 ## 10. Where this leaves the competitive picture
 
-| | Category norm | Wingman.live | **Wing (proposed)** |
+| | Category norm | Wingman.live (tested) | **Wing (proposed)** |
 |---|---|---|---|
-| Context | One stuffed prompt | Per-conversation memory bank | Scoped per match, budgeted, distilled |
-| Goal model | **Tone dropdown** | Unclear | Six-dimension belief, EVOI-elicited |
+| Within-request context | One stuffed prompt | Same | Scoped per match, budgeted, distilled |
+| Conversation memory | Sometimes, as an archive | **Yes** — assistant chat only | Yes |
+| **Subject memory** | **None** | **None** — screenshot facts discarded | **Structured facts persisted per match** |
+| Goal model | **Tone dropdown** | Unclear | Staged belief, EVOI-elicited |
 | Reciprocity read | None | None | Inferred from screenshot metadata |
-| Outcome capture | **None** | None | Per-answer, feeds ranking |
-| Escalation | **Impossible** — no humans | Impossible | The handoff, and the business model |
+| Trend and gap detection | **Impossible** | **Impossible** | Gap flagging, Insights |
+| Outcome capture | **None** | None | Per-answer, links advice to result |
 
-The gap is real and it is wider than expected. But §2's sober conclusion stands: **Rizz built a $15M business on the leftmost column.** Better context management is necessary for the two-thread design to work — it is not, on its own, a reason anyone switches.
+**The single row that matters is subject memory**, because the four rows beneath it are all downstream of it. Reciprocity trends, gap flagging, and outcome linking are not separate features — they are what becomes *possible* once screenshot facts are persisted against a match instead of discarded after generating a reply.
 
-The things in that table a competitor genuinely cannot copy quickly are the bottom two rows: **outcome capture compounds into a dataset**, and **escalation requires a supply side.** Everything above them is a few weeks of engineering for anyone who decides to do it.
+That reframes the differentiation more usefully than "we have memory and they don't." The whole category **extracts signal from a screenshot, uses it once, and throws it away.** Everything Wing intends to do that is distinctive follows from keeping it.
+
+§2's sober conclusion still stands — **Rizz built a $15M business on the leftmost column**, so this is necessary rather than sufficient. But note what changed: the earlier version of this table said the copyable rows were "a few weeks of engineering for anyone who decides to do it." That remains true of the *mechanism*. What compounds is the **accumulated data**, and a competitor who starts later starts empty.
 
 ## 11. Summary
 
