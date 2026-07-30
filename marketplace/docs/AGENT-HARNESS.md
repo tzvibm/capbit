@@ -118,7 +118,13 @@ The elicitation research is clear that questions are expensive: "every additiona
 
 Those benchmarks are for surveys people agreed to take. A user who arrived at a match thread with an urgent, embarrassing problem has far less patience.
 
-**Hard rule: at most two questions before the first substantive output.** After that the agent has to earn further questions by having been useful. Every question after the second must clear a higher `τ_friction`.
+**Two revisions to the budget, both from findings after this section was first written.**
+
+**1 · The unit is per match, not per session.** With subject memory, an answer persists and is amortised across every future turn about that person. The light schema is three fields (`§1`), two of them inferable, so the real budget is roughly **two questions per match, ever** — with deeper fields earned only as the match proves worth it. That is far more comfortable than two per session and it is the reason competitors can't afford questions at all: without memory, every answer is discarded, so asking is pure cost (`CONTEXT-STRATEGY.md` §3).
+
+**2 · No question blocks the first substantive output.** The prior rule — "at most two questions before first output" — still let the product open with an interrogation. Better: **answer first, then ask what would improve the next one.** The user has already received value, so the question reads as an investment rather than a toll, and the product feels *faster* than competitors rather than slower.
+
+The exception is handled by §8.1 rather than by asking.
 
 ## 8. Multiple choice is right, and it must be a tool rather than prose
 
@@ -136,6 +142,34 @@ ask_choice({
 ```
 
 Four rules:
+
+### 8.1 Show the fork — don't ask about it
+
+The pattern that resolves the tension between elicitation and friction, and the best UI idea in this spec.
+
+When the goal genuinely changes the advice, **do not ask the goal question. Deliver both branches and let the choice be the question.**
+
+```
+✗  "What are you looking for with her — something casual or serious?"
+      → an interrogation, abstract, and it delays the answer
+
+✓  "Two different answers here.
+     If you're keeping this light — match her energy, suggest drinks
+     Thursday, don't over-invest in the reply.
+     If you actually like her — answer the question she asked three
+     days ago first. That's the thing she noticed."
+      [ keeping it light ]   [ I actually like her ]
+```
+
+Four things happen at once. The user gets a **real answer immediately**, so nothing is blocked. The question is answered **as a side effect** of choosing. The choice is **concrete rather than abstract** — people are far better at picking between two described situations than at introspecting on a goal label. And it **demonstrates why the question mattered**, which is what makes the next one feel worth answering rather than nosy.
+
+This is EVOI made visible: the fork is only rendered when the branches actually diverge, which is precisely the §6 stopping rule. If the branches agree, there is no fork and no question — just the answer.
+
+The supporting research points the same way: asking clarifying questions for *all* ambiguities "could hamper user experience, so triggering clarifying questions only when necessary is important for user satisfaction" ([arXiv](https://arxiv.org/pdf/2109.12451)). Selective is what users prefer; the fork is how selectivity gets rendered.
+
+**Honest risk:** the category's revealed preference is speed, and Rizz built $15M asking nothing at all. This is a bet against a validated pattern. The mitigations are that no question ever blocks an answer, every choice is skippable, forks appear only where branches genuinely differ, and the answer-first ordering means the product is never slower to first value than a competitor.
+
+### 8.2 Option rules
 
 - **Options are generated, not enumerated.** After a screenshot showing a three-day gap, the options are about *that gap*, not a generic intent menu. Generic options are what makes chatbots feel like phone trees.
 - **2–4 options.** Five is a form.

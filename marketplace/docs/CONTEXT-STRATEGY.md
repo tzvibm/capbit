@@ -91,7 +91,11 @@ That is not a goal model. It is a style parameter. There is no representation of
 
 Across the whole category, absent:
 
-- **Goal inference of any kind.** No intent model, no elicitation, no questions asked before answering.
+- **Any question to the user.** No elicitation, no clarification, no verification of the read — confirmed by direct testing, not just absent from the marketing. You upload, it answers.
+
+  **This is downstream of the memory gap, not a separate oversight.** Without subject memory, the answer to a question is discarded thirty seconds later — so asking is pure cost with no return, and the rational design is to never ask. **Questions and memory are the same finding.** Which also means the economics invert once memory exists: the cost of a question is paid once, the value is paid out on every subsequent turn with that match. In a memoryless app a question is a toll; in one with subject memory it is an investment. Same question, opposite arithmetic.
+
+- **Goal inference of any kind.** No intent model beyond a tone selector.
 - **Reciprocity assessment** — the highest-leverage variable per `AGENT-HARNESS.md` §4, and it's free from screenshot metadata. Nobody computes it.
 - **Cross-session subject memory.** No exceptions — Wingman.live markets it and does not have it (§1.5).
 - **Any escalation path.** No product in the category can say "this one needs a person," because none has a person.

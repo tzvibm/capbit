@@ -131,9 +131,11 @@ Different model family for Her-eyes and Consistency than for the main agent, per
 
 The most under-built thing in the category, and the sharpest differentiation. **Three distinct question types**, and conflating them is the standard mistake.
 
+**Confirmed by direct testing: no competitor asks the user anything.** Not clarification, not elicitation, not verification. You upload, it answers. And that is rational given their architecture rather than an oversight — without subject memory an answer is discarded in thirty seconds, so a question is pure cost. **Questions and memory are one finding**, and the arithmetic inverts once memory exists: cost paid once, value paid out on every later turn about that match.
+
 | Type | Targets | Oracle | Budget |
 |---|---|---|---|
-| **Elicitation** | The **goal** — intent, investment, timeline | The user knows it | ≤2 before first output, EVOI-selected (`AGENT-HARNESS.md` §5) |
+| **Elicitation** | The **goal** — intent, investment, timeline | The user knows it | ~2 **per match, ever**; never blocks an answer (`AGENT-HARNESS.md` §7) |
 | **Verification** | The **diagnosis** — "here's my read, is that right?" | **The user can check it** | 1, when the read drives the advice |
 | **Constraint** | Blocking unknowns — "anything I should know?" | The user knows it | Rare; only when a wrong assumption is costly |
 
@@ -159,6 +161,11 @@ So the best idea taken from sales AI and the one universally absent capability a
 > *"Reading this, it looks like you're more invested than she is right now — she replies but never starts. Does that match how it feels?"*
 
 Everything about that is user-checkable. They have ground truth the agent doesn't — that she's been travelling, that they met in person last week, that the flat replies are just how she texts. And getting it wrong is the failure that most damages trust, because a confident misread of your situation is worse than no advice.
+
+**Two rules govern all three types**, and together they are why asking is an advantage here rather than the friction it is for everyone else:
+
+1. **No question blocks an answer.** Ever. Answer first; ask what would improve the next one. The product is never slower to first value than a competitor that asks nothing.
+2. **Where the goal forks the advice, show the fork instead of asking.** *"If you're keeping this light — X. If you actually like her — Y."* with two buttons. The user gets a real answer immediately, the question is answered as a side effect of choosing, the choice is concrete rather than abstract, and it demonstrates why the question mattered. Full pattern in `AGENT-HARNESS.md` §8.1.
 
 ## 8.2 Output policy: drafting
 
