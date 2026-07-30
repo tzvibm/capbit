@@ -1,8 +1,20 @@
 # Wing — UI Design Specification
 
-**Version 2 · July 2026 · The visual and interaction reference**
+**Version 2.1 · July 2026 · The visual and interaction reference**
 
 Companion to `ARCHITECTURE.md` (how it's built) and `flows-and-wireframes.html` (every path). This document is what the product **looks and feels like**, screen by screen, in wireframe.
+
+---
+
+## 0.1 What changed in v2.1, and why
+
+Three interface changes, each traceable to a finding in `docs/MARKET-ANALYSIS.md`. The reassessment that produced them — including the longer list of things it deliberately left alone — is `docs/PRODUCT-REVISION.md`.
+
+1. **The Call gets its own register** (§4.7). An answer whose advice is *send nothing* no longer renders as an answer with its payload missing. Positive spine, dashed block, no Copy. It is the one output no generator will produce, so it should not look like a degraded version of the normal case.
+2. **Outcome capture on the answer card** (§4.8). One tap: *Replied · No reply · Didn't send*. Reviews rate whole items; the defect-rate ranking and the human-vs-AI question both need per-answer signal.
+3. **Discover leads with urgency, not category** (§3). "What's happening?" over "Who do you need?", because the situations that carry a deadline are the ones that convert — and category-first browsing buries them.
+
+Nothing else in this document changed. In particular the answer card already put reasoning before payload, which is the right shape for selling a read rather than a reply, and *Privacy & data* was already prominent rather than buried.
 
 ---
 
@@ -126,11 +138,18 @@ An empty Home immediately becomes a discovery surface. Never a dead end.
 
 ```
 ┌─────────────────────────────────────┐
-│  Who do you need?                   │
+│  tell us where you are               │
+│  What's happening?                  │   ← was "Who do you need?"
+│  ┌──────────────┐┌──────────────┐   │
+│  │They're       ││Going quiet   │ → │   ← urgency row, scrolls
+│  │waiting       ││Stalled mid-  │   │
+│  │Replied, ball ││conversation  │   │
+│  │in your court ││              │   │
+│  └──────────────┘└──────────────┘   │
 │  ┌───────────────────────────────┐  │
 │  │ ⌕  Search coaches…            │  │
 │  └───────────────────────────────┘  │
-│  [Openers][Bio][Photos][Convos][⋯]  │
+│  [Openers][Bio][Photos][Convos][⋯]  │   ← demoted to secondary
 ├─────────────────────────────────────┤
 │  YOUR COACHES                       │
 │   ♥(M) Maya   ♥(D) Dev   ♥(J) Jo    │   ← only if favourites exist
@@ -150,6 +169,20 @@ An empty Home immediately becomes a discovery surface. Never a dead end.
 │  └───────────────────────────────┘  │
 └─────────────────────────────────────┘
 ```
+
+**Urgency comes first, category second.** The five entries are situations in the client's words, ordered by how fast they need an answer:
+
+| Entry | Means | Maps to | Sort |
+|---|---|---|---|
+| **They're waiting** | Replied, ball's in your court | conversations | fastest responder first |
+| **Going quiet** | Stalled mid-conversation | conversations | fastest responder first |
+| **New match** | Haven't written yet | openers | fastest responder first |
+| **Date coming up** | Planning or deciding | dates | fastest responder first |
+| **No deadline** | Profile, bio, photos | — | default ranking |
+
+Selecting one sets the category filter *and* re-sorts by response time, because a waiting match is a deadline and a coach who replies in 5 minutes is genuinely better for it than one who replies in 4 hours. Tapping a category chip clears the urgency selection — the two are alternative ways in, not a compound filter, and stacking them would strand people in empty results.
+
+**Why the primary question changed.** JustAnswer is the one per-question expert marketplace that works at scale, and its categories all carry a deadline and a consequence: my dog swallowed something, at 11pm. Clarity.fm, which sold open-ended expert calls, shut down in 2022. Dating is high-emotion but low-urgency — nothing bad happens if you wait, ask a friend, or send nothing — so the product has to lead with the moments that *do* have a clock on them. "Improve my profile" has no deadline and will always lose to procrastination; "they're waiting" cannot be postponed. Asking *what's happening* instead of *which category* is how the interface finds the urgent case. `urgency_selected` is instrumented so this is falsifiable: if deadline-bearing entries don't convert better, revert to the category-first row.
 
 **Favouriting:** tap the heart on a card or profile. Filled = favourited. It's **private** — the coach is never told, so it stays an honest bookmark. Favourites surface in three places: the Discover row, the Home *Your coaches* strip, and as a filter (`♥ Favourites` chip).
 
@@ -328,7 +361,49 @@ When a coach taps **Send answer**, they get structure — which is what produces
 └─────────────────────────────────────┘
 ```
 
-Optional payload — a photo verdict has none, an opener is all payload. Multiple bubbles still cost **one** answer.
+Optional payload — a photo verdict has none, an opener is all payload. Multiple bubbles still cost **one** answer. A third option, **"Nothing to send — say why"**, produces the register in §4.7.
+
+### 4.7 The Call — an answer that tells you to send nothing
+
+```
+╭────────────────────────────────╮
+│▌THE CALL · ANSWER 4 OF 10      │   ← spine + header in --positive
+│▌                               │
+│▌Do nothing for 24 hours.       │
+│▌Seriously. The silence does    │
+│▌more work than any message I   │
+│▌could write here.              │
+│▌┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ │
+│▌│ NOTHING TO SEND            │ │   ← dashed, not solid
+│▌│ Don't message her until    │ │
+│▌│ tomorrow evening. Sending  │ │
+│▌│ now reads as anxious.      │ │
+│▌└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ │
+│▌  ♡ Save        ⋯             │   ← no Copy; there is nothing to copy
+╰────────────────────────────────╯
+```
+
+An answer carrying a `hold` block renders in its own register: **positive spine and header instead of accent, a dashed block instead of a solid one, no Copy action.** Everything else about the card is unchanged.
+
+**Why this earns its own component.** It is the most differentiating artefact in the product. A tool built to generate a message will always generate a message; telling a paying customer that the right move is to send nothing — and so to not use what they just paid for — is a judgment only a person with a reputation at stake will make. Before this change that answer rendered as a normal card with its payload block simply absent, which read as an answer *missing something* rather than one *making a call*. The dashed border and the swapped colour say the absence is deliberate.
+
+Coaches should be told in onboarding that this still consumes one answer and is not penalised. If holding costs a coach money or ranking, nobody holds, and the product quietly becomes a message generator with a human latency penalty.
+
+### 4.8 Outcome capture on the answer card
+
+```
+│▌  ⧉ Copy      ♡ Save      ⋯                        │
+│▌  Did it land?  (Replied) (No reply) (Didn't send)  │
+╰────────────────────────────────────────────────────╯
+
+…once answered:
+│▌  ✓ Marked "Replied" — this counts toward Maya's score │
+```
+
+- **Only on answers with a payload, and never on the newest message.** Asking the instant an answer arrives collects noise — the client hasn't sent anything yet.
+- **Three options, all safe to press.** `Didn't send` is explicitly *not* counted against the coach. Otherwise clients under-report it and the signal rots.
+- **One tap. No sheet, no confirmation.** This has to be nearly free or nobody does it, and thin participation makes the dataset worthless.
+- **Why it lives in the product rather than in analytics:** `ARCHITECTURE.md` §9.7 makes defect rate the basis of ranking, and the only two candidate moats are that dataset and the trust brand. Reviews rate a whole item after the fact; this rates each piece of advice. It is also the only instrument that can answer whether a paid human answer beats a free machine one — the bet everything else rests on.
 
 ---
 
@@ -464,7 +539,10 @@ Unchanged from v1 in structure (three-question composer; post-fee earnings with 
 
 | Component | Register | Key rules |
 |---|---|---|
-| `AnswerCard` | paid | Accent spine, header `ANSWER n OF m`, optional copyable payload block, actions Copy / Save / `⋯` |
+| `AnswerCard` | paid | Accent spine, header `ANSWER n OF m`, optional copyable payload block, actions Copy / Save / `⋯`; outcome row when it has a payload and isn't the newest message |
+| `AnswerCard.hold` | paid | **Positive** spine and header (`THE CALL · ANSWER n OF m`), dashed `NOTHING TO SEND` block, no Copy action |
+| `OutcomeRow` | signal | Three one-tap options; `Didn't send` never counts against the coach; collapses to a confirmation line |
+| `UrgencyRow` | discovery | Five situations ordered by deadline; sets category filter and sorts by response time; mutually exclusive with the category chips |
 | `MessageBubble` | free | Plain; coach messages carry a small `Free` label, client messages carry nothing |
 | `ItemCard` | purchase | Status timeline, files, actions, auto-approve note; updates in place |
 | `ItemBar` | status | One line; `⌄` + count only when 2+ items; tap opens drawer |

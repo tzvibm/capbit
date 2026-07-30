@@ -89,6 +89,15 @@
   .chiprow::-webkit-scrollbar{display:none}
   .fchip{flex:0 0 auto;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--ink-soft)}
   .fchip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+  /* Urgency row — the primary way in. Situations with a deadline first. */
+  .urgrow{display:flex;gap:8px;padding:4px 16px 2px;overflow-x:auto;scrollbar-width:none}
+  .urgrow::-webkit-scrollbar{display:none}
+  .ub{flex:0 0 auto;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:9px 13px;min-width:132px}
+  .ub b{display:block;font-size:13px;color:var(--ink)}
+  .ub span{display:block;font-size:10.5px;color:var(--ink-faint);margin-top:2px;line-height:1.35}
+  .ub.on{border-color:var(--accent);background:var(--accent-soft)}
+  .ub.on b{color:var(--accent)}
   .search{margin:8px 16px 0;display:block;width:calc(100% - 32px);background:var(--chip);border:none;border-radius:12px;padding:11px 14px;font-size:16px}
   .search::placeholder{color:var(--ink-faint)}
   .search:focus{outline:2px solid var(--accent)}
@@ -161,6 +170,23 @@
   .aact{flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--chip);border-radius:9px;padding:7px 0}
   .aact.on{color:var(--accent);background:var(--accent-soft)}
   .aact.dots{flex:0 0 44px}
+
+  /* THE CALL — an answer whose advice is to send nothing. The one thing no
+     generator will ever tell you, so it gets its own register rather than
+     looking like an answer with its payload missing. */
+  .acard.call{border-left-color:var(--positive)}
+  .acard.call .ahead{background:var(--positive-soft);color:var(--positive)}
+  .vblock{margin:8px 12px 4px;border:1px dashed var(--positive);border-radius:11px;background:var(--positive-soft);padding:10px 12px}
+  .vblock .blab{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.07em;color:var(--positive);display:block;margin-bottom:3px;font-weight:700}
+  .vblock .vtxt{font-size:12.5px;line-height:1.45;color:var(--ink-soft)}
+
+  /* Outcome capture — feeds the defect-rate ranking, and is the only way to
+     know whether a human answer actually beat a machine one. */
+  .outrow{display:flex;align-items:center;gap:6px;padding:0 12px 11px;flex-wrap:wrap}
+  .outrow .olab{font-size:11px;color:var(--ink-faint);font-weight:600;flex:0 0 auto}
+  .obtn{font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft)}
+  .obtn.picked{border-color:var(--positive);background:var(--positive-soft);color:var(--positive)}
+  .odone{font-size:11px;color:var(--positive);font-weight:600;padding:0 12px 11px}
 
   .icard{align-self:flex-start;width:93%;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 13px}
   .icard.warn{border-color:var(--warn)}
@@ -251,7 +277,8 @@
 
   <div class="screen on" id="s-home"></div>
   <div class="screen" id="s-discover">
-    <div class="apphead"><div class="greet">find someone good at this</div><h1 class="serif">Who do you need?</h1></div>
+    <div class="apphead"><div class="greet">tell us where you are</div><h1 class="serif">What's happening?</h1></div>
+    <div class="urgrow" id="urg"></div>
     <input class="search" id="q" placeholder="Search coaches, e.g. openers…" oninput="state.query=this.value;renderDiscover()">
     <div class="chiprow" id="chips"></div>
     <div id="favstrip"></div>
@@ -280,7 +307,8 @@ const COACHES={
   answers:[{r:"Good news, this is recoverable. Your last two texts were both questions — that reads needy after a gap.",c:"just saw a golden retriever argue with a pigeon and thought of your dog-park story"},
            {r:"She used an emoji, that's momentum. Mirror her energy but shorter — she wrote three lines, you write one good one. Ask nothing this time.",c:"ok the pigeon has officially replaced my alarm clock. how was the market?"},
            {r:"Now you ask her out. Specific, low-stakes, one option not three — options make it feel like scheduling.",c:"there's a tiny coffee place near the park doing pour-overs. thursday evening?"},
-           {r:"Do nothing for 24 hours. Seriously. The silence does more work than any message I could write here.",c:null}],
+           {r:"Do nothing for 24 hours. Seriously. The silence does more work than any message I could write here.",c:null,
+            hold:"Don't message her until tomorrow evening. If you send something now it reads as anxious, and you'll undo the last three days."}],
   frees:["Quick one before I dig in — how long since her last reply?","Got it. Give me two minutes.","Nice, that's the right instinct."]},
  dev:{h:"dev",name:"Dev K.",head:"Bio doctor · ex-copywriter",tag:"Bios that get right-swipes.",g:["#2F5D62","#4E8C7F"],rating:4.8,count:167,clients:640,resp:"~2 hr",refunds:"0.6%",repeat:"54%",specs:["bio"],badges:[],
   answers:[{r:"Your bio is a list of adjectives. Nobody swipes on adjectives — they swipe on a scene they can picture.",c:"Potter by weekend, decent cook by necessity. Looking for someone to argue with about whether pineapple belongs anywhere."}],
@@ -327,14 +355,28 @@ const REVIEWS={maya:{s:5,who:"J., 2 days ago",item:"Convo rescue pack",body:"Sen
 const SPECS={openers:"Openers",bio:"Bio",photos:"Photos",conversations:"Convos",dates:"Dates"};
 
 /* ---------------- state ---------------- */
-const state={screen:"home",mode:"client",filter:null,query:"",coach:null,
-  favs:new Set(["maya"]),threads:{},purchases:[],saved:[],savedFilter:null,
+const state={screen:"home",mode:"client",filter:null,urgency:null,query:"",coach:null,
+  favs:new Set(["maya"]),threads:{},purchases:[],saved:[],savedFilter:null,outcomes:{},
   pendingOffer:null,pendingQty:1,answerIdx:{},freeIdx:{},revTarget:null,msgSeq:0};
+/* Per-answer outcome. Reviews rate a whole item; this rates the individual
+   piece of advice, which is what the defect-rate ranking actually needs — and
+   the only way to test whether a person beats a generator. */
+const OUTCOMES={replied:"Replied",quiet:"No reply",unsent:"Didn't send"};
+/* What the client is dealing with right now, in their words. Ordered by how
+   fast they need an answer, not by which product it maps to. */
+const URGENCY=[
+  {k:"waiting",l:"They're waiting",sub:"Replied, ball's in your court",spec:"conversations"},
+  {k:"cooling",l:"Going quiet",sub:"Stalled mid-conversation",spec:"conversations"},
+  {k:"opening",l:"New match",sub:"Haven't written yet",spec:"openers"},
+  {k:"date",l:"Date coming up",sub:"Planning or deciding",spec:"dates"},
+  {k:"none",l:"No deadline",sub:"Profile, bio, photos",spec:null}
+];
 const $=id=>document.getElementById(id);
 const money=c=>c%100===0?"$"+c/100:"$"+(c/100).toFixed(2);
 const first=n=>n.split(" ")[0];
 const avatar=(c,cls)=>`<span class="av ${cls}" style="background:linear-gradient(135deg,${c.g[0]},${c.g[1]})">${c.name[0]}</span>`;
 const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const respMins=r=>{const n=parseFloat(r.replace(/[^\d.]/g,""))||99;return /hr/.test(r)?n*60:n;};
 let toastTimer;
 function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("on"),2200);}
 
@@ -430,20 +472,34 @@ function coachCard(c){
       <span class="row">${avatar(c,"av-md")}<span style="min-width:0"><span class="nm">${c.name} <span class="vtick">✓</span></span><span class="hl">${c.head}</span></span><span class="fromp">${fh}</span></span>
       <span class="meta"><span class="stars">${"★".repeat(Math.round(c.rating))}</span><span><b>${c.rating}</b> (${c.count})</span><span>${c.resp}</span></span>
       <span class="signals">${c.refunds} refunds · ${c.repeat} come back</span>
-      <span class="spec">${c.specs.map(s=>`<span class="schip">${SPECS[s]}</span>`).join("")}${c.badges.map(b=>`<span class="schip t">${b}</span>`).join("")}</span>
+      <span class="spec">${c.specs.filter(s=>SPECS[s]).map(s=>`<span class="schip">${SPECS[s]}</span>`).join("")}${c.badges.map(b=>`<span class="schip t">${b}</span>`).join("")}</span>
     </button></div>`;
 }
 function toggleFav(h){state.favs.has(h)?state.favs.delete(h):state.favs.add(h);
   toast(state.favs.has(h)?"Added to your coaches":"Removed");
   if(state.screen==="discover")renderDiscover();if(state.screen==="profile")openProfile(h,true);if(state.screen==="home")renderHome();}
+function pickUrgency(k){
+  const u=URGENCY.find(x=>x.k===k);
+  state.urgency=state.urgency===k?null:k;
+  state.filter=state.urgency?u.spec:null;
+  renderDiscover();
+}
 function renderDiscover(){
+  /* Urgency first, category second. People arrive with a situation and a
+     deadline, not with a product category in mind — and the situations that
+     carry a deadline are the ones that actually convert. */
+  $("urg").innerHTML=URGENCY.map(u=>`<button class="ub ${state.urgency===u.k?"on":""}" onclick="pickUrgency('${u.k}')">
+    <b>${u.l}</b><span>${u.sub}</span></button>`).join("");
   const chips=[["all","All"],...Object.entries(SPECS),["fav","♥ Favourites"]];
-  $("chips").innerHTML=chips.map(([k,l])=>`<button class="fchip ${(state.filter||"all")===k?"on":""}" onclick="state.filter='${k}'==='all'?null:'${k}';renderDiscover()">${l}</button>`).join("");
+  $("chips").innerHTML=chips.map(([k,l])=>`<button class="fchip ${(state.filter||"all")===k?"on":""}" onclick="state.urgency=null;state.filter='${k}'==='all'?null:'${k}';renderDiscover()">${l}</button>`).join("");
   const q=state.query.toLowerCase();
-  const list=Object.values(COACHES).filter(c=>{
+  let list=Object.values(COACHES).filter(c=>{
     const f=!state.filter||(state.filter==="fav"?state.favs.has(c.h):c.specs.includes(state.filter));
     const m=!q||c.name.toLowerCase().includes(q)||c.head.toLowerCase().includes(q)||c.specs.some(s=>SPECS[s].toLowerCase().includes(q));
     return f&&m;});
+  /* A waiting match is a deadline, so sort by who answers fastest. */
+  if(state.urgency&&state.urgency!=="none")
+    list=[...list].sort((a,b)=>respMins(a.resp)-respMins(b.resp));
   const favs=[...state.favs];
   $("favstrip").innerHTML=(favs.length&&!state.filter&&!q)?`<div class="sechead">Your coaches</div><div class="coachstrip">${favs.map(h=>{const c=COACHES[h];return `<button class="cs" onclick="openProfile('${h}')">${avatar(c,"av-xs")}<span class="fav">♥</span><span class="csn">${first(c.name)}</span></button>`;}).join("")}</div>`:"";
   $("coachlist").innerHTML=list.length?list.map(coachCard).join(""):`<div class="empty"><span class="serif">No coaches for that yet</span>We're recruiting — try another filter.</div>`;
@@ -472,7 +528,10 @@ function openProfile(h,keep){
 /* ---------------- purchase ---------------- */
 function startPurchase(id){
   const o=OFFERS.find(x=>x.id===id),c=COACHES[o.c];
-  state.pendingOffer=o;state.pendingQty=o.qty?o.qty[0]:1;
+  /* Default to the middle quantity, not one. A single $4 answer pays Stripe
+     10.4%; three in one charge pays 5.4%. The client also gets a better deal
+     per answer, so this is not a dark pattern — it's the honest default. */
+  state.pendingOffer=o;state.pendingQty=o.qty?o.qty[Math.min(1,o.qty.length-1)]:1;
   if(o.scheme==="quote"){ensureThread(o.c);addMsg(o.c,{kind:"sys",text:"Describe what you need — "+first(c.name)+" will send you a price."});openThread(o.c);return;}
   renderPay();openSheet("paysheet");
 }
@@ -558,28 +617,35 @@ function renderThread(){
      <span class="tw"><b>${c.name}</b><span>● online now</span></span>
      <button class="backbtn" style="margin-left:auto" onclick="openProfile('${h}')">menu</button></div>
     <button class="itembar ${bar.cls}" onclick="openTray()"><span class="edot"></span>${bar.txt}<span class="cnt">${t.engagements.length>1?t.engagements.length+" items ⌄":""}</span></button>
-    <div class="chat" id="chatlog">${t.messages.map(m=>renderMsg(m,h)).join("")}</div>
+    <div class="chat" id="chatlog">${t.messages.map((m,i)=>renderMsg(m,h,i===t.messages.length-1)).join("")}</div>
     <div class="compose"><input class="cfield" id="cinput" placeholder="Message ${first(c.name)}…" onkeydown="if(event.key==='Enter')sendMsg()"><button class="csend" onclick="sendMsg()">➤</button></div>`;
   if(keep)$("cinput").value=keep;
   const l=$("chatlog");l.scrollTop=l.scrollHeight;
 }
-function renderMsg(m,h){
+function renderMsg(m,h,isLast){
   const c=COACHES[h];
   if(m.kind==="sys")return `<div class="onote" style="align-self:center">${esc(m.text)}</div>`;
   if(m.kind==="me")return `<div class="msg me">${esc(m.text)}</div>`;
   if(m.kind==="shot")return `<div class="shot"><div class="simg"></div></div>`;
   if(m.kind==="coach")return `<div class="msg them">${esc(m.text)}<div><span class="freetag">FREE</span></div></div>`;
   if(m.kind==="answer"){
-    const sv=state.saved.find(s=>s.id===m.id);
-    return `<div class="acard">
-      <div class="ahead"><span>${m.label||"ANSWER"}</span><span class="who">${first(c.name)} · now</span></div>
+    const sv=state.saved.find(s=>s.id===m.id),isCall=!!m.a.hold,out=state.outcomes[m.id];
+    return `<div class="acard${isCall?" call":""}">
+      <div class="ahead"><span>${isCall?"THE CALL · ":""}${m.label||"ANSWER"}</span><span class="who">${first(c.name)} · now</span></div>
       <div class="abody">${esc(m.a.r)}</div>
       ${m.a.c?`<div class="ablock"><span class="blab">SEND THIS</span>${esc(m.a.c)}<button class="bcopy" onclick="copyMsg('${m.id}',this)">${state.copiedId===m.id?"✓ Copied":"⧉ Copy"}</button></div>`:""}
+      ${isCall?`<div class="vblock"><span class="blab">NOTHING TO SEND</span><span class="vtxt">${esc(m.a.hold)}</span></div>`:""}
       <div class="aacts">
         ${m.a.c?`<button class="aact" onclick="copyMsg('${m.id}',this)">⧉ Copy</button>`:""}
         <button class="aact ${sv&&sv.pinned?"on":""}" onclick="pinMsg('${m.id}',this)">${sv&&sv.pinned?"♥ Saved":"♡ Save"}</button>
         <button class="aact dots" onclick="toast('Opens a dispute about this answer')">⋯</button>
-      </div></div>`;
+      </div>
+      ${out?`<div class="odone">✓ Marked “${OUTCOMES[out]}” — this counts toward ${first(c.name)}'s score</div>`
+        /* Only ask once there's been time to act on it. Asking the instant the
+           answer arrives gets you noise, and the whole point is real outcomes. */
+        :(m.a.c&&!isLast)?`<div class="outrow"><span class="olab">Did it land?</span>${Object.entries(OUTCOMES).map(([k,l])=>
+          `<button class="obtn" onclick="setOutcome('${m.id}','${k}')">${l}</button>`).join("")}</div>`:""}
+      </div>`;
   }
   if(m.kind==="offer"){
     return `<div class="icard" style="border-color:var(--accent)">
@@ -614,6 +680,13 @@ function sendMsg(){
   if(n===0&&inUse(h))coachFree(h,c.frees[0]);
   else if(inUse(h))coachAnswer(h);
   else coachFree(h,c.frees[Math.min(n,c.frees.length-1)]);
+}
+function setOutcome(id,k){
+  state.outcomes[id]=k;
+  toast(k==="replied"?"Nice. That counts toward their score."
+      :k==="quiet"?"Logged. Advice that doesn't land shows up in their defect rate."
+      :"Logged — not counted against them.");
+  renderThread(state.coach);
 }
 function copyMsg(id,btn){
   state.copiedId=id;setTimeout(()=>{if(state.copiedId===id)state.copiedId=null;},1500);

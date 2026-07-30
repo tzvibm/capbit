@@ -7,6 +7,14 @@ Complete, self-contained specification for **Wing**: a mobile-responsive multius
 > **How to use this document (instructions to the coding agent):**
 > Build milestones **M0 → M4 in order** (§15); each has acceptance criteria that must pass before the next begins. Where this spec is silent, prefer the simplest implementation consistent with the invariants in §2.5 and §6. Anything in §16 (out of scope) must NOT be built. **All money moves through `ledger.post()` and nothing else** (§6.2). **All behaviour is recorded through `events.emit()` and nothing else** (§2.5). Use the UI vocabulary in §1 verbatim — never expose internal names in the interface. Companion documents: *Flows & Wireframes* (every screen and path) and the *UI/UX Pitch* (visual design).
 
+**What changed in v2.2** — five changes, all traceable to a finding in `docs/MARKET-ANALYSIS.md`, and no others. The reassessment that produced them, including the longer list of things deliberately left alone, is `docs/PRODUCT-REVISION.md`.
+
+1. **Three exclusions gain citations** (§13.1). Native apps, intros/matchmaking and AI features were already out of scope on taste; each now carries the statute or the arithmetic that makes it permanent.
+2. **`PurchaseSheet` preselects the middle quantity** (§4.9). A single $4 answer pays Stripe 10.4% and nets −$0.02 on coach-sourced traffic; three in one charge pays 5.4% and nets +$0.58. No wallet — the mechanism already existed in §4.8, it just wasn't the default.
+3. **A `hold` payload block** (§3, `messages.payload`). An answer whose advice is *send nothing* gets its own register instead of looking like an answer with a missing payload. It is the one output no generator will produce.
+4. **`answer_outcomes`** (§3) plus `answer_outcome_recorded` (§2.6). Per-answer outcome capture, because reviews rate items and the defect-rate moat — and the human-vs-AI test — need per-answer signal.
+5. **The coaching line gets teeth** (§9.2). Explicit scope boundary, a no-privilege disclosure, a required `escalate()` path for self-harm/abuse/coercive-control disclosures, and permanent third-party-data commitments.
+
 **What changed in v2.1:** answers are rendered as cards rather than chat bubbles, with copyable payload blocks (`messages.payload` structure, §3); the inbox becomes **Home** with a needs-you strip; **favourites** and a **Saved** answer library are added (new tables, §3); client tabs are now Home · Discover · Saved · You. See `docs/UI-DESIGN.md`.
 
 **What changed in v2:** unified fulfilment strategies replacing per-scheme special-casing (§2.5); event log as a first spine (§2.5, §5); processor fees now modelled (§6.1); coach-failure SLA path added (§7); pack refunds priced à la carte (§6.6); free items excluded from review weight (§12.7); ranking contradiction resolved in favour of defect-rate (§11); `pg_trgm` replaces embeddings (§12.7); M2 split into three (§15); analytics instrumented from M1 (§2.5).
@@ -108,7 +116,12 @@ Ranking and profile stats come from a **`coach_stats` materialized view** (refre
 
 ### 2.6 Instrumentation (build in M1, not later)
 
-The MVP's most valuable output is evidence about demand. `events.emit()` already captures it; these named events are **required**: `signup`, `coach_viewed`, `purchase_sheet_opened`, `purchase_completed`, `purchase_failed`, `first_answer_received`, `item_completed`, `review_submitted`, `repeat_purchase`, `refund_requested`. A single SQL view reports the kill metric: **first → second purchase rate per cohort week**.
+The MVP's most valuable output is evidence about demand. `events.emit()` already captures it; these named events are **required**: `signup`, `coach_viewed`, `purchase_sheet_opened`, `purchase_completed`, `purchase_failed`, `first_answer_received`, `item_completed`, `review_submitted`, `repeat_purchase`, `refund_requested`, **`answer_outcome_recorded`**, **`urgency_selected`**. A single SQL view reports the kill metric: **first → second purchase rate per cohort week**.
+
+Two of these carry more weight than the rest and are worth naming explicitly, because they are the readouts for the two bets that can end the business (`MARKET-ANALYSIS.md` §35):
+
+- **`answer_outcome_recorded`** is the numerator for *did human judgment actually work* — the reply rate on advice people acted on. Without it there is no way to run the blind human-vs-AI comparison, and no honest defect-rate signal beyond refunds.
+- **`urgency_selected`** tells you which situations convert. The hypothesis is that deadline-bearing situations ("they're waiting") convert far better than open-ended ones ("improve my profile"). If they don't, the catalogue ordering in §8 is wrong and should revert.
 
 ### 2.7 Repository layout
 
@@ -244,7 +257,11 @@ create table messages (
   kind message_kind not null default 'text',
   body text, attachment_path text,
   -- For answers, payload carries the structure AnswerCard renders:
-  --   { reasoning: text, blocks: [{ type:'copy'|'verdict'|'file', text, meta? }] }
+  --   { reasoning: text, blocks: [{ type:'copy'|'verdict'|'hold'|'file', text, meta? }] }
+  -- A 'hold' block means the advice is to send nothing, and says until when.
+  -- It renders in its own register (see UI-DESIGN.md §4.7) because it is the
+  -- one output no generator will ever produce — an answer that costs the
+  -- client nothing to act on and tells them to wait.
   -- For offers: the offer terms. For item_update: the status snapshot.
   payload jsonb,
   engagement_id uuid references engagements(id),  -- set ONLY by the server when this was an answer
@@ -292,6 +309,22 @@ create table reviews (
   weight numeric(4,3) not null default 1.0   -- 0 for free items; reduced when flagged (§12.7)
 );
 create index on reviews (offering_id); create index on reviews (coach_id);
+
+-- Per-answer outcome. A review rates a whole item after the fact; this rates
+-- the individual piece of advice, which is what the defect-rate ranking
+-- actually needs — and the only instrument that can answer the existential
+-- question (does a paid human answer beat a free machine one?). One row per
+-- answer, client-set, optional, never editable by the coach.
+create type answer_outcome as enum ('replied','quiet','unsent');
+create table answer_outcomes (
+  message_id uuid primary key references messages(id),
+  engagement_id uuid not null references engagements(id),
+  coach_id uuid not null references profiles(id),
+  client_id uuid not null references profiles(id),
+  outcome answer_outcome not null,
+  created_at timestamptz not null default now()
+);
+create index on answer_outcomes (coach_id, outcome);
 
 create table help_requests (
   id uuid primary key default gen_random_uuid(),
@@ -467,6 +500,20 @@ Chat items settle this way after `AUTO_APPROVE_DAYS` of thread inactivity. Packs
 
 Sold as small prepaid quantities (1 / 3 / 5) — one charge, `units_total = qty`. One-tap **"Buy 3 more"** re-purchase off-session on the saved card when they run out. Micro-charge batching is out of scope.
 
+### 4.9 The default quantity is the middle option, not one
+
+Stripe's fixed 30¢ is what makes single answers unprofitable, and the fix is already in §4.8 — it just has to be the **preselected** option:
+
+| Purchase | Processor cost | Effective rate | Platform net per answer (80% coach share) |
+|---|---|---|---|
+| 1 answer @ $4 | $0.42 | **10.4%** | +$0.38 · **−$0.02 at the 90% coach-sourced rate** |
+| 3 answers @ $12 | $0.65 | **5.4%** | +$0.58 |
+| 5 answers @ $20 | $0.88 | **4.4%** | +$0.62 · **+$0.22 at 90%** |
+
+**`PurchaseSheet` preselects the middle quantity** where an offering has quantity options. This is the difference between rung 1 losing money and rung 1 paying for itself on coach-sourced traffic — the case that will dominate early traffic by design (§3 take-rate table).
+
+This is deliberately not a dark pattern: the per-answer price is identical or better at higher quantities, the single-answer option stays visible and one tap away, and unused answers refund at the à-la-carte rate under §4.6. If a coach's offering has no quantity options, nothing changes.
+
 ---
 
 ## 5. Lifecycle
@@ -545,6 +592,10 @@ One Supabase Realtime channel per thread (`thread:<id>`) on `messages` insert an
 
 1. **Privacy**: attachments auto-expire (`ATTACHMENT_TTL_DAYS`); notifications never contain message content; self-serve deletion purges attachments and anonymises, keeping the ledger for accounting.
 2. **The coaching line**: coaches advise and draft; they never operate a client's dating account. ToS + application checkbox; `report` feeds the admin queue.
+   - **Scope boundary, stated to both sides.** Coaching is not therapy. Coaches are unlicensed and — unlike therapists — hold **no confidentiality privilege and can be subpoenaed** about client conversations. Both facts appear in the client-facing *Privacy & data* screen and in the coach ToS, in plain words. Utah's SB48 now funds investigation of life coaches practising therapy unlawfully, so this line is enforced, not theoretical.
+   - **Escalation, not improvisation.** `escalate(threadId, reason)` is available to coaches and is the *required* action on any disclosure involving self-harm, abuse, or coercive control. It freezes consumption on the item, posts a fixed resource message, and opens an admin ticket — the coach is explicitly not asked to handle it. Coach onboarding covers this before their first paid answer.
+   - **Third-party data.** Every screenshot contains a non-consenting person's words and face. Therefore, permanently: **no facial analysis of any kind, no training on user content, no retention past `ATTACHMENT_TTL_DAYS`**, and the uploader offers a manual mask/crop before send (M4 — the policy binds from M1 regardless). Enforcement in adjacent products is real and expensive: Bumble settled £32M over biometric consent.
+   - **No platform integration, ever.** Wing never touches a dating app's API, never automates, never scrapes. A user manually sharing a screenshot is the same act as showing a friend; a tool that reaches into Tinder's Services or Member Content is prohibited by its terms. This is why the product is screenshot-native rather than connected, and it is not a limitation to engineer around.
 3. **Rate limits**: messages 30/min, purchases 10/hour, applications 3/day.
 4. **Jobs** (Vercel cron or pg_cron; claim rows `for update skip locked` — cron is at-least-once and *will* double-fire; `txn_key` makes money idempotent regardless): auto-approve; SLA breach → `late` → auto-refund; abandonment settlement; expire unpaid items (24 h) and offers (7 d); attachment purge; weekly payouts; refresh `coach_stats`.
 5. **Admin**: applications, help requests, fraud flags, reports — plain tables, service-role, allowlist-gated.
@@ -593,7 +644,19 @@ Demo users (password `demo1234`): clients `jordan@`, `alex@`, `riley@demo.wing`;
 
 ## 13. Out of scope (do not build)
 
-Wallet/credits · subscriptions (enum only) · micro-charge batching · native apps · in-app video (sessions link out to a coach-provided URL) · intros/matchmaking · **AI features of any kind, including embeddings** · group threads · i18n (strings centralised for later) · email digests.
+Wallet/credits · subscriptions (enum only) · micro-charge batching · in-app video (sessions link out to a coach-provided URL) · group threads · i18n (strings centralised for later) · email digests.
+
+### 13.1 Three exclusions that are permanent, with the reason attached
+
+These were already out of scope on taste. `docs/MARKET-ANALYSIS.md` found the mechanism behind each, so they are now **constraints with citations** rather than preferences — a future contributor who wants to reverse one has to argue with the statute or the arithmetic, not with an opinion.
+
+| Excluded | Why it can never ship | Source |
+|---|---|---|
+| **Native iOS/Android apps** | Apple App Review Guideline **3.1.3(d)** exempts only *real-time* person-to-person services from in-app purchase. An async answer is not real-time, so it takes the 30%: a $4 answer nets **−$0.40** at an 80% coach share and **−$0.80** at 90%. Break-even needs a take rate above 30%, worse than Fiverr, which destroys the supply pitch the whole model rests on. Note the inversion — live calls *are* exempt, so on iOS the ladder runs backwards. **Mobile web (PWA) is the only viable shell.** | `MARKET-ANALYSIS.md` §26, §32 |
+| **Intros / matchmaking of any kind** | NY GBL **§394-c** regulates "social referral service" contracts — matching members for dating — with a **$1,000 contract cap**, a **2-year term limit**, a 3-day cooling-off, and a ban on requiring ancillary services. CA Civil Code **§1694** parallels it for services delivered via introductions or exchange of contact details. Wing sits outside both **only** because it never matches or introduces anyone: it advises a client about a match they found themselves. Adding one introduction feature imports the entire regime, and the $1,000 cap lands on any premium tier. | `MARKET-ANALYSIS.md` §25 |
+| **AI-generated or AI-assisted answers** | The only two assets that score as sustained advantages on VRIO are the defect-rate dataset and the trust brand; AI-in-the-loop collapses the second. In this category specifically, ~60% of daters believe they have already received AI-written messages and "chatfishing" search interest is up 5,000% — being caught quietly generating answers is a brand-ending event, not a margin optimisation. Embeddings stay excluded for the separate reason in §9.7 (`pg_trgm` is sufficient). | `MARKET-ANALYSIS.md` §7, §22, §36 |
+
+**Wallet/credits stays out** for a different reason than the others: §4.8's per-coach prepaid quantities already capture the payment-cost benefit (see §4.9) without creating a stored-value balance, which is an escheatment and consumer-protection surface in several states. The arithmetic did not justify a wallet; it justified a **default**.
 
 ---
 
