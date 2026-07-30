@@ -213,8 +213,9 @@ on turn:
 
     update(store, perception)                            # state persists
 
-    skill = select(perception)                           # ordinary code
+    skill   = select(perception)                         # deterministic, ≤12 skills
     load(skill)                                          # progressive disclosure
+    tactics = retrieve(stage, signals, n=2..4)           # ~150 tok each, SKILLS.md §14
 
     branches = candidate_outputs(skill, goal_belief)
     if branches diverge:         → FORK  (the choice is the question)

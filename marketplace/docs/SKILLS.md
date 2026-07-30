@@ -179,10 +179,110 @@ Every stage of that loop is impossible for the current category. They discard th
 
 **That is the argument for skills being fundamental.** Not that they save tokens — that they are the only component in the architecture where accumulated learning can be written down, versioned, tested, and shipped.
 
-## 13. Summary
+---
+
+# PART IV — TACTICS, AND SELECTION AT SCALE
+
+## 13. Skills don't scale flat — and the threshold is low
+
+The instinct that skill selection is the same problem as tool selection is correct, and the research puts a hard number on it:
+
+| Finding | Source |
+|---|---|
+| **After 10–15 tools, selection accuracy drops** | [webscraft](https://webscraft.org/blog/tool-rag-scho-robiti-koli-u-agenta-zabagato-instrumentiv?lang=en) |
+| At 49–741 tools, performance drops **7–85%** | [arXiv 2606.17519](https://arxiv.org/pdf/2606.17519) |
+| At 527 tools, **retrieval errors cause ~50% of all agent failures** | [arXiv 2606.17519](https://arxiv.org/pdf/2606.17519) |
+| Two-level hierarchy — route to an agent, which selects from its own subset — scales to thousands | [Tool-to-Agent Retrieval](https://arxiv.org/pdf/2511.01854) |
+
+**The current registry is already at the edge.** Nine stage skills plus `roast`, `screening` and `the-call` is eleven. Adding a library of technique skills to a flat registry would cross the threshold immediately and make *selection* the dominant failure mode — retrieval errors are half of all failures at scale, which means the thing that breaks is not the advice but the choosing.
+
+## 14. Two tiers: skills and tactics
+
+So split the abstraction rather than growing one registry.
+
+| | **Skill** | **Tactic** |
+|---|---|---|
+| Is | A playbook for a *situation* | One *technique*, with conditions |
+| Scope | Stage-scoped | Cross-cutting |
+| Size | ~800–5,000 tokens | **~100–200 tokens** |
+| Count | **Hard cap: 12** | Unbounded — hundreds is fine |
+| Selected by | **Deterministic** — perception → stage → skill | **Retrieved** by relevance, within the active skill |
+| Loaded | On trigger | 2–4 injected into the skill's context |
+
+This is precisely the two-level hierarchy that scales: the **stage skill is the "agent"** and **tactics are its "tools."** Level 1 stays deterministic and small, so it never suffers retrieval error at all. Level 2 can grow indefinitely because tactics are never selected from a flat pool — only from those tagged for the active stage.
+
+```
+perception → stage → skill (deterministic, ≤12)
+                       └→ retrieve 2–4 tactics tagged for this stage + signals
+```
+
+**Tactic anatomy** — small enough that a few fit in the budget:
+
+```markdown
+---
+id: specific-day
+stages: [rapport, escalation-ready]
+conditions: reciprocity=mutual, open_loops=0
+evidence: strong
+---
+Propose one specific day, not "sometime" or a choice of three.
+Options read as scheduling; one day reads as a decision.
+Fails if: she has already said she's busy this week.
+```
+
+Note the `conditions` field. That is what makes retrieval precise rather than fuzzy — tactics are filtered by state before relevance ranking, so the candidate pool at any moment is small.
+
+## 15. Authoring: AI-assisted, human-gated, evidence-tagged
+
+Authoring skills and tactics with AI help is right, and it is exactly the workflow the prompt-as-product tooling describes: **draft with AI → human edits → eval set attached → versioned → A/B tested before promotion.** The AI drafts; it does not decide what ships.
+
+**Three sources, in descending order of trust:**
+
+**1 · The research base.** Better than the practitioner canon because it is conditional and mechanistic. Some findings that are immediately encodable as tactics:
+
+| Finding | Source |
+|---|---|
+| **Reciprocal turn-taking disclosure beats extended one-sided disclosure** — alternating outperforms monologue, even measured at the end of the interaction | [ScienceDirect](https://www.sciencedirect.com/science/article/abs/pii/S002210311300070X) |
+| **Moderate self-disclosure is optimal** in online dating — not maximum | [Current Psychology](https://link.springer.com/article/10.1007/s12144-026-09787-y) |
+| **Positive humour beats negative humour** — and the difference shows up for long-term intentions specifically | [In-Mind](https://in-mind.org/article/funny-thing-happened-way-romance-how-humor-influences-romantic-relationship-initiation) |
+| **Self-deprecating humour works for high-status people and not for low-status ones** | [Langley & Shiota](https://journals.sagepub.com/doi/10.1177/01461672231202288) |
+| **Attitude similarity is among the most potent predictors of attraction** | [In-Mind](https://in-mind.org/article/funny-thing-happened-way-romance-how-humor-influences-romantic-relationship-initiation) |
+
+That fourth one is the kind of thing only a conditional tactic can carry: self-deprecation is good advice for a confident user and actively harmful for an insecure one. A monolithic prompt cannot express that. A tactic with a `conditions` field can.
+
+**2 · Your own outcome data** — the highest-trust source once it exists, and the only proprietary one (§4).
+
+**3 · Practitioner literature**, filtered. Which brings us to the filter.
+
+## 16. The filter: would it still work if she knew you'd read it?
+
+Pickup and seduction material is genuinely mixed, and the useful filter is mechanical rather than a matter of taste or vocabulary:
+
+> **Does the technique work by giving the user something real to say or do — or by exploiting a predictable reaction in someone who doesn't know it's being applied?**
+
+| Survives disclosure | Requires concealment |
+|---|---|
+| "Propose one specific day, not three options" | Manufactured scarcity — fake busyness, delayed replies as tactics |
+| "Alternate disclosure; don't monologue" | Negging — undermining her confidence so she seeks approval |
+| "Tell a story instead of asking a third question" | Manufactured jealousy, false social proof |
+| "Positive humour, not negative" | Anything designed to overcome a stated no |
+
+**This is an effectiveness filter as much as an ethical one, which is why it's the right one to use.** Techniques that require the target's ignorance are *fragile*: they fail if she has seen them before, if the user executes clumsily, or if she simply asks what he's doing. Wing's users are amateurs executing under emotional stress — fragile techniques are bad engineering for that population regardless of anything else.
+
+And the evidence already collected points the same way. Reviews of the incumbent category describe output that is *"clever, performative, slightly too smooth — exactly the trying-to-impress energy that gets ignored."* The commitment-stage finding says a genuine, vulnerable, self-written message beat both AI and a professional coach. **The seduction canon's characteristic register is the one the data says underperforms.** Negative humour losing to positive humour is the same result arriving from the academic side.
+
+So the boundary is not squeamishness about tactical advice — tactical advice is the product, and bland therapy-speak is the failure mode the reviews are complaining about. **Be tactical. Just prefer the tactics that survive the other person knowing about them**, because those are the ones that keep working.
+
+Two hard stops remain, already specified: **anything aimed at overcoming a stated refusal routes to safety** (`AGENT-HARNESS.md` §14, disallowed intents as reachable enum values), and **roast the user's own material, never a person** (`AGENT-LOOP.md` §9).
+
+## 17. Summary
 
 **Skills are not a context-budget trick.** Progressive disclosure independently improves task accuracy 15–20%; skills are the only sane home for domain knowledge; they are the unit of iteration, so improving the product means editing a text file with an attached eval; they let a domain expert improve quality without an engineer; and they are the **write target for outcome data**, which is what turns a data flywheel into a product.
 
 **They survive model upgrades.** A prompt advantage is erased by a better model. Forty outcome-validated playbooks are amplified by one.
 
 **The discipline that keeps them honest:** four tests to earn a skill, no skill without an eval, detection is never a skill, and `the-call` is the only cross-cutting override — because "send nothing" must be able to beat every skill that wants to send something.
+
+**And they don't scale flat.** Selection accuracy drops past 10–15 items and retrieval errors become ~50% of failures at scale, so the registry splits in two: **≤12 stage skills chosen deterministically**, and an **unbounded library of ~150-token tactics retrieved within the active skill**. Level 1 never suffers retrieval error because it never retrieves; level 2 grows indefinitely because it only ever selects from tactics tagged for the current stage and state.
+
+**Author with AI, gate with humans, tag with evidence** — and filter source material on whether a technique **survives the other person knowing about it**. That test is mechanical rather than moral, and it selects for robustness: techniques requiring concealment break when the user executes them badly, which amateurs under stress reliably do.
