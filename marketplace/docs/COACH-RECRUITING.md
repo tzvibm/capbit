@@ -8,6 +8,9 @@ Goal: **8 committed coaches in 14 days**, from ~40 contacts. Companion to `GO-TO
 
 ---
 
+> **⚑ PARKED — the product pivoted to a standalone agentic coach with no human marketplace. See `AGENT-PRODUCT.md`.**
+> This document's research stands and is still cited elsewhere: market sizing, competitor pricing, regulatory findings, unit economics. What no longer applies is the assumption that coaches are the product. The human layer may return later as a premium verification tier rather than as the business.
+
 ## 1. The finding that reorders the plan
 
 The research turned up something better than a creator list.

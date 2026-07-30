@@ -10,6 +10,9 @@ Companion to `GO-TO-MARKET.md` (business model and segments) and `MARKETING-PLAN
 
 ---
 
+> **⚑ PARKED — the product pivoted to a standalone agentic coach with no human marketplace. See `AGENT-PRODUCT.md`.**
+> This document's research stands and is still cited elsewhere: market sizing, competitor pricing, regulatory findings, unit economics. What no longer applies is the assumption that coaches are the product. The human layer may return later as a premium verification tier rather than as the business.
+
 # PART I — WHAT MARKET IS THIS, ACTUALLY
 
 ## 1. The market Wing is in is not the market it sounds like

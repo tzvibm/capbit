@@ -2,6 +2,9 @@
 
 **July 2026 · Design assessment of the two-thread architecture**
 
+> **⚑ PARKED — the product pivoted to a standalone agentic coach with no human marketplace. See `AGENT-PRODUCT.md`.**
+> This document's research stands and is still cited elsewhere: market sizing, competitor pricing, regulatory findings, unit economics. What no longer applies is the assumption that coaches are the product. The human layer may return later as a premium verification tier rather than as the business.
+
 ## 0. The proposal, restated
 
 - A **Matches** surface where each match has its own thread, **AI-maintained**, which the user talks to.

@@ -10,6 +10,9 @@ That ratio is the headline. The existing design already answered most of what th
 
 ---
 
+> **⚑ PARKED — the product pivoted to a standalone agentic coach with no human marketplace. See `AGENT-PRODUCT.md`.**
+> This document's research stands and is still cited elsewhere: market sizing, competitor pricing, regulatory findings, unit economics. What no longer applies is the assumption that coaches are the product. The human layer may return later as a premium verification tier rather than as the business.
+
 ## 1. The audit
 
 | # | Finding | What the design already does | Verdict |
