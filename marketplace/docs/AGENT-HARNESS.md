@@ -175,6 +175,23 @@ Keep it small and stable. The harness guidance is a compact set of high-leverage
 
 Eight primitives. Still no `send_message` and nothing that touches a dating app — the agent hands text to the *user*, who decides.
 
+## 11.5 Context budget
+
+Full reasoning and the competitor teardown are in `CONTEXT-STRATEGY.md`. The operative rules:
+
+| Component | Budget | Cached |
+|---|---|---|
+| System prompt + tools | ~2,000 | yes |
+| `you/` distilled memory | ~1,000 | yes |
+| This match's state | 800 | no |
+| Screenshot facts | 300 | no |
+| Recent turns | 800 | no |
+| **Total** | **~4,900** | ~60% |
+
+**One match per context, ever** — enforced in the query layer, not by prompt instruction. Chroma's context-rot study across 18 frontier models found that **semantic similarity drives decay more than length does**, and a dating corpus is unusually self-similar: every fragment is a plan to meet, a pet, a job, a scheduling message. Two matches in one window produces confident cross-attribution — Jamie's dog reported as Priya's — which is silent and fatal to the product's core claim that someone was paying attention.
+
+**Distil, never truncate.** The middle of the window is already where lost-in-the-middle costs 20–30 points; cutting it is the worst available option. Assert the budget in CI, or it becomes a suggestion.
+
 ## 12. State transitions as messages, not prompt rewrites
 
 A specific and expensive mistake to avoid. The caching guidance: *"stable prompt prefix, append-only history, fixed tool catalog per session, and state transitions modeled as messages or mode flags rather than prompt rewrites."*
