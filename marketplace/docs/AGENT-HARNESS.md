@@ -162,6 +162,8 @@ That last column entry matters more than it looks. **Logging the stopping reason
 
 Keep it small and stable. The harness guidance is a compact set of high-leverage primitives; the caching guidance is that a **fixed tool catalog per session** is part of what keeps the prefix stable.
 
+Job-type playbooks are **skills**, not tools — indexed at ~40 tokens each and loaded on trigger (`AGENT-MODEL.md` §2). Stuffing eight playbooks into every request roughly doubles the context and pushes it into the degradation range; progressive disclosure is what makes a multi-job-type product fit the budget at all.
+
 | Tool | Contract | Notes |
 |---|---|---|
 | `read_screenshot(id)` | → `{turns[], latencies[], length_ratio, initiator, open_question}` | **Structured facts only.** Never "describe her." No appearance, no inferred traits |
