@@ -171,8 +171,9 @@ Keep it small and stable. The harness guidance is a compact set of high-leverage
 | `write_memory(scope, k, v)` | scope-checked write | Tool guardrail rejects third-party trait content (§13) |
 | `offer_handoff(job_type, reason)` | → renders the purchase card | The revenue moment. `reason` is shown to the user |
 | `escalate_safety(category)` | → freezes thread, admin ticket | Hard stop. Not advice |
+| `draft_message(stage, options_n)` | → 1–3 labelled drafts | **Stakes-gated (§13). Always labelled AI-authored** |
 
-Seven primitives. No `send_message`, no `draft_reply`, no `generate_opener` — **the absence is the product.**
+Eight primitives. Still no `send_message` and nothing that touches a dating app — the agent hands text to the *user*, who decides.
 
 ## 12. State transitions as messages, not prompt rewrites
 
@@ -193,11 +194,19 @@ OpenAI's SDK structures these as input, output and tool guardrails. Anthropic's 
 - `write_memory` enforces the per-match token cap
 - `offer_handoff` rate-limited — an agent that offers a purchase every turn is a salesman
 
-**Output guardrail — the one that matters:**
+**Output guardrails — three, and none of them is a ban on drafting:**
 
-> **No send-ready text.** If the output contains anything that could be pasted into a dating app, block and regenerate.
+An earlier version of this spec required *no send-ready text at all*. That was wrong (`MATCH-THREADS-DESIGN.md` §3): it rested on a ToS reading that doesn't hold and on a stated preference that `MARKET-ANALYSIS.md` §7 had already discounted, and it withheld the one thing AI measurably does better than the average person. What replaces it:
 
-Implement deterministically first — quoted blocks, second-person imperatives followed by message-shaped content, "try saying", "send this", "something like" — then a cheap classifier for the rest. This must be a **CI gate at 100%**, not a monitored metric. It is the constraint that keeps the whole product on the right side of `ARCHITECTURE.md` §13.1, and a single regression makes Wing the thing it is positioned against.
+| Guardrail | Rule | Gate |
+|---|---|---|
+| **Provenance** | Every send-ready block carries its author. AI drafts render in the AI register and say so | **100%, CI** |
+| **No coach impersonation** | The agent never claims to be a person, never uses a coach's name, never implies human authorship | **100%, CI** |
+| **Stakes gate** | `draft_message` is refused at `stage='commitment'` unless the user has explicitly asked after being offered the handoff | 100%, CI |
+
+The first two are the absolute ones, and they are cheap and deterministic — a rendering property plus a string check, not a model call. They preserve the only thing the old prohibition was protecting: that when Wing says *a person read this and will tell you why*, the claim is true and the user can verify which is which.
+
+The stakes gate is soft by design. It **defaults** to offering a coach at the commitment stage — because that is where a genuine self-written message beat both AI and a professional — but a user who asks again gets a draft. Refusing a paying adult twice is paternalism, and it is not what the data supports; the data supports a *default*, not a lock.
 
 ## 14. Safety and goal elicitation are the same surface
 

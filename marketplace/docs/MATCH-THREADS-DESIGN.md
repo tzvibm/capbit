@@ -9,7 +9,7 @@
 - A **Coaches** surface where human threads live, as today.
 - A **handoff**: any match thread can be sent sideways to a coach for real help. The match then exists in both places — maintained by the AI, visible to the coach.
 
-**Verdict: this is the strongest version of the product proposed so far, and it should be adopted — with one hard constraint and one economic correction.** It solves the problem none of the previous designs solved, which is acquisition. The constraint is that the AI must never produce send-ready text (§3). The correction is that the AI thread cannot be free (§8).
+**Verdict: this is the strongest version of the product proposed so far, and it should be adopted — with one design rule and one economic correction.** It solves the problem none of the previous designs solved, which is acquisition. The rule is **provenance plus stakes-gating on drafting**: the AI writes ready-made replies, every send-ready block is labelled with its author, and the AI's readiness to draft decays as the stakes rise (§3). The correction is that the AI thread cannot be free (§7).
 
 ---
 
@@ -47,28 +47,58 @@ And note where dating sits on the CX curve: nuanced, subjective, emotionally loa
 
 ---
 
-## 3. The one constraint: the AI never produces send-ready text
+## 3. Drafting: the AI writes ready-made replies, gated by stakes
 
-This is the line, and crossing it collapses the product into rizz app #21.
+**An earlier version of this section said the AI must never produce send-ready text. That was wrong on both grounds I gave, and the correction changes the product for the better.**
 
-**Hinge already drew it, deliberately, with far more resources.** Prompt Feedback "doesn't tell the dater exactly what to say, or provide suggested language" — it coaches through editing, guided by their PhD behavioural scientists, with three tiers (*Great Answer* / *Try a Small Change* / *Go a Little Deeper*). Commentary noted it is "distinct from AI services that write the message for you" ([Hinge](https://hinge.co/newsroom/prompt-feedback), [DatingNews](https://www.datingnews.com/apps-and-sites/hinge-releases-prompt-feedback-ai-tool/)).
+### 3.1 The two arguments I made, and why they fail
 
-If Hinge — with every commercial incentive to ship a generator to 2M payers — chose coaching over prescribing to protect authenticity, that is the strongest available precedent for the same call here. Add the brand arithmetic: ~60% of daters believe they have received AI-written messages and roughly 80% call it a dealbreaker. A product that generates the message is on the wrong side of the norm it should be selling against.
+**Terms of service — simply incorrect.** Wing never touches a dating app's API. A user choosing to paste text into Hinge is the user's action under the user's own account, exactly as it is when they paste from ChatGPT. Searching for enforcement found **none**: 20+ AI dating assistants operate openly, several in the App Store's top-five downloaded dating apps, and there is no record of Match Group sending a cease-and-desist to any of them. The ToS constraint that genuinely exists is the one in `AI-LANDSCAPE.md` §7 — an *agent acting inside* someone's account — and that remains excluded. Generating text a person chooses to send is not that.
 
-So, precisely:
+**Brand — inconsistent with my own analysis.** `MARKET-ANALYSIS.md` §7 concluded that the anti-AI norm is a **stated** preference while revealed preference funds the AI apps, and explicitly warned: *"do not build the business on the assumption that people will pay a premium to avoid AI."* Then I built a hard product constraint on exactly that assumption. The Hinge precedent is also weaker than I presented it: **Hinge is a platform protecting its own inventory from AI slop.** Wing is a tool the user brings. Different incentives, so it isn't the analogy I claimed.
 
-| The match AI **does** | The match AI **never does** |
-|---|---|
-| Maintain state: who, what was tried, what happened, when | Write a message to send |
-| Ask clarifying questions before anything else | Offer a copy-paste block |
-| Name patterns: *"that's three questions in a row"* | Rewrite the user's draft into its own words |
-| Structure the situation so it's legible | Speak as the user |
-| Say *"this one needs a person"* and offer the handoff | Claim to be a coach |
-| Help the user find **their own** words | Assess the match's personality or looks |
+### 3.2 What the performance data actually says
 
-The user's phrase was that the AI "formats response." Read as **formatting the situation** — structuring what's happening so both the user and later a coach can see it — that is exactly right and is the whole value. Read as *formatting a reply to send*, it is the one thing that must not ship.
+And the data says withholding drafts removes the thing AI is measurably best at:
 
-**Test for any proposed AI feature:** if the output could be pasted into a dating app, a human wrote it or it doesn't exist.
+| Stage | Finding | Source |
+|---|---|---|
+| **Opening message** | AI-generated openers got **60% positive response vs 48% for an average person** | AXE-commissioned study, via [Anketta](https://anketta.app/blog/ai-messaging-assistants-2026) |
+| Opening, personalised vs generic | 72% vs 18% response | [SmoothRizz](https://www.smoothrizz.com/blog/we-analyzed-4381-ai-dating-requests) |
+| **Deeper in the conversation** | "AI's advantage disappeared as conversations got deeper" | [Anketta](https://anketta.app/blog/ai-messaging-assistants-2026) |
+| **Commitment stage** (asking someone out) | "a genuine, vulnerable human message beat **both AI and a professional dating coach**" | [Anketta](https://anketta.app/blog/ai-messaging-assistants-2026) |
+
+**Provenance caveat, stated plainly:** the 60/48 figure is from a brand-commissioned study and the 72/18 and 340% figures are from vendor content marketing. None is peer-reviewed. Treat the *shape* as credible — AI strong at openers, decaying with depth — and treat the specific percentages as indicative. This is exactly the kind of claim Wing should verify itself using the eval method in `AGENT-HARNESS.md` §17.
+
+### 3.3 The rule that replaces the prohibition
+
+Not *"the AI never drafts."* Instead: **the AI's willingness to draft decays as the stakes of the message rise** — which is the same stakes-tiering that answers the cannibalisation question in §3.5.
+
+| Stage | AI behaviour | Why |
+|---|---|---|
+| **Opener** | **Drafts freely.** Multiple options, copy-ready | Measurably better than the average person at this stage. Withholding it is a self-inflicted handicap on the tier that has to carry acquisition |
+| **Mid-conversation** | Drafts, and offers the handoff alongside | AI advantage decays here; the user should be able to see both paths |
+| **Commitment / high-stakes** — asking out, defining things, hard conversations | **Offers the handoff first, drafts only if asked** | The data says a genuine human message beats AI *and* a coach here. The correct output is not a better draft; it's a push to write something real |
+| **When a hold is right** | Says send nothing, drafts nothing | The Call register. `UI-DESIGN.md` §4.7 |
+
+Note that the commitment-stage finding **retroactively vindicates The Call.** If a vulnerable message the user writes themselves outperforms both a machine and a professional, then at the highest-stakes moment the product's best possible output is *"don't let me write this one — here's what to say in your own words, and here's why."* That is a coaching move, not a generation move, and it is now empirically supported rather than merely tasteful.
+
+### 3.4 What still holds — provenance, not prohibition
+
+One narrow rule survives, and it costs nothing:
+
+> **Every send-ready block is labelled with who wrote it.** AI drafts say AI. Coach answers say the coach's name.
+
+This is not a capability restriction. It preserves the only thing the prohibition was actually protecting — that when Wing says *a person read this and will tell you why*, that claim is true and checkable — while letting the AI tier be as good as it can be. Two corollaries: **the AI never presents itself as a coach**, and marketing never implies a human wrote something a machine drafted.
+
+### 3.5 Why this doesn't cannibalise the coaches
+
+The real objection to AI drafting was never ethics; it was *why pay $5 if the AI does it free.* Framed correctly, it dissolves — **because the two tiers were never selling the same thing:**
+
+- **AI: volume and speed.** Twenty routine replies a week, instantly, for a few dollars a month. A coach at four answers an hour and $18/hr **cannot economically serve that demand at all** (`MARKET-ANALYSIS.md` §34). The AI is not taking coach revenue; it is serving a tier that never had a supplier.
+- **Coach: the ones that matter.** The person you actually like. The date decision. Whether he's worth your Thursday. The profile. High-stakes, low-frequency, where the commitment-stage data says human judgment still wins.
+
+That is tiering on **stakes**, which is the same axis the JustAnswer analysis pointed at (`AI-LANDSCAPE.md` §30) — urgency and consequence are what make someone pay a person. Cannibalisation only happens if you let the AI compete on the high-stakes tier, and §3.3's decay rule is precisely what stops that.
 
 ---
 
@@ -292,7 +322,7 @@ This is roughly a **40–60% larger build** than the specified marketplace, and 
 
 ## 10. What I would cut from the proposal
 
-- **Any AI-authored message text.** §3. Non-negotiable, and the reason the rest is viable.
+- **Unlabelled drafts, and any coach impersonation.** §3.4. Drafting itself stays — what's cut is ambiguity about who wrote it. These are the two absolute rules.
 - **Numeric photo scores.** §6. Free elsewhere and beaten by a neural net.
 - **A free unlimited AI tier.** §7. Capped trial instead.
 - **AI in more than one job type at launch.** Convo rescue only. It is the highest-frequency, most deadline-bearing job (`AI-LANDSCAPE.md` §22, urgency-first), so it is where the funnel logic gets tested honestly.
@@ -370,7 +400,7 @@ This strengthens the §7 recommendation considerably. The AI tier being paid is 
 
 **Adopt it.** The two-thread architecture with typed job UI and a coach handoff is the first design in this project that answers the acquisition question, and it makes several previously-separate problems disappear at once — the cold purchase decision, the coach briefing, and where saved advice lives. Its largest effect is on go-to-market: **the product works with zero coaches, so marketing goes single-sided and supply gets recruited against proven demand** (§11).
 
-**Three conditions.** The AI never writes anything sendable (§3); the AI tier is **paid or hard-capped, never free** (§7, §11.2); and match memory stays state rather than portraiture (§10).
+**Three conditions.** Drafts are **labelled and stakes-gated** rather than withheld (§3); the AI tier is **paid or hard-capped, never free** (§7, §11.2); and match memory stays state rather than portraiture (§10).
 
 The middle condition carries more weight than it first appears. It began as a way to cover inference cost, but §11.2 shows it is also the only revenue line per user large enough to fund acquisition at all — ~$61 per payer against $4.50 per marketplace transaction. **A free AI tier does not just leak money; it forecloses the channel the whole design exists to open.**
 

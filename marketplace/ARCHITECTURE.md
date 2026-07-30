@@ -656,20 +656,20 @@ These were already out of scope on taste. `docs/MARKET-ANALYSIS.md` found the me
 | **Intros / matchmaking of any kind** | NY GBL **§394-c** regulates "social referral service" contracts — matching members for dating — with a **$1,000 contract cap**, a **2-year term limit**, a 3-day cooling-off, and a ban on requiring ancillary services. CA Civil Code **§1694** parallels it for services delivered via introductions or exchange of contact details. Wing sits outside both **only** because it never matches or introduces anyone: it advises a client about a match they found themselves. Adding one introduction feature imports the entire regime, and the $1,000 cap lands on any premium tier. | `MARKET-ANALYSIS.md` §25 |
 | **AI in the answer path** | The only two assets that score as sustained advantages on VRIO are the defect-rate dataset and the trust brand; AI-in-the-loop collapses the second. In this category specifically, ~60% of daters believe they have already received AI-written messages and "chatfishing" search interest is up 5,000% — being caught quietly generating answers is a brand-ending event, not a margin optimisation. Embeddings stay excluded for the separate reason in §9.7 (`pg_trgm` is sufficient). | `MARKET-ANALYSIS.md` §7, §22, §36 |
 
-**The AI line, stated precisely.** The exclusion above is about the *answer path*, not about the word "AI". The line has been drawn twice and the second version is narrower and better (`docs/MATCH-THREADS-DESIGN.md` §8):
+**The AI line, stated precisely.** The exclusion above is about the *answer path*, not about the word "AI". The line has been drawn three times; **the current and correct version is provenance plus stakes-gating**, not prohibition (`docs/MATCH-THREADS-DESIGN.md` §3).
 
-> **AI must never produce text that could be pasted into a dating app.**
+> **The AI may draft send-ready text. Every send-ready block is labelled with who wrote it, and the AI's willingness to draft decays as the stakes rise.**
 
-| | Permanently forbidden | Permitted, gated on M4 |
+| Stage | AI drafts? | Rationale |
 |---|---|---|
-| What it produces | A message, opener, reply, or any send-ready block | State, patterns, clarifying questions, a coach briefing |
-| Who may read it | — | The client **and** the coach |
-| Whose words reach a dater | **Only a human's, always** | — |
-| If it's wrong | A dater is chatfished by the platform | The reader notices and disregards it |
+| Opener | **Yes, freely** | AI openers measurably outperform the average person (~60% vs 48% positive response) |
+| Mid-conversation | Yes, with the handoff offered alongside | Measured AI advantage decays with conversational depth |
+| Commitment / high-stakes | **Handoff first; drafts only if asked** | At this stage a genuine self-written message beat both AI *and* a professional coach |
+| A hold is correct | **No — and neither does a human.** The Call register | `docs/UI-DESIGN.md` §4.7 |
 
-The risk was never "AI touches the client." It was **a dater receiving machine-written words while believing they are human.** A thread that structures a situation and refuses to write the message does not create that risk; a generator does, whoever it faces. The precedent is Hinge's Prompt Feedback, which "doesn't tell the dater exactly what to say, or provide suggested language" — a deliberate choice by a company with 2M payers and every incentive to ship a generator.
+Two rules are absolute: **the AI never presents itself as a coach**, and marketing never implies a human wrote something a machine drafted. That is what keeps the claim *"a person read this and will tell you why"* true and checkable, which was the only thing the earlier prohibition was actually protecting.
 
-**Test for any proposed AI feature: if the output could be pasted into a dating app, a human wrote it or it does not exist.**
+**Superseded reasoning, recorded so it isn't re-argued:** the previous rule was "AI must never produce text that could be pasted into a dating app," justified on dating-app terms of service and on the anti-AI norm. Both fail. Wing never touches a dating app's API, so a user pasting text is the user's own action — and no enforcement against any of the 20+ operating AI dating assistants exists. And `docs/MARKET-ANALYSIS.md` §7 had already concluded the anti-AI norm is a *stated* preference that revealed preference contradicts, with an explicit warning not to build on it. The genuine ToS constraint is narrower and unchanged: **an agent acting inside a user's dating account** stays permanently excluded (`docs/AI-LANDSCAPE.md` §7).
 
 Context assembly is the strongest available fix for the labour ceiling in `MARKET-ANALYSIS.md` §34, because a coach's time on a repeat client goes into reconstruction rather than judgment: six answers an hour instead of four moves a coach from $18/hr to $27/hr at an unchanged $5 price. It is **not an M1 change** — see the sequencing in `MATCH-THREADS-DESIGN.md` §9, which puts `matches` + `handoffs` with **no AI at all** at M2.5 as the cheap experiment inside the expensive idea.
 
