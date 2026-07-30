@@ -550,7 +550,7 @@ The business is exactly these five propositions. Each has a number and a date.
 
 | # | Bet | Falsified if | Read by |
 |---|---|---|---|
-| **1** | Human judgment beats frontier AI on real threads | Blind A/B: coach answers do not beat model answers on recipient reply rate | Week 6 |
+| **1** | Human judgment beats frontier AI on real threads | Blind A/B: coach answers do not beat model answers on recipient reply rate — **method in `AGENT-HARNESS.md` §17** | Week 6 |
 | **2** | People pay for judgment despite a $5/week unlimited substitute | Rung-1 → rung-2 conversion <10% | Day 60 |
 | **3** | The need recurs often enough to matter | Segment A 30-day repeat <25% (already the plan's own tripwire) | Day 60 |
 | **4** | Coaches bring their own audiences | Coach-sourced share of transactions <50% | Day 90 |

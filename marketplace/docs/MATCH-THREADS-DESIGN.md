@@ -283,8 +283,10 @@ This is roughly a **40–60% larger build** than the specified marketplace, and 
 | **M0–M2** | Unchanged. Marketplace, coach threads, metering, delivery |
 | **M2.5** | `matches` + `handoffs`, **no AI at all** — matches as user-created labels, manual context, "attach this match" on purchase. Tests whether match-scoping helps *before* paying for inference |
 | **M3** | Reputation, queue, recourse (unchanged) |
-| **M4** | The AI match thread, capped trial, one job type only (convo rescue), retrieval from day one |
+| **M4** | The AI match thread, capped trial, one job type only (convo rescue), retrieval from day one — harness spec in **`AGENT-HARNESS.md`** |
 | **M5** | Remaining job types with typed UI |
+
+**Two pieces of the agent can be tested at M2.5 with no AI at all** (`AGENT-HARNESS.md` §19): the goal schema is ordinary code, and `ask_choice` with hand-written questions on a hand-written decision tree can be trialled with **human coaches answering**. That establishes whether structured goal elicitation actually improves advice before any inference machinery is built.
 
 **M2.5 is the cheap experiment inside the expensive idea.** Match-scoping, the handoff, and typed job UI deliver most of the structural benefit — better purchase context, advice that lives somewhere, coaches who arrive briefed — with **zero inference cost and no AI risk**. If match-scoping doesn't lift conversion or repeat purchase with humans doing the work, the AI layer would not have saved it.
 
