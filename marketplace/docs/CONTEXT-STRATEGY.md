@@ -24,6 +24,31 @@ Answers up front:
 | **Roast** | — | AI scoring + human expert review | Profile-scoped, not conversational | N/A |
 | **Wingman.live** | Minor | **"Keeps each conversation in its own memory bank for better follow-ups"**; "memory-aware chat support" ([TextVibe](https://textvibe.app/blog/best-dating-text-helper-apps/)) | Unclear | **Yes — the only one** |
 
+## 1.5 "Do they maintain thread context?" — three different questions
+
+Calling these products "stateless" is imprecise and undersells them. There are three distinct senses of *thread context*, and the category scores very differently on each.
+
+| Sense | Rizz et al. | Notes |
+|---|---|---|
+| **1 · Within-request context** — does the model see the conversation? | **Yes, richly** | The screenshot *is* the thread. The model sees who said what, order, lengths, often timestamps. "RIZZ AI chat processes conversation history to understand tone, context, and the best response approach" |
+| **2 · Persisted history** — is anything saved between sessions? | **Sometimes, as an archive** | Rizz has "History Tracking that allows you to save and review your past conversations to learn what works best" — framed for *the user* to review. Some variants explicitly save nothing at all ("does not save any chat history or screenshots"), so it varies by build |
+| **3 · Per-match identity and state** — does it know this is the same person as last Tuesday, what was advised, and whether it worked? | **No — nothing found** | Only Wingman.live claims "each conversation in its own memory bank." No evidence any major product links a screenshot to a persistent match record |
+
+**Sense 1 is the reason one prompt works well enough to build a $15M business, and it deserves respect.** A screenshot is a dense, well-structured context payload that the user assembles for free. Any claim that these products "have no context" is wrong.
+
+**Sense 3 is where the gap actually is**, and it is a narrower claim than I first made: they don't know it's the same person, they don't know what happened after the advice, and they know nothing outside the frame — goals, constraints, offline events, what the user is habitually bad at.
+
+**The evidence is stronger in the failure symptoms than the feature lists**, because nobody publishes their architecture. Independent reviews describe exactly what missing sense-3 state predicts:
+
+- output is "generic and repetitive — does not consistently sound like the user or **stay in tune with the specific match**"
+- suggestions read "clever, performative, slightly too smooth — exactly the trying-to-impress energy that gets ignored"
+- "in more complex or emotionally charged conversations, the AI's limitations become more apparent"
+- and the deepest one: **"even the better outputs do not teach you anything, which means six months later you are still dependent on the tool and still flat the moment a conversation goes somewhere unexpected"** ([GetMatches](https://getmatches.ai/en/blog/rizz-ai-review), [SwipeStats](https://www.swipestats.io/blog/rizz-app-review))
+
+That last line is the retention thesis written by a reviewer: no accumulation → no learning → dependency without improvement → churn. It is the precise gap `you/MEMORY.md` and the Insights surface target (`AGENT-PRODUCT.md` §3).
+
+**Honest caveat:** from outside it is not possible to confirm whether any of these apps feed saved history back into the prompt. What is observable is that the marketing describes a user-facing archive rather than a context mechanism, that no product exposes a per-match record, and that the reported failure modes match the absence of one.
+
 ## 2. What "goal" means to the market leader
 
 This is the finding worth sitting with. Rizz — 7.5M users, $15M revenue, top-five downloaded dating app — handles the user's goal as a **five-option tone selector**. Funny, sweet, bold, romantic, savage. Some variants offer Persuasive / Empathetic / Professional / Flirty / Explanatory, which reads like a generic writing-assistant menu that was never adapted for dating at all.
