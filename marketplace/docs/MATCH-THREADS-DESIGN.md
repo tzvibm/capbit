@@ -298,10 +298,78 @@ This is roughly a **40–60% larger build** than the specified marketplace, and 
 
 ---
 
-## 11. Summary
+## 11. What this does to go-to-market
 
-**Adopt it.** The two-thread architecture with typed job UI and a coach handoff is the first design in this project that answers the acquisition question, and it makes several previously-separate problems disappear at once — the cold purchase decision, the coach briefing, and where saved advice lives.
+This is the largest strategic consequence of the design, and it is worth stating separately because it invalidates the central thesis of `GO-TO-MARKET.md` §15.
 
-**Three conditions.** The AI never writes anything sendable; the AI tier is capped rather than free; and match memory stays state rather than portraiture.
+### 11.1 Three things it genuinely fixes
+
+**The cold start is gone.** A marketplace with no coaches is worthless; an AI match thread with no coaches is useful on day one. That is the difference between launching a two-sided market and launching a product. Every prior version of the plan required solving supply and demand simultaneously with a $200 budget.
+
+**Marketing becomes single-sided.** `GO-TO-MARKET.md` runs two parallel campaigns — Part II sells to six demand segments, Part III recruits six supply types, and §12 sequences them together. With a standalone AI product you market to users only, and recruit supply later against proven demand. That halves the GTM surface, and halving the GTM surface is worth more than any individual tactic in that document.
+
+**Recruiting inverts from a favour into an offer.** This is the underrated one. Today the coach pitch is *"join my empty marketplace."* After a demand base exists it becomes *"there are 3,000 people here asking for help with conversations; you can start earning this week."* `COACH-RECRUITING.md` was built around cold outreach to creators for their audiences. Demand-first means you no longer need their audience at all — which removes the dependency on the single channel `AI-LANDSCAPE.md` §2 found is already dominated by a $15M competitor.
+
+**Net effect:** the business stops being *"an audience-aggregation play disguised as a marketplace"* (`GO-TO-MARKET.md` §15) and becomes *a product with a human-services layer.* That is a materially better shape, and it is the right reason to adopt this design.
+
+### 11.2 The correction: paid acquisition still does not close on take rate
+
+Where the reasoning needs adjusting is the leap from "we only need user marketing" to "we can buy users." Performance marketing is a different claim from single-sided marketing, and the arithmetic does not support it *unless the AI tier is itself monetised.*
+
+Benchmarks, all 2026:
+
+| Input | Figure | Source |
+|---|---|---|
+| iOS CPI, Q1 2026 | **$5.84** (+19% YoY); Android $1.92 | [DigitalApplied](https://www.digitalapplied.com/blog/mobile-app-marketing-statistics-2026-install-data) |
+| Dating vertical CPI | **$4.00–$15.00** | [Admiral Media](https://admiral.media/mobile-app-marketing-benchmarks-2026/) |
+| Cost per **paying** user, general apps | **$20–$80** | [Insert Affiliate](https://insertaffiliate.com/blog/mobile-app-user-acquisition-cost-benchmarks/) |
+| TikTok CPI | $0.50–1.80 avg, target $1.50–5.00 | [TikAdTools](https://tikadtools.com/blog/tiktok-ads-app-install/) |
+| Dating **engaged-user** CAC vs install cost | **up to 33× higher** | [Linkrunner](https://linkrunner.io/blog/metrics-that-matter-dating-community-edition) |
+| Median Y1 RLTV per payer, North America | **$32** | [RevenueCat](https://www.revenuecat.com/state-of-subscription-apps) |
+| Expected LTV:CAC for subscription apps | **4:1 to 5:1** | [Foundry CRO](https://foundrycro.com/blog/ltv-cac-ratio-benchmarks-2026/) |
+
+Now run Wing's own numbers per acquired user:
+
+| Monetisation model | Revenue per acquired user | Realistic CAC | **LTV:CAC** |
+|---|---|---|---|
+| **Free AI, handoffs only** — 4% convert, $25 AOV, 18% take, 2 lifetime purchases | **$0.36** | $1.50–5.84 | **0.06–0.24 : 1** |
+| Same, wildly optimistic — 15% convert, 3 purchases | **$2.03** | $1.50–5.84 | **0.35–1.35 : 1** |
+| **Paid AI at $8/mo** — 8.2-month average life at AI-app churn, less inference, plus handoffs | **~$61 per payer** | $20–80 per payer | **0.76–3.05 : 1** |
+| **Organic / content-led** — either model | as above | **~$0** | — |
+
+Two conclusions, and the first is uncomfortable.
+
+**On marketplace take rate alone, paid acquisition is arithmetically closed — again.** This is `MARKET-ANALYSIS.md` §3 arriving through a new door. The problem is that an 18% take on a $25 transaction leaves **$4.50**, and you cannot buy a customer for $4.50 in a vertical where CPI is $4–15 because you are bidding against Match Group and Bumble, whose RPP is $17–33. Adding a free AI tier does not fix this; it makes it worse, because the free tier has a cost per user and most of those users never hand off (§7).
+
+**The AI subscription is the only revenue line per user large enough to fund paid acquisition.** At $8/month it produces ~$61 per payer against $4.50 for a marketplace transaction — a 13× difference — because subscription revenue is 100% yours while marketplace revenue is 18% of someone else's. That takes paid acquisition from *impossible* (0.24:1) to *marginal* (0.76–3.05:1), still short of the 4:1 investors expect but inside the range where careful targeting could work.
+
+So the accurate version of the strategic claim is:
+
+> **Single-sided marketing: yes, and it's the biggest win in this design. Paid single-sided marketing: only if the AI tier is a paid subscription, and even then it is marginal rather than proven.**
+
+This strengthens the §7 recommendation considerably. The AI tier being paid is not just about covering inference — **it is the difference between having a viable acquisition channel and not having one.**
+
+### 11.3 Two things that help, both already decided
+
+**Web-first is an acquisition advantage, not just a compliance constraint.** `ARCHITECTURE.md` §13.1 makes Wing a PWA because Apple's guideline 3.1.3(d) makes native async answers loss-making. The side effect is that Wing never pays the $5.84 iOS CPI, never enters the App Store install auction against Match Group, and never surrenders 30%. A constraint that looked purely defensive turns out to lower the cost of the one channel this design depends on.
+
+**Organic remains the channel, and `MARKETING-PLAN.md` was already right about this.** That document treats paid as "a measuring instrument, not a channel, until LTV is proven." Nothing here changes that — it sharpens *what* has to be proven. The number to establish before spending on ads is **subscription retention**, because that is the entire LTV, and AI apps churn ~30% faster than others (21.1% vs 30.7% annual). If Wing's AI tier retains at AI-app benchmark, paid is marginal. If it retains at 30%+, paid opens up.
+
+### 11.4 What to change in the other documents
+
+- **`GO-TO-MARKET.md` §15** — the audience-aggregation thesis is superseded *conditionally*. Add the amendment rather than rewriting: the thesis held while the marketplace was the only product; a monetised AI tier changes the shape to product-plus-services.
+- **`GO-TO-MARKET.md` §12** — sequencing can collapse from "supply and demand in parallel per segment" to demand-first, supply recruited against proven demand.
+- **`COACH-RECRUITING.md`** — the pitch changes from *audience-for-monetisation* to *clients-are-already-here*. The 10% coach-sourced rate stays, but it stops being the primary hook.
+- **`MARKETING-PLAN.md`** — unchanged in policy; add subscription retention as the metric that gates any paid spend.
+
+---
+
+## 12. Summary
+
+**Adopt it.** The two-thread architecture with typed job UI and a coach handoff is the first design in this project that answers the acquisition question, and it makes several previously-separate problems disappear at once — the cold purchase decision, the coach briefing, and where saved advice lives. Its largest effect is on go-to-market: **the product works with zero coaches, so marketing goes single-sided and supply gets recruited against proven demand** (§11).
+
+**Three conditions.** The AI never writes anything sendable (§3); the AI tier is **paid or hard-capped, never free** (§7, §11.2); and match memory stays state rather than portraiture (§10).
+
+The middle condition carries more weight than it first appears. It began as a way to cover inference cost, but §11.2 shows it is also the only revenue line per user large enough to fund acquisition at all — ~$61 per payer against $4.50 per marketplace transaction. **A free AI tier does not just leak money; it forecloses the channel the whole design exists to open.**
 
 **And the ordering doesn't change.** This design needs the AI to be genuinely useful and genuinely insufficient. That is a narrow band, it is exactly what bet 1 measures, and it is 30 threads and a week of work to find out. Everything here is downstream of that answer.

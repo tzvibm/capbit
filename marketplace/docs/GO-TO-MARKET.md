@@ -293,6 +293,12 @@ Track these separately from day one — a blended repeat rate will hide the real
 
 ## 15. The honest strategic summary
 
+> **⚑ CONDITIONALLY SUPERSEDED — see `MATCH-THREADS-DESIGN.md` §11.** Everything below is correct *while the marketplace is the only product*. The two-thread design changes the shape: an AI match thread is useful with **zero coaches**, which removes the cold start, makes marketing single-sided, and inverts the coach pitch from "join my empty marketplace" to "3,000 people here are already asking." The business becomes **a product with a human-services layer** rather than an audience-aggregation play.
+>
+> Two things do **not** change. Paid acquisition remains arithmetically closed on take rate alone — 18% of a $25 transaction is $4.50, against a $4–15 dating-vertical CPI in an auction against companies with $17–33 RPP. It becomes *marginal* (~0.76–3.05:1 versus a 4:1 benchmark) only if the AI tier is a **paid subscription**, which produces ~$61 per payer versus $4.50 per transaction. And organic stays the channel until subscription retention is proven, since AI apps churn ~30% faster than others.
+>
+> **Sequencing consequence:** §12 below can collapse from parallel supply-and-demand per segment to **demand-first, supply recruited against proven demand.**
+
 The business is **an audience-aggregation play disguised as a marketplace**. You cannot buy customers — the arithmetic forbids it — so every customer arrives through a coach who already had them. That single constraint dictates everything: the 10% coach-sourced take rate, distributed TikTok authorship instead of a brand account, supply-weighted recruiting, and sequencing by segment rather than blasting all six.
 
 The model is a ladder: **$4 buys the customer, packs and deliverables earn the margin, retainers fix the LTV.** Any decision that improves the $4 answer's margin at the expense of its conversion rate is a mistake.
