@@ -169,7 +169,7 @@ That second one is the highest-value inference in the system (it decides lean-in
 
 ## 8. The registry, routed by stage
 
-Skills are the *doing* layer, selected by perception, loaded on trigger.
+Skills are the *doing* layer, selected by perception, loaded on trigger. **`SKILLS.md` is the full treatment** — why they're the core abstraction rather than a token trick, skill anatomy with a worked example, what earns a skill, and precedence rules.
 
 | Skill | Fires at stage | Output mode |
 |---|---|---|

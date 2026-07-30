@@ -109,6 +109,8 @@ skills/
 
 Each skill declares its playbook **and its renderer**, so a photo lineup renders as a grid and a bio review as a diff. Adding a job type is adding a directory.
 
+**Skills are the core abstraction, not a context-budget device** (`SKILLS.md`). Progressive disclosure independently improves task accuracy ~15–20%; skills are the only versionable home for domain knowledge; they are the unit of iteration, so a domain expert improves the product by editing a text file with an attached eval rather than waiting on engineering; and critically they are the **write target for outcome data** — the place where *"callbacks beat fresh topics 1.6:1 across 4,000 stalled threads"* becomes product. A prompt advantage is erased by a better model; forty outcome-validated playbooks are amplified by one.
+
 ## 7. Subagents — and precisely what they are not for
 
 The research here is unhelpful and must be reported straight. **Naive self-critique does not work:** prompting a model to check its own work without external grounding *degrades* performance; absent external feedback LLMs largely cannot self-correct reasoning, and naive self-correction can make answers worse. Models **measurably favour their own output** in self-review ([SELF-INCORRECT](https://arxiv.org/pdf/2404.04298), [Zylos](https://zylos.ai/research/2026-04-10-llm-as-judge-production-agent-verification-2026/)).
