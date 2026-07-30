@@ -669,6 +669,16 @@ These were already out of scope on taste. `docs/MARKET-ANALYSIS.md` found the me
 
 **Why Wing is not a dating CRM.** MatchMGT and RosterNote already build durable AI-extracted dossiers on the people their users date. Wing's `matches` entity is deliberately a **thin label** — "which person is this about?" — and never a profile, because every screenshot contains a non-consenting third party and §9.2 forbids building a file on them. That constraint is not a limitation to engineer around; it is the reason Wing can be a trust brand and they cannot.
 
+**Memory is typed by data subject, not by task** (`AI-LANDSCAPE.md` §22). This is the rule that makes the previous paragraph enforceable in the schema rather than in a policy document, and it is not a compromise — GDPR Art. 6(1)(f) balancing weighs "the level of detail and comprehensiveness of the profile," so **accumulation depth is the legal variable**, and the deepest-accumulating document must be the one about the client.
+
+| Scope | Subject | Policy | Holds | Never holds |
+|---|---|---|---|---|
+| `you/<client_id>` | The client | **Accumulate freely, permanent** | Their voice, what advice worked, recurring patterns, goals, dealbreakers | — |
+| `artifact/<item_id>` | The client's own bio/photos | **Accumulate freely** | Version history, what changed and why, results per version | — |
+| `match/<match_id>` | **A third party** | **Capped, decaying** | Situation state, advice given, recorded outcome | Inferred traits, personality assessments, appearance, anything not needed for the question in front of the coach |
+
+The `you/` document is the coach briefing and the actual asset: a dossier on one match is worth something for three weeks, whereas a file that knows how this client writes and which advice has worked for them compounds across every match they ever have. If the memory layer is built, **retrieval and structured distillation ship with it, not after it** — in-context accumulation costs ~$0.57/query at 7,000 facts versus ~$0.002 for retrieval, so naive inject-everything loses money on exactly the engaged users memory is meant to retain (`AI-LANDSCAPE.md` §20).
+
 **Wallet/credits stays out** for a different reason than the others: §4.8's per-coach prepaid quantities already capture the payment-cost benefit (see §4.9) without creating a stored-value balance, which is an escheatment and consumer-protection surface in several states. The arithmetic did not justify a wallet; it justified a **default**.
 
 ---

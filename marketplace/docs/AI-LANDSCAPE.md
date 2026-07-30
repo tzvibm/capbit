@@ -205,20 +205,23 @@ The corrected picture separates the two lanes, and the separation is the strateg
 
 # PART VI — VERDICT
 
-## 15. The four options, scored
+## 15. The options, scored
 
 Higher is better; 5 is best.
 
-| | Saturation head­room | Defensibility | Retention profile | Incumbent risk | ToS risk | Fits existing assets | **Total** |
-|---|---|---|---|---|---|---|---|
-| **A · Pure AI assistant app** | 1 | 1 | 1 | 1 | 4 | 1 | **9** |
-| **B · Agentic per-match app** | 2 | 2 | 1 | 1 | 1 | 1 | **8** |
-| **C · Human marketplace as specified** | 5 | 3 | 3 | 4 | 5 | 5 | **25** |
-| **D · Human marketplace + coach-side context layer** | 5 | 4 | 4 | 4 | 5 | 5 | **27** |
+| | Saturation head­room | Defensibility | Retention profile | Incumbent risk | ToS + privacy risk | Unit economics | Fits existing assets | **Total** |
+|---|---|---|---|---|---|---|---|---|
+| **A · Pure AI assistant app** | 1 | 1 | 1 | 1 | 4 | 3 | 1 | **12** |
+| **B · Agentic per-match app** | 2 | 2 | 1 | 1 | 1 | 2 | 1 | **10** |
+| **B′ · Typed agentic threads, durable memory** | 2 | 3 | **4** | 1 | **1** | 2 | 1 | **14** |
+| **C · Human marketplace as specified** | 5 | 3 | 3 | 4 | 5 | 4 | 5 | **29** |
+| **D · Human marketplace + typed memory layer** | 5 | **4** | **4** | 4 | **4** | 4 | 5 | **30** |
 
-**A and B score badly for the same underlying reason:** they compete on output in a category where output is becoming free, against companies that own the distribution and the data. B scores lowest on ToS risk because true agency inside a dating app is the one thing platforms are actively hunting in 2026, and the penalty lands on your customer.
+**A, B and B′ score badly for the same underlying reason:** they compete on output in a category where output is becoming free, against companies that own the distribution and the data. B and B′ score lowest on ToS and privacy because agency inside a dating app is what platforms are actively hunting in 2026, and because an accumulating dossier on a non-consenting third party is what fails the GDPR balancing test (§21).
 
-**D beats C on two axes.** Defensibility improves because per-match outcome history is a dataset a competitor cannot copy and cannot buy — it is the defect-rate moat with more resolution. Retention improves because accumulated context is real switching cost: a coach who already knows your situation is genuinely more valuable than a new one, and re-explaining is the actual cost of leaving.
+**B′ is the honest best version of the AI concept**, and it scores meaningfully above B on retention — memory is the one real answer to the churn problem (§18). It still loses, because retention fixes the leak and not the acquisition, and acquisition is the binding constraint: the substitute is ChatGPT Projects (§19), not the rizz apps.
+
+**D beats C on two axes, and D now means the typed layer from §22.** Defensibility improves because per-client advice-and-outcome history is a dataset a competitor cannot copy or buy — the defect-rate moat at higher resolution. Retention improves because accumulated context is genuine switching cost: a coach who already knows your situation is worth more than a new one, and re-explaining is the real cost of leaving. D's privacy score is 4 rather than 5 only because it introduces memory at all; typing by data subject is what keeps it there.
 
 ## 16. The answer, in three sentences
 
@@ -228,12 +231,132 @@ Higher is better; 5 is best.
 
 **Do take the architecture.** A thread per match with aggregated context is the right structure — pointed at the coach as a briefing, never at the dater as generated text. It is the strongest available fix for the one constraint that actually binds this business: at $5 an answer, the only way to afford better judgment is to stop paying a human to do archaeology.
 
+> **Refined in Part VII.** The typed-agentic-thread version of the concept — durable memory documents, one context per thread type — is a genuinely better idea than the category ships and is the pattern that won in agent engineering. It still shouldn't be a standalone product, for a reason Part III missed: **the substitute is ChatGPT Projects, not Rizz.** But it should be Wing's memory layer, **typed by whose data accumulates rather than by task** (§22) — because the durable, valuable, legally clean document was never the one about the match. It's the one about the client.
+
 ---
 
-## 17. Concrete next steps
+---
 
-1. **Amend `ARCHITECTURE.md` §13.1** to state the AI line precisely: excluded from the answer path permanently; coach-side context assembly is a separate decision, gated on M3 and on bet 3 clearing.
-2. **Add `matches` to the schema as a thin label**, not a dossier — the privacy commitments in §9.2 are what distinguish Wing from the dating-CRM apps, and they are load-bearing.
-3. **Correct §9 and §15 of `MARKET-ANALYSIS.md`** per §13–14 above.
+# PART VII — THE TYPED AGENTIC THREAD, ASSESSED PROPERLY
+
+## 17. Why there is a Part VII
+
+Parts I–VI assessed the AI dating-assistant *market* and a generic per-match-thread product. The concept was then stated more precisely: **each thread is an agentic thread with its own durable memory — a document that accumulates — and there are distinct thread types, each carrying its own context.**
+
+That is a different proposal from the one Part III benchmarked, and it warrants its own assessment rather than an inherited verdict. Part VII does that. It reaches the same conclusion by a better argument, finds one competitive fact Part III missed entirely (§19), and produces the one design change that improves the whole system (§22).
+
+## 18. This is a materially better idea than what Part III assessed
+
+Part III benchmarked the *category* — twenty stateless screenshot→reply apps. The architecture described here is not that, and it deserves separate assessment, because it is the pattern that actually won in agent engineering.
+
+The dominant memory design in production coding agents in 2026 is exactly this: **a markdown file injected into context at session start**, with agents reading and writing it explicitly. OpenClaw keeps `MEMORY.md` for durable facts plus `memory/YYYY-MM-DD.md` daily notes, exposing `memory_search` and `memory_get` over them, and runs an automatic "memory flush" before compaction so nothing important is lost — with an optional consolidation pass promoting short-term notes into long-term memory. LangChain's documented split of **short-term thread-scoped state from long-term cross-thread stores** is described as "not an advanced pattern; it's the standard starting point" ([Zylos](https://zylos.ai/research/2026-04-05-ai-agent-memory-architectures-persistent-knowledge/), [agent-memory](https://github.com/Defiladeboarfish90/agent-memory), [Red Hat](https://next.redhat.com/2026/06/01/from-context-to-dreams-architecting-memory-for-ai-agents/)).
+
+So the instinct is architecturally mainstream and correct. Typed threads with their own context, durable accumulating memory, two tiers — that is how this is built.
+
+**And it targets the category's actual cause of death.** Part III's strongest objection was retention: AI apps churn ~30% faster, 21.1% vs 30.7% annual, stacked on dating's sub-5% twelve-month survival. Memory is the **only known antidote**, because accumulated state is switching cost. A user six months into a thread that knows their history does not restart elsewhere. Every one of those twenty apps is disposable precisely because it remembers nothing. That objection is genuinely weakened by this design, and I should say so plainly rather than restate the earlier conclusion.
+
+Three things still bite. The third one changes the design rather than killing it.
+
+## 19. Constraint 1 — the substitute is ChatGPT Projects, not Rizz
+
+This is the competitive fact that matters, and it is not in Part I.
+
+**ChatGPT Projects are persistent workspaces grouping related chats, files, and custom instructions, with context that persists session to session.** Project memories are isolated from global memories. Users can view, edit or delete individual memory entries. Live since December 2024 and fully rolled out ([Suprmind](https://suprmind.ai/hub/chatgpt/features/), [DataStudios](https://www.datastudios.org/post/can-chatgpt-remember-previous-conversations-memory-behavior-session-limits-and-persistence)).
+
+Read that against the concept: *typed threads, each with its own context, accumulating durable memory, user-inspectable.* **A ChatGPT Project per match, with a dating-specific instruction block, is approximately the described product** — already built, already in the hands of hundreds of millions of people, at $20/month, with file upload and image understanding included.
+
+So the differentiation question is not "is this better than the twenty rizz apps" — it plainly is. It is **"what does this do that a ChatGPT Project with a good system prompt does not?"** The honest answers are narrow: a purpose-built schema per thread type, a mobile capture flow tuned for screenshots, and defaults a civilian will never configure themselves. Those are real, and they are a *product*, not a moat — the same list describes every ChatGPT wrapper that has been commoditised in the last two years.
+
+## 20. Constraint 2 — this architecture's cost curve bends the wrong way
+
+Accumulating memory into a document you inject is cheap early and expensive exactly when you succeed.
+
+| Memory size | In-context cost per query | Retrieval-based |
+|---|---|---|
+| ~7,000 facts | **$0.57** | $0.002 |
+| ~100,000 facts | **$8+** | $0.002 |
+
+Cost scales linearly with window size, while retrieval stays flat regardless of corpus ([arXiv 2603.17781](https://arxiv.org/pdf/2603.17781)). Worse, naive agent loops append tool output to history every iteration, producing a **triangular series where a 10-step run re-bills every prior step** ([Augment](https://www.augmentcode.com/guides/ai-agent-loop-token-cost-context-constraints)). Agentic memory systems scale **super-linearly**, diverging steeply past 256K tokens.
+
+Run it against a $7/week price:
+
+- **Month 1** — 10k tokens of context per query, ~$0.0125/query. 100 queries = **$1.25/month.** Comfortable.
+- **Month 12, engaged user** — six match threads, accumulated memory, 7,000-fact scale. At $0.57/query, 100 queries = **$57/month against a $30 subscription.**
+
+That is the GitHub Copilot failure mode with a name on it: losing ~$20/user/month, power users at $80 against a $10 plan. **Your best users become your biggest losses, and they are the ones memory retains.**
+
+It's solvable — structured distillation reports **11× token reduction with retrieval preserved**, and token-optimisation practice claims 3–4× cuts ([arXiv 2603.13017](https://arxiv.org/pdf/2603.13017), [mem0](https://mem0.ai/blog/the-2026-token-optimization-playbook-cut-ai-agent-memory-costs-3%E2%80%934x)). But note what that means: **retrieval and distillation are not optimisations you add later, they are the product.** The naive md-file-injection version works for a demo and breaks in month twelve. And context drift is the other side of the same coin — roughly **65% of enterprise AI failures in 2025 were attributed to context drift or memory loss** in multi-step reasoning, so unbounded accumulation degrades answer quality even where you can afford it.
+
+## 21. Constraint 3 — the memory is about someone who never consented, and *accumulation* is the legal variable
+
+This is the one that should change the design, and it is specific to this domain rather than to AI.
+
+In coding, `MEMORY.md` accumulates facts about *your codebase*. Here, a match thread's memory document accumulates facts about **a real person who does not know the file exists** — her job, her dog, what she said about her ex, how she responds to being teased, her stated boundaries.
+
+GDPR permits profiling without consent under Article 6(1)(f) legitimate interests, but only via a balancing test — and the EDPB's stated factors are **"the level of detail of the profile, the comprehensiveness of the profile, and the impact of the profiling on the data subject"** ([EDPB Guidelines 1/2024](https://www.edpb.europa.eu/system/files/2024-10/edpb_guidelines_202401_legitimateinterest_en.pdf), [IAPP](https://iapp.org/news/a/wp29-releases-guidelines-on-profiling-under-the-gdpr)). Data subjects hold an Article 21 right to object. Separately, a lawful basis for *collecting* does not extend to *disclosing* — disclosure is its own processing act requiring its own basis.
+
+So the legal exposure is not a function of using AI. **It is a direct function of how much the document accumulates.** A thin, decaying note plausibly passes the balancing test. A comprehensive dossier that deepens for months is precisely what fails it — and depth is the feature.
+
+This is also why the incumbent can do it and you cannot do it the same way. **Grindr owns the platform; both people in the conversation agreed to its terms.** A third-party app building durable files on non-users has no such footing. MatchMGT and RosterNote do it anyway — AI-extracted profiles with "interests, personality traits," keyword tracking on people's posts. That is a posture, not a precedent, and it is incompatible with being a trust brand.
+
+## 22. The reframe: type threads by whose data accumulates, not by what task they do
+
+Here is the fix, and it makes the architecture *better* rather than merely legal.
+
+The instinct is to type threads by task — match thread, profile thread, photo thread. Type them instead by **data subject**, and let that determine the memory policy:
+
+| Thread type | Subject | Memory policy | What accumulates | What never does |
+|---|---|---|---|---|
+| **You** (one per user, permanent) | The client | **Accumulate freely, forever** | Their voice and phrasing, what advice worked, recurring patterns, goals, dealbreakers, what they're bad at | — |
+| **Artifact** (bio, photos, profile) | The client's own content | **Accumulate freely** | Version history, what was changed and why, results per version | — |
+| **Match** (one per person) | **A third party** | **Thin, capped, decaying** | Situation state, advice given, outcome. Facts only as needed for the current decision | Personality assessments, inferred traits, anything about their appearance, anything not needed to answer the question in front of you |
+| **Debrief** (post-date) | Mixed | **Client-side only** | What the client learned about themselves | Anything about the other person beyond "it ended" |
+
+Three things follow, and the first is the important one.
+
+**The valuable memory was never the match anyway.** A dossier on one woman is worth something for a few weeks and then she is gone. A document that knows *how this client writes, what they always get wrong, which advice has actually worked for them, and what they are looking for* compounds for years and travels across every match they ever have. **The client-subject thread is the high-value asset, the durable one, and the one with no third-party problem at all.** Typing by subject doesn't sacrifice the good part to satisfy the lawyer — it identifies which part was good.
+
+**It solves the cost curve in the same move.** Match threads are the ones that would multiply — five, ten, thirty over a year, each accumulating. Capping them bounds the expensive dimension. The `You` thread grows, but there is exactly one per user and structured distillation applies cleanly to it.
+
+**And it becomes the marketable difference.** Against ChatGPT and against MatchMGT alike, the claim is: *your file is about you, not about them; you can read it, edit it, export it, delete it.* That is user-owned, human-readable, portable memory as the trust feature — the one thing neither an incumbent bundling AI nor a general assistant will offer, and it is only credible because of the constraint, not despite it.
+
+## 23. What this means for Wing concretely
+
+The typed-thread pattern is a **better version of the `matches` proposal in §12**, and it maps onto Wing's existing model more cleanly than a generic per-match table.
+
+Wing already sells typed products — opener rescue, convo rescue, bio makeover, photo verdicts, screening second opinion, date plan. **Each product type is a thread type with its own context schema.** That was already latent in the design; the memory policy is what was missing.
+
+```
+threads/
+  you/<client_id>/MEMORY.md          durable, grows, client-subject, coach-readable
+  artifact/<item_id>/NOTES.md        version history of their own bio/photos
+  match/<match_id>/STATE.md          capped, decaying, situation + advice + outcome
+```
+
+- **The `You` document is the coach briefing.** This is the answer to §9's labour-ceiling fix, made concrete: the thing that raises a coach's effective hourly rate is not a dossier on the match, it is a one-page file on the client that means the coach never re-reads three weeks of history. Assembled deterministically first; distilled only when it outgrows a skim.
+- **`answer_outcomes` is the input that makes it worth reading.** Per-answer outcomes turn the file from notes into evidence: *"you advised waiting two days; she replied."*
+- **The AI line in `ARCHITECTURE.md` §13.1 holds unchanged.** These documents are read by the coach. No generated text reaches a dater. The memory is infrastructure for human judgment, not a substitute for it.
+- **Still M3, still gated on bet 3.** None of this matters until repeat purchase is proven, because memory has no value without a second visit.
+
+## 24. The honest steelman, and where it lands
+
+The strongest standalone version of this concept is not "an AI that writes your replies with memory." It is:
+
+> **A single durable, human-readable document about you and your dating life — that you own, can edit, and can hand to a person.**
+
+That framing beats ChatGPT Projects on portability and trust, beats the rizz apps on everything, and side-steps the third-party problem by construction. It is a genuinely good product idea.
+
+But notice where it arrives. A document about you, maintained by software, **whose highest-value use is being read by someone who can then tell you something true** — that is Wing with a better context layer. The architecture's best expression is the hybrid: **the memory document is the interface between the machine that assembles and the human who judges.**
+
+So the verdict from Part VI stands, with the reasoning upgraded rather than repeated. Do not ship this as a consumer AI product — ChatGPT Projects is the incumbent substitute, the cost curve punishes your best users, and the match-dossier version is the part that fails the GDPR balancing test. **Do build it as Wing's memory layer, typed by data subject, with the `You` thread as the asset.** That is the version where the accumulation is legal, cheap, compounding, and worth paying a human to read.
+
+---
+
+## 25. Concrete next steps
+
+1. **Amend `ARCHITECTURE.md` §13.1** to state the AI line precisely: excluded from the answer path permanently; coach-side context assembly is a separate decision, gated on M3 and on bet 3 clearing. *(Done.)*
+2. **Type threads by data subject, not by task** (§22). Three memory policies: `You` accumulates freely, `Artifact` accumulates freely, `Match` is capped and decaying. This is what replaces the generic `matches` table proposed in §12 — the privacy commitments in §9.2 are load-bearing and this is how they're enforced in the schema rather than in a policy document.
+3. **Correct §9 and §15 of `MARKET-ANALYSIS.md`** per §13–14 above. *(Done.)*
 4. **Re-run the price question with Grindr's data in hand.** EDGE at $349–500/month against Tinder's $17.56 RPP says the ceiling for dating help is set by positioning, not by category. This strengthens both the up-market pivot option and the $8–10 answer test already recommended.
-5. **Leave bet 1 first.** None of this changes the ordering: if a human answer does not measurably beat a machine answer on real threads, the human marketplace is the wrong business and no architecture rescues it.
+5. **If the memory layer is ever built, build retrieval and distillation from day one** (§20). They are not optimisations — naive accumulate-and-inject works for a demo and loses money on your best users by month twelve.
+6. **Leave bet 1 first.** None of this changes the ordering: if a human answer does not measurably beat a machine answer on real threads, the human marketplace is the wrong business and no architecture rescues it.
