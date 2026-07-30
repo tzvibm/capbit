@@ -187,7 +187,9 @@ The consequence is not to cut the price. Cutting it makes the margin problem wor
 - Not *text* → **a verdict.** "Don't send anything for two days" is advice no AI will give and no AI-optimised-for-engagement product can afford to give.
 - Not *output* → **accountability.** A named human whose ranking falls if they were wrong.
 
-There is real evidence AI apps monetise badly, which supports the idea that the category's WTP is thin: Rizz's Android app is estimated at **~300k monthly downloads generating ~$30k revenue — about $0.10 per download** ([Trend Apps / Sensor Tower](https://trendapps.dev/app/android/com-rizzlabs-rizz/)). A separate ChatGPT-wrapper dating coach reported **1.5M downloads and $190k/month** ([AIbase](https://www.aibase.com/cases/156)). Both are third-party estimates, not company figures. Read them as: *enormous top-of-funnel, feeble revenue per user.* That is a category that has trained the market to expect this help to be nearly free, which is bad for Wing's price, while proving it cannot monetise, which is Wing's opening.
+> **⚠ CORRECTED — see `AI-LANDSCAPE.md` §13.** An earlier version of this section cited an Android-only estimate (~300k monthly downloads, ~$30k revenue, ~$0.10/download) and concluded the AI category "cannot monetise." That understated it materially. **Rizz as a company is reported at $15M+ revenue** on 7.5M users and 1.5M MAU, at ~$7/week or ~$20/month ([youmind](https://youmind.com/landing/x-viral-articles/rizz-app-faceless-creator-growth), [Forbes](https://www.forbes.com/sites/josipamajic/2024/09/09/rizz-app-how-the-5th-most-downloaded-dating-app-is-redefining-digital-relationships/)).
+
+The accurate read is narrower and less comfortable: the category monetises **thinly per user but successfully in aggregate**. It has trained the market to expect this help for ~$5/week, which is bad for Wing's price — and it has an established, well-capitalised leader growing through *faceless creator networks*, which is the same channel Wing's go-to-market depends on. That is competition for creator attention, not an open field.
 
 **⚑ REVISION: rewrite the Segment A objection handling.** The current answer to "why not just use ChatGPT?" is good but incomplete, because the real objection in 2026 is not ChatGPT — it is "I already pay $5 a week for an app that does this." Wing needs an answer to *that*, and the answer is that the app will always tell you to send something.
 
@@ -254,6 +256,15 @@ Remarkably, there is no direct rival. No structured marketplace for metered huma
 Most tellingly, **the incumbents have vacated this lane.** Match launched [AskMatch](https://techcrunch.com/2019/05/14/match-now-offers-dating-coaches-who-help-its-members-with-profiles-dating-challenges/) in 2019 — real human coaches, phone sessions, bundled into a ~$35/mo subscription — and it has left no public trace since. Meanwhile Hinge's founder Justin McLeod left in 2026 to launch [Overtone](https://www.fastcompany.com/91574215/hinge-founders-new-dating-app-lets-ai-be-your-matchmaker-theres-already-a-waitlist-overtone), a **$18M Match-Group-backed voice-first AI matchmaker with no profiles or swipes**.
 
 The best talent and capital in dating is moving toward AI-mediated matching and away from human advice. **Low rivalry in Wing's lane is not an accident — it is a consequence of everyone else betting the other way.** That is the opportunity and simultaneously the thing that should worry you: they may be right.
+
+> **⚠ REFINED — see `AI-LANDSCAPE.md` §14.** This section originally concluded incumbent threat was low *overall*, inferring from AskMatch's abandonment. That holds for human coaching and is now clearly wrong for AI assistance: Match Group is rolling AI "wingmen" across Tinder and Hinge (photo selection, message writing, "coaching for struggling users"), and Grindr is shipping per-match AI memory to 14M users by 2027 while testing **$349–500/month** for it. Split the lanes:
+>
+> | Lane | Incumbent threat | Direction |
+> |---|---|---|
+> | AI assistance — replies, profile help, per-match memory | **Severe**, bundled free | Worsening fast |
+> | Paid human judgment — named, accountable, cross-platform | **Low** | Stable |
+>
+> The argument above survives and strengthens. What changed is that the industry's bet is now funded and shipping, which raises the cost of joining it and lowers the cost of standing apart. Grindr's $500/month tier also proves the ceiling on dating-help pricing is set by positioning, not by category — which strengthens both the up-market pivot (§36) and the $8–10 answer test (§34).
 
 ## 16. Five Forces summary
 
