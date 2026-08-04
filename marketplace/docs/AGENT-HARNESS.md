@@ -206,6 +206,12 @@ That last column entry matters more than it looks. **Logging the stopping reason
 
 Keep it small and stable. The harness guidance is a compact set of high-leverage primitives; the caching guidance is that a **fixed tool catalog per session** is part of what keeps the prefix stable.
 
+**On `fetch_history` — pull, don't push.** The view assembler hands a skill ~5k tokens (§11.5). Sometimes that isn't enough: `diagnose-stall` may need to see *when* the length ratio inverted, which is in the store but not the view. The wrong fix is a bigger default view; the right one is a tool that fetches **a bounded slice on demand**.
+
+This is the same mechanism as a skill's `references/` directory — context loaded only if the skill asks for it — and it is worth noting that no mainstream harness offers context *inheritance* as a primitive. Across harnesses, subagents are isolated from the parent and **none copy the full parent history into the child**; scoped context passing is an open feature request rather than a shipped feature. Pulling a named slice is the pattern that actually exists, and it is the better one anyway: the default stays small, and what gets loaded is auditable.
+
+One caution from the same literature: inherited state can carry **stale or wrong context** into a child. The dating equivalent is real — a `MATCH.md` asserting "she's keen" from three weeks ago, driving advice today. Every fetched fact carries its timestamp, and match state decays (`AGENT-LOOP.md` §3).
+
 Job-type playbooks are **skills**, not tools — indexed at ~40 tokens each and loaded on trigger (`AGENT-MODEL.md` §2). Stuffing eight playbooks into every request roughly doubles the context and pushes it into the degradation range; progressive disclosure is what makes a multi-job-type product fit the budget at all.
 
 | Tool | Contract | Notes |
@@ -217,6 +223,7 @@ Job-type playbooks are **skills**, not tools — indexed at ~40 tokens each and 
 | `write_memory(scope, k, v)` | scope-checked write | Tool guardrail rejects third-party trait content (§13) |
 | `offer_handoff(job_type, reason)` | → renders the purchase card | The revenue moment. `reason` is shown to the user |
 | `escalate_safety(category)` | → freezes thread, admin ticket | Hard stop. Not advice |
+| `fetch_history(match_id, query)` | → a bounded slice of the store | **Demand-driven context escalation** — see below |
 | `draft_message(stage, options_n)` | → 1–3 labelled drafts | **Stakes-gated (§13). Always labelled AI-authored** |
 
 Eight primitives. Still no `send_message` and nothing that touches a dating app — the agent hands text to the *user*, who decides.

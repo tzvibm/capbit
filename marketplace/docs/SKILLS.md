@@ -216,6 +216,24 @@ perception → stage → skill (deterministic, ≤12)
                        └→ retrieve 2–4 tactics tagged for this stage + signals
 ```
 
+### Tactics form a graph; skills do not
+
+The tactic layer is where dependency-aware retrieval earns its keep, and there is a direct result for it. **Graph-of-Skills** ([arXiv 2604.05333](https://arxiv.org/abs/2604.05333)) identifies the failure mode precisely: semantic retrieval "surfaces topically relevant skills but **misses their prerequisite chain of upstream and downstream skills**, creating a **prerequisite gap** that leaves the retrieved bundle execution-incomplete." Its fix — build the dependency graph offline, then retrieve a bounded dependency-aware bundle — reports **+43.6% average reward and −37.8% input tokens versus full skill-loading**, across three model families.
+
+Note it beats *loading everything*, not merely flat retrieval. Graph > stuffing > flat semantic retrieval.
+
+**But apply it at the right layer.** GoS solves for massive libraries; Wing's skill registry is capped at twelve and routed deterministically, where a graph is overkill and hand-written precedence is clearer. **Tactics are the unbounded layer, and they genuinely have prerequisites:**
+
+```
+established-rapport ──→ specific-day ──→ confirm-logistics
+        │
+        └──→ callback-to-detail   (requires: stored history exists)
+```
+
+*"Callback to something she said"* is incoherent without stored history. *"Propose a specific day"* presupposes rapport. Retrieving one without its prerequisite produces advice that is locally sensible and situationally wrong — which is the prerequisite gap, in this domain.
+
+So: **`prerequisites` becomes a tactic field, and retrieval walks the graph before ranking.** At a few hundred tactics that's a small offline graph and an ordinary traversal, not a research problem.
+
 **Tactic anatomy** — small enough that a few fit in the budget:
 
 ```markdown
