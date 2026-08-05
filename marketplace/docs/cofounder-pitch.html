@@ -1,0 +1,293 @@
+<title>The Case for a Human Dating-Expertise Marketplace</title>
+<style>
+  :root {
+    --paper:      #FBF7F4;
+    --surface:    #FFFFFF;
+    --surface-2:  #F4ECE7;
+    --ink:        #241E26;
+    --ink-soft:   #5A5058;
+    --ink-faint:  #8A7F84;
+    --line:       #E7DCD5;
+    --line-soft:  #F0E7E1;
+    --accent:     #D6456A;
+    --accent-ink: #A32C4C;
+    --teal:       #2F5D62;
+    --teal-soft:  #E3EDEC;
+    --amber:      #B77410;
+    --amber-soft: #F5E9D6;
+    --radius: 10px;
+    --maxw: 800px;
+    --read: 690px;
+    --serif: 'Iowan Old Style', 'Palatino Linotype', 'Palatino', 'Book Antiqua', 'Georgia', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#17131A; --surface:#201A22; --surface-2:#292230; --ink:#F1EAEE; --ink-soft:#C4B8C0;
+      --ink-faint:#8E8390; --line:#362E3B; --line-soft:#2A232F; --accent:#F2718F; --accent-ink:#F79DB2;
+      --teal:#7FC0C3; --teal-soft:#1E2E30; --amber:#E0A64E; --amber-soft:#2E2515;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper:#FBF7F4; --surface:#FFFFFF; --surface-2:#F4ECE7; --ink:#241E26; --ink-soft:#5A5058;
+    --ink-faint:#8A7F84; --line:#E7DCD5; --line-soft:#F0E7E1; --accent:#D6456A; --accent-ink:#A32C4C;
+    --teal:#2F5D62; --teal-soft:#E3EDEC; --amber:#B77410; --amber-soft:#F5E9D6;
+  }
+  :root[data-theme="dark"] {
+    --paper:#17131A; --surface:#201A22; --surface-2:#292230; --ink:#F1EAEE; --ink-soft:#C4B8C0;
+    --ink-faint:#8E8390; --line:#362E3B; --line-soft:#2A232F; --accent:#F2718F; --accent-ink:#F79DB2;
+    --teal:#7FC0C3; --teal-soft:#1E2E30; --amber:#E0A64E; --amber-soft:#2E2515;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); font-size: 17px; line-height: 1.64;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px 110px; }
+
+  header.mast { padding: 64px 0 34px; border-bottom: 2px solid var(--ink); }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent-ink); margin: 0 0 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  h1.title {
+    font-family: var(--serif); font-weight: 600; font-size: clamp(32px, 5.6vw, 48px);
+    line-height: 1.08; letter-spacing: -0.015em; margin: 0 0 20px; text-wrap: balance;
+  }
+  .lede { font-size: clamp(18px, 2.3vw, 20.5px); color: var(--ink-soft); max-width: var(--read); margin: 0; line-height: 1.55; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 28px; margin-top: 26px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-faint); }
+  .meta-row b { color: var(--ink-soft); font-weight: 600; }
+
+  section { padding-top: 54px; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
+  .sec-num { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 600; padding-top: 4px; flex: 0 0 auto; }
+  h2 { font-family: var(--serif); font-weight: 600; font-size: clamp(23px, 3.4vw, 29px); letter-spacing: -0.01em; margin: 0; line-height: 1.15; text-wrap: balance; }
+  h3 { font-family: var(--sans); font-weight: 680; font-size: 16px; margin: 28px 0 10px; }
+  p { max-width: var(--read); }
+  p.body { margin: 0 0 16px; }
+  strong { font-weight: 680; }
+  em { font-style: italic; }
+  code, .code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-2); border-radius: 5px; padding: 1px 6px; }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+  .pull {
+    font-family: var(--serif); font-size: clamp(20px, 2.8vw, 24px); line-height: 1.4;
+    border-left: 3px solid var(--accent); padding: 4px 0 4px 24px; margin: 30px 0;
+    color: var(--ink); max-width: var(--read); text-wrap: balance; font-style: italic;
+  }
+
+  .callout { border-radius: var(--radius); padding: 18px 22px; margin: 22px 0 6px; font-size: 15px; line-height: 1.55; }
+  .callout.teal { background: var(--teal-soft); border: 1px solid color-mix(in srgb, var(--teal) 30%, transparent); }
+  .callout.amber { background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 34%, transparent); }
+  .callout .clab { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+  .callout.teal .clab { color: var(--teal); }
+  .callout.amber .clab { color: var(--amber); }
+  .callout p { margin: 0; max-width: none; }
+  .callout p + p { margin-top: 9px; }
+
+  .tbl-wrap { overflow-x: auto; margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 540px; }
+  th, td { text-align: left; padding: 11px 16px; border-top: 1px solid var(--line-soft); vertical-align: top; }
+  thead th {
+    border-top: none; background: var(--surface-2); font-family: var(--mono);
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; white-space: nowrap;
+  }
+  tbody tr:first-child td { border-top: none; }
+  td.mono, .mono-cell { font-family: var(--mono); font-size: 13px; color: var(--teal); white-space: nowrap; }
+  td strong { color: var(--ink); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 8px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+  .card .tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); display: inline-block; margin-bottom: 8px; }
+  .card h4 { font-family: var(--sans); font-size: 15.5px; font-weight: 680; margin: 0 0 6px; }
+  .card p { font-size: 14px; color: var(--ink-soft); margin: 0; line-height: 1.5; }
+
+  .ledger { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; max-width: 470px; margin-top: 10px; }
+  .ledger .lrow { display: flex; justify-content: space-between; gap: 16px; padding: 11px 20px; border-top: 1px solid var(--line-soft); font-size: 14.5px; }
+  .ledger .lrow:first-child { border-top: none; }
+  .ledger .lrow.total { background: var(--surface-2); font-weight: 680; border-top: 1px solid var(--line); }
+  .ledger .lrow .v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .ledger .lrow .v.pos { color: var(--teal); }
+  .ledger .lrow .v.neg { color: var(--accent-ink); }
+
+  ul.clean { padding-left: 20px; max-width: var(--read); }
+  ul.clean li { margin: 8px 0; }
+  ul.clean li::marker { color: var(--accent); }
+  ol.clean { padding-left: 22px; max-width: var(--read); }
+  ol.clean li { margin: 8px 0; }
+  ol.clean li::marker { color: var(--accent); font-family: var(--mono); font-size: 0.9em; }
+
+  .risk { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); margin-top: 12px; overflow: hidden; }
+  .risk .rhead { padding: 13px 20px 11px; display: flex; gap: 12px; align-items: baseline; border-bottom: 1px solid var(--line-soft); }
+  .risk .rhead b { font-size: 15.5px; }
+  .risk .rhead .sev { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); }
+  .risk .rbody { padding: 12px 20px 15px; font-size: 14.5px; color: var(--ink-soft); }
+  .risk .rbody p { margin: 0; max-width: none; }
+  .risk .rbody .mit { margin-top: 8px; }
+  .risk .rbody .mit b { color: var(--teal); font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+
+  footer { margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--ink-faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  @media (max-width: 640px) { body { font-size: 16px; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow"><span class="dot"></span> Co-founder memo · Confidential · v1</p>
+    <h1 class="title">Human expertise for online dating, sold by the message</h1>
+    <p class="lede">A marketplace where dating specialists — opener experts, bio doctors, photo reviewers — sell micro-consultations inside a monetized chat. The pitch, the product, the architecture, and why two people can build it: all of it below. I want you to poke holes in this.</p>
+    <div class="meta-row">
+      <span><b>From</b>&nbsp;Tzvi</span>
+      <span><b>Re</b>&nbsp;Founding partnership</span>
+      <span><b>Date</b>&nbsp;Jul 2026</span>
+      <span><b>Read time</b>&nbsp;~12 min</span>
+    </div>
+  </header>
+
+  <!-- 01 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>The thesis in three sentences</h2></div>
+    <p class="body">Online dating help is a proven market that's currently sold in exactly two broken form factors: <strong>$1,000–3,000/month concierge services</strong> for the rich, and <strong>AI reply-generators</strong> for everyone else. Nobody sells the thing most people actually want — <strong>five minutes of a genuinely skilled human's attention on <em>this specific conversation</em>, for the price of a coffee</strong>. We unbundle premium dating expertise into per-message micro-consulting, take a marketplace cut, and position hard against AI: real humans, verifiable track records.</p>
+    <p class="pull">Fiverr proved services unbundle. Cameo proved parasocial micro-transactions. Twitch proved people pay real money inside a chat. Nobody has run that playbook on dating expertise.</p>
+  </section>
+
+  <!-- 02 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>The market evidence</h2></div>
+    <p class="body">Willingness to pay is not hypothetical — the premium end already clears at absurd prices:</p>
+    <ul class="clean">
+      <li><strong>VIDA Select</strong> (done-for-you dating management): <strong>$995–2,995/month</strong>, month-to-month, operating for years.</li>
+      <li>Celebrity ghostwriters like Meredith Golden charged <strong>~$2,000/month</strong> to run clients' apps — with a waitlist.</li>
+      <li><strong>Fiverr dating gigs</strong> (profile rewrites, ghostwriting) clear at <strong>$99–400</strong> despite zero dating-specific UX: no screenshot-native chat, no dating-specific reputation, no metered follow-up.</li>
+      <li>Matchmakers run <strong>$20k–300k</strong>. The coaching industry overall is a <strong>$6–7B</strong> market growing steadily.</li>
+    </ul>
+    <p class="body">Meanwhile the demand side is enormous and miserable: hundreds of millions of dating-app users, and the dominant complaints — dead conversations, no replies, bad profiles — are precisely coachable, per-instance problems. The gap between "$5 impulse purchase" and "$1,000/month package" is an empty price band with proven demand on both sides of it.</p>
+    <div class="callout teal">
+      <span class="clab">Why AI makes this stronger, not weaker</span>
+      <p>The obvious objection: "ChatGPT writes openers for free." Three answers. <strong>(1) Positioning:</strong> as AI-generated messages flood the apps, they converge on the same voice — detectable and increasingly disliked. "A human who's actually good at this" becomes the premium, differentiated product, the way "handmade" premiumized against mass manufacturing. <strong>(2) Accountability:</strong> an AI has no win-rate; a coach has a rating, reviews, and a track record on real outcomes. <strong>(3) Judgment beats generation:</strong> most of the value isn't writing the message — it's a skilled read of the situation: this conversation is salvageable, this one isn't, your photos are the problem, ask her out <em>now</em>. That's taste plus experience, and it's exactly what generic LLM output is worst at.</p>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>The product</h2></div>
+    <p class="body">One core loop. A client browses coaches by specialty → opens a chat → drops a screenshot of their conversation → the coach replies, and <strong>each reply is metered against the client's prepaid balance</strong> → client rates the coach afterward. Reviews compound into reputation; reputation drives discovery; discovery drives coach supply.</p>
+    <p class="body">The supply-side insight is that coaches don't pick from our product catalog — <strong>they compose their own menu</strong>. Every offering is three orthogonal choices: what they help with (openers, bio, photos, conversations, date planning, intros, custom), how it's delivered (in chat, as a returned deliverable, live session, or package), and how it's charged:</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Charge style</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Per unit</strong></td><td class="mono-cell">$4/reply · $5/photo reviewed · $10/intro</td></tr>
+          <tr><td><strong>Per time</strong></td><td class="mono-cell">$60/hr live strategy call</td></tr>
+          <tr><td><strong>Flat</strong></td><td class="mono-cell">$30 full bio makeover</td></tr>
+          <tr><td><strong>Prepaid pack</strong></td><td class="mono-cell">10 messages for $25 · "starter" bundle $60</td></tr>
+          <tr><td><strong>Subscription</strong></td><td class="mono-cell">$80/mo ongoing wingman</td></tr>
+          <tr><td><strong>Custom quote</strong></td><td class="mono-cell">client describes it, coach names a price</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="body" style="margin-top:16px">The custom-quote path is the closure property: any monetization scheme a coach invents that we didn't anticipate degrades gracefully to a quote. <strong>We never ship a new charge type again.</strong> That's the difference between a marketplace that scales supply-side creativity and one that bottlenecks on our roadmap.</p>
+    <div class="callout amber">
+      <span class="clab">The line we deliberately draw</span>
+      <p><strong>Coaching, not impersonation.</strong> Coaches advise and draft; clients send. Nobody operates a client's dating account. This kills most of the category's ethical/PR risk (the ghostwriter-catfishing problem), keeps us clear of dating-app ToS enforcement, and — usefully — is also the cheaper product to build. The done-for-you tier can be a deliberate later decision, not an accident.</p>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>The architecture — why this is small</h2></div>
+    <p class="body">This is the part I most want your eyes on, because it's the argument that <strong>two people ship this</strong>. The whole system collapses onto five primitives, and four and a half of them are solved problems with battle-tested implementations:</p>
+
+    <div class="cards">
+      <div class="card"><span class="tag">1 · Catalog</span><h4>Offer</h4><p>Anything a coach sells. We adopt Stripe's Product/Price semantics wholesale — one-time, recurring, metered, tiered — rather than inventing a pricing model. If it can't be a Stripe Price, it's a quote.</p></div>
+      <div class="card"><span class="tag">2 · Metering</span><h4>UsageEvent</h4><p><code>{actor, offer, qty, unit, ref}</code> — the one shape every consumption emits: a reply, 3 photos, 30 minutes. Standard usage-billing model (OpenMeter/Lago). Billing never learns about product features.</p></div>
+      <div class="card"><span class="tag">3 · Money</span><h4>Multi-asset ledger</h4><p>Double-entry, append-only. The unifying trick: <b>pack entitlements are just balances in another asset</b> — escrowed <code>USD</code> and <code>maya:message</code> units are the same mechanism. Escrow, packs, fees, refunds, payouts: one ledger. (And a stored-balance wallet, if we ever add one, is just one more account — no redesign.)</p></div>
+      <div class="card"><span class="tag">4 · Lifecycle</span><h4>Order</h4><p>One state machine (<code>REQUESTED → [QUOTED] → FUNDED → DELIVERED → RELEASED</code>, with dispute/refund branches) wears every costume: deliverable, quote, booking, intro.</p></div>
+      <div class="card"><span class="tag">5 · Surface</span><h4>Thread</h4><p>Chat is a dumb ordered message stream. Monetization is <b>one guard on the coach's send path</b>: active engagement with units or escrow left? → emit UsageEvent → post ledger txn → deliver. Chat knows nothing about money.</p></div>
+    </div>
+
+    <h3>The reuse map</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Layer</th><th>Choice</th><th>Build?</th></tr></thead>
+        <tbody>
+          <tr><td>Payments, payouts, KYC, 1099s, chargebacks</td><td class="mono-cell">Stripe + Stripe Connect</td><td><strong>No</strong></td></tr>
+          <tr><td>Pricing semantics</td><td class="mono-cell">Stripe Product/Price, mirrored</td><td><strong>No</strong></td></tr>
+          <tr><td>Ledger model</td><td class="mono-cell">Formance / Blnk (OSS)</td><td>Thin integration</td></tr>
+          <tr><td>Auth, Postgres+RLS, storage, realtime</td><td class="mono-cell">Supabase (OSS)</td><td><strong>No</strong></td></tr>
+          <tr><td>Scheduling (live sessions)</td><td class="mono-cell">Cal.com (OSS)</td><td><strong>No</strong></td></tr>
+          <tr><td>Video, notifications (post-MVP)</td><td class="mono-cell">LiveKit · Novu (OSS)</td><td><strong>No</strong></td></tr>
+          <tr><td>UI substrate</td><td class="mono-cell">Next.js · shadcn/ui · Tailwind</td><td><strong>No</strong></td></tr>
+          <tr><td><strong>Menu composer · monetized thread · marketplace glue</strong></td><td class="mono-cell">ours</td><td><strong>Yes — this IS the product</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="body" style="margin-top:16px">Roughly 80% assembled from popular, proven components; the 20% we write is exactly the part that couldn't be anything else. Notably we <em>don't</em> adopt Rocket.Chat/Matrix — their bulk is features we don't need, and the one thing we do need (a billing interceptor inside message-send) is what they make hard. A messages table plus Supabase Realtime is less code than integrating either.</p>
+    <div class="callout teal">
+      <span class="clab">The one invariant that keeps money safe</span>
+      <p>Every value movement — top-up, charge-on-reply, escrow release, refund, payout — is a server-side double-entry transaction in one code path. Clients never mutate balances; balances are always derivable by folding the ledger. Get this boundary right on day one and everything else can move fast without ever risking someone's money — and every support dispute is answerable from the ledger.</p>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2>Business mechanics</h2></div>
+    <p class="body"><strong>Plain dollars, charged per item at purchase</strong> (saved card / Apple Pay — one tap after the first buy), <strong>20% take rate</strong> — under Fiverr's effective ~25%+, above payment-only rails. No credit currency: customers see prices they recognize and statements they trust, which matters enormously for first-purchase conversion in a trust-sensitive category. The microtransaction-fee problem is handled with micro-charge batching (several $4 replies → one daily charge) and by packs, which are just items that include N units. A stored-balance wallet stays in our back pocket as a later optimization for heavy users — float and lock-in upside without making newcomers learn a currency on day one.</p>
+    <div class="ledger">
+      <div class="lrow"><span>Client buys "10 replies" pack (one card charge)</span><span class="v">$25.00</span></div>
+      <div class="lrow"><span>Escrowed; consumed as coach delivers</span><span class="v neg">10 replies</span></div>
+      <div class="lrow"><span>Platform take (20%)</span><span class="v pos">+$5.00</span></div>
+      <div class="lrow total"><span>Coach payout (pre-Stripe fees)</span><span class="v">$20.00</span></div>
+    </div>
+    <h3>Cold start — the honest plan</h3>
+    <p class="body">Marketplaces die on liquidity, so we don't launch a general marketplace. We launch <strong>one niche</strong> — men on Hinge who need opener/conversation help is the likely wedge (highest pain, most willing to pay, easiest to reach) — with <strong>10–20 hand-recruited coaches</strong> from the places this expertise already lives unmonetized or badly monetized: dating-advice Reddit, TikTok/IG dating-coach creators, top Fiverr sellers wanting better tooling and metered follow-ups. Supply-first works here because each coach has an audience — <em>coaches bring their own first clients</em>, which is the cheat code most marketplaces don't get.</p>
+    <h3>Disintermediation</h3>
+    <p class="body">The classic leak: client and coach take it off-platform to skip the fee. Defenses are product, not legal: the screenshot-native chat with full history <em>is</em> the workflow; entitlements and reviews are non-portable; payment friction off-platform (Venmo begging) is worse than our 20%; and at $4 a message there's barely anything to disintermediate — the fee saved is cents. High-ticket relationships will leak; the metered core won't.</p>
+  </section>
+
+  <!-- 06 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2>Risks, straight up</h2></div>
+    <div class="risk">
+      <div class="rhead"><b>Liquidity fails in the wedge niche</b><span class="sev">Existential</span></div>
+      <div class="rbody"><p>Not enough clients for the first coaches, or vice versa; the loop never spins.</p><p class="mit"><b>Mitigation</b> — Supply-first with audience-carrying coaches; concierge-match the first hundred engagements by hand; kill criteria defined up front (if repeat-purchase rate is dismal after N weeks, the thesis is wrong and we stop).</p></div>
+    </div>
+    <div class="risk">
+      <div class="rhead"><b>Quality variance poisons early trust</b><span class="sev">High</span></div>
+      <div class="rbody"><p>One cohort of bad coaches and early clients never return.</p><p class="mit"><b>Mitigation</b> — Application-gated first cohort, not open signup; reviews only from completed paid engagements; money-back on first purchase (cheap at these price points, buys enormous trust).</p></div>
+    </div>
+    <div class="risk">
+      <div class="rhead"><b>Privacy — this data is radioactive</b><span class="sev">High</span></div>
+      <div class="rbody"><p>Clients upload real conversations and photos of third parties who never consented. A leak here isn't a breach disclosure, it's a scandal.</p><p class="mit"><b>Mitigation</b> — Treat as a feature: aggressive retention limits on uploads, optional face/name blurring, self-serve deletion, never train or market on client content. "The discreet one" is a moat in this category.</p></div>
+    </div>
+    <div class="risk">
+      <div class="rhead"><b>AI undercuts the price floor</b><span class="sev">Medium</span></div>
+      <div class="rbody"><p>Free AI gets good enough that $4/reply feels expensive.</p><p class="mit"><b>Mitigation</b> — We sell judgment and accountability, not text generation (§02). Coaches will use AI as their own tooling — fine; the client pays for the human's taste and track record. If human-verified advice loses to free AI everywhere, the whole coaching economy dies with us — a risk we're comfortable sharing with a $7B industry.</p></div>
+    </div>
+    <div class="risk">
+      <div class="rhead"><b>Category ick / platform ToS</b><span class="sev">Medium</span></div>
+      <div class="rbody"><p>Dating-help brushes against ghostwriting's catfishing reputation, and dating apps prohibit account delegation.</p><p class="mit"><b>Mitigation</b> — The coaching-not-impersonation line (§03) is drawn precisely here: we never touch client accounts, so app ToS aren't implicated and the ethics story is clean — arguably <em>cleaner</em> than the AI tools autogenerating intimacy at scale.</p></div>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">07</span><h2>Why now, why us, and the ask</h2></div>
+    <p class="body"><strong>Why now:</strong> dating-app fatigue is at an all-time high while the apps monetize worse than ever; AI slop is flooding matches and creating the demand for verified human help; the creator economy has normalized experts monetizing micro-attention; and Stripe Connect plus the OSS stack above has made a two-person marketplace genuinely feasible in a way it wasn't five years ago.</p>
+    <p class="body"><strong>Why us:</strong> this is an execution-and-liquidity game, not a deep-tech game — it rewards a small team that ships fast and iterates on the loop. The architecture in §04 is deliberately shaped so the two of us cover it: one of us owns the money spine (ledger + Stripe + orders), one owns the surface (thread, composer, discovery), and the seams between those are two narrow interfaces (<code>UsageEvent</code> in, ledger transaction out).</p>
+    <p class="body"><strong>The build:</strong> milestone-sequenced to de-risk the scary parts first — money rails before chat, chat before polish. M0 browsable marketplace on seeded data → M1 per-item Stripe purchases + Connect payouts moving real money → M2 the metered thread (the product) → M3 reviews and discovery → M4 safety, seed supply, private beta. Nothing in the plan requires funding to reach a live loop with real transactions; revenue is literally the first feature.</p>
+    <p class="pull">The worst case is we spend a few months building a small, elegant system and learn the demand isn't there. The base case is a niche cash-flowing marketplace. The good case is the Fiverr of a category that doesn't have one yet.</p>
+    <p class="body"><strong>The ask:</strong> partner with me on this as technical co-founder. First commitment is deliberately small — pressure-test this memo, then build M0–M2 with me and get the loop live with the first ten coaches. If the loop doesn't spin, we'll know fast and cheap. If it spins, we're the first mover in the price band everyone else skipped.</p>
+  </section>
+
+  <footer>
+    <span>Human Dating-Expertise Marketplace — Co-founder Memo v1</span>
+    <span>Figures directional · sources available on request</span>
+  </footer>
+
+</div>

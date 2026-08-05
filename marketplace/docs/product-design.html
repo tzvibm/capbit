@@ -1,0 +1,531 @@
+<style>
+  :root {
+    --paper:      #FBF7F4;
+    --surface:    #FFFFFF;
+    --surface-2:  #F4ECE7;
+    --ink:        #241E26;
+    --ink-soft:   #5A5058;
+    --ink-faint:  #8A7F84;
+    --line:       #E7DCD5;
+    --line-soft:  #F0E7E1;
+    --accent:     #D6456A;
+    --accent-ink: #A32C4C;
+    --teal:       #2F5D62;
+    --teal-soft:  #E3EDEC;
+    --amber:      #B77410;
+    --amber-soft: #F5E9D6;
+    --radius: 10px;
+    --maxw: 820px;
+    --read: 700px;
+
+    --serif: 'Iowan Old Style', 'Palatino Linotype', 'Palatino', 'Book Antiqua', 'Georgia', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #17131A;
+      --surface:    #201A22;
+      --surface-2:  #292230;
+      --ink:        #F1EAEE;
+      --ink-soft:   #C4B8C0;
+      --ink-faint:  #8E8390;
+      --line:       #362E3B;
+      --line-soft:  #2A232F;
+      --accent:     #F2718F;
+      --accent-ink: #F79DB2;
+      --teal:       #7FC0C3;
+      --teal-soft:  #1E2E30;
+      --amber:      #E0A64E;
+      --amber-soft: #2E2515;
+    }
+  }
+  :root[data-theme="light"] {
+    --paper:#FBF7F4; --surface:#FFFFFF; --surface-2:#F4ECE7; --ink:#241E26; --ink-soft:#5A5058;
+    --ink-faint:#8A7F84; --line:#E7DCD5; --line-soft:#F0E7E1; --accent:#D6456A; --accent-ink:#A32C4C;
+    --teal:#2F5D62; --teal-soft:#E3EDEC; --amber:#B77410; --amber-soft:#F5E9D6;
+  }
+  :root[data-theme="dark"] {
+    --paper:#17131A; --surface:#201A22; --surface-2:#292230; --ink:#F1EAEE; --ink-soft:#C4B8C0;
+    --ink-faint:#8E8390; --line:#362E3B; --line-soft:#2A232F; --accent:#F2718F; --accent-ink:#F79DB2;
+    --teal:#7FC0C3; --teal-soft:#1E2E30; --amber:#E0A64E; --amber-soft:#2E2515;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px 120px; }
+
+  /* ---- Masthead ---- */
+  header.mast {
+    padding: 64px 0 30px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 8px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 0 0 18px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+  h1.title {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(34px, 6vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .lede {
+    font-size: clamp(18px, 2.4vw, 21px);
+    color: var(--ink-soft);
+    max-width: var(--read);
+    margin: 0;
+    line-height: 1.5;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    margin-top: 28px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .meta-row b { color: var(--ink-soft); font-weight: 600; }
+
+  /* ---- Section scaffolding ---- */
+  section { padding-top: 56px; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 22px; }
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+    flex: 0 0 auto;
+    padding-top: 4px;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(24px, 3.6vw, 30px);
+    letter-spacing: -0.01em;
+    margin: 0;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 680;
+    font-size: 16px;
+    letter-spacing: 0.005em;
+    margin: 30px 0 10px;
+  }
+  p { max-width: var(--read); }
+  p.body { margin: 0 0 16px; }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 680; }
+
+  .lab {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  /* ---- Decision card ---- */
+  .decisions {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 26px 28px;
+    margin-top: 34px;
+  }
+  .decisions .lab { margin-bottom: 16px; display: block; }
+  .dgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px 34px; }
+  .drow { padding: 11px 0; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 3px; }
+  .drow:first-child, .dgrid > .drow:nth-child(2) { border-top: none; }
+  .dk { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); }
+  .dv { font-size: 15.5px; font-weight: 600; }
+  .dv small { display:block; font-weight: 400; font-size: 13px; color: var(--ink-soft); letter-spacing: 0; text-transform: none; margin-top: 2px; }
+
+  /* ---- Flow steps ---- */
+  .flow { display: flex; flex-direction: column; gap: 0; margin: 8px 0 4px; }
+  .step { display: grid; grid-template-columns: 40px 1fr; gap: 18px; padding: 16px 0; border-top: 1px solid var(--line-soft); }
+  .step:first-child { border-top: none; }
+  .step .n {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    color: var(--accent); border: 1px solid var(--line); border-radius: 8px;
+    width: 34px; height: 34px; display: grid; place-items: center; background: var(--surface);
+  }
+  .step .b { margin: 0; }
+  .step .b b { display: block; margin-bottom: 2px; }
+  .step .b span { color: var(--ink-soft); font-size: 15px; }
+
+  /* ---- Cards grid ---- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 6px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .card .tag {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent-ink); display: inline-block; margin-bottom: 8px;
+  }
+  .card h4 { font-family: var(--sans); font-size: 15.5px; font-weight: 680; margin: 0 0 6px; }
+  .card p { font-size: 14px; color: var(--ink-soft); margin: 0; line-height: 1.5; }
+
+  /* ---- Tables ---- */
+  .tbl-wrap { overflow-x: auto; margin-top: 8px; border: 1px solid var(--line); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 12px 16px; border-top: 1px solid var(--line-soft); vertical-align: top; }
+  thead th {
+    border-top: none; background: var(--surface-2); font-family: var(--mono);
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600;
+    white-space: nowrap;
+  }
+  tbody tr:first-child td { border-top: none; }
+  td.mono, .mono-cell { font-family: var(--mono); font-size: 13px; color: var(--teal); white-space: nowrap; }
+  td strong { color: var(--ink); }
+
+  /* data model */
+  .entity { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .entity + .entity { margin-top: 12px; }
+  .entity .ehead {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 18px; background: var(--surface-2); border-bottom: 1px solid var(--line);
+  }
+  .entity .ehead b { font-family: var(--mono); font-size: 14px; letter-spacing: 0.02em; }
+  .entity .ehead span { font-size: 13px; color: var(--ink-soft); }
+  .entity .efields { padding: 6px 18px 14px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); line-height: 1.9; }
+  .entity .efields i { color: var(--accent-ink); font-style: normal; }
+
+  /* ---- Callout ---- */
+  .callout {
+    border-radius: var(--radius); padding: 18px 22px; margin: 22px 0 4px;
+    font-size: 15px; line-height: 1.55;
+  }
+  .callout.teal { background: var(--teal-soft); border: 1px solid color-mix(in srgb, var(--teal) 30%, transparent); }
+  .callout.amber { background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 34%, transparent); }
+  .callout .clab { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 6px; }
+  .callout.teal .clab { color: var(--teal); }
+  .callout.amber .clab { color: var(--amber); }
+  .callout p { margin: 0; max-width: none; }
+  .callout p + p { margin-top: 9px; }
+
+  /* ---- Econ ledger ---- */
+  .ledger { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; max-width: 460px; }
+  .ledger .lrow { display: flex; justify-content: space-between; gap: 16px; padding: 12px 20px; border-top: 1px solid var(--line-soft); font-size: 14.5px; }
+  .ledger .lrow:first-child { border-top: none; }
+  .ledger .lrow.total { background: var(--surface-2); font-weight: 680; border-top: 1px solid var(--line); }
+  .ledger .lrow .v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .ledger .lrow .v.pos { color: var(--teal); }
+  .ledger .lrow .v.neg { color: var(--accent-ink); }
+
+  /* ---- Milestones ---- */
+  .mile { border-left: 2px solid var(--line); margin-left: 6px; padding-left: 0; }
+  .mstep { position: relative; padding: 4px 0 26px 26px; }
+  .mstep::before {
+    content: ""; position: absolute; left: -7px; top: 8px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--paper); border: 2px solid var(--accent);
+  }
+  .mstep.done::before { background: var(--accent); }
+  .mstep .mtag { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); }
+  .mstep h4 { font-family: var(--sans); font-size: 16px; font-weight: 680; margin: 3px 0 6px; }
+  .mstep p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+  .mstep .ships { font-family: var(--mono); font-size: 12.5px; color: var(--teal); margin-top: 6px; }
+
+  ul.clean { padding-left: 20px; max-width: var(--read); }
+  ul.clean li { margin: 7px 0; }
+  ul.clean li::marker { color: var(--accent); }
+
+  footer { margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--ink-faint); display:flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  @media (max-width: 640px) {
+    .dgrid { grid-template-columns: 1fr; }
+    .dgrid > .drow:nth-child(2) { border-top: 1px solid var(--line-soft); }
+    .sec-head { gap: 10px; }
+    body { font-size: 16px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow"><span class="dot"></span> Product &amp; Technical Design &nbsp;·&nbsp; Internal Working Doc &nbsp;·&nbsp; v0.1</p>
+    <h1 class="title">A human-expertise marketplace for online dating</h1>
+    <p class="lede">Real coaches, not AI. People pay specialists — opener experts, bio doctors, photo reviewers, conversation-keepers — for help inside a chat, priced by the message. This doc defines what we build first and how the pieces fit.</p>
+    <div class="meta-row">
+      <span><b>Prepared for</b> &nbsp;tzvi</span>
+      <span><b>Date</b> &nbsp;Jul 2026</span>
+      <span><b>Scope</b> &nbsp;MVP</span>
+      <span><b>Status</b> &nbsp;Ready to scaffold</span>
+    </div>
+  </header>
+
+  <div class="decisions">
+    <span class="lab">Decisions locked for the MVP</span>
+    <div class="dgrid">
+      <div class="drow"><span class="dk">Monetization</span><span class="dv">Plain dollars, charged per item at purchase<small>Stripe one-tap per item; engagements meter delivery. Wallet is a later optimization.</small></span></div>
+      <div class="drow"><span class="dk">Payments &amp; payouts</span><span class="dv">Stripe Connect (Express)<small>Marketplace split + coach KYC + payouts, out of the box.</small></span></div>
+      <div class="drow"><span class="dk">Stack</span><span class="dv">Next.js · Supabase · shadcn/ui<small>Auth, Postgres, storage, realtime from one provider.</small></span></div>
+      <div class="drow"><span class="dk">Chat</span><span class="dv">Built in-house on Supabase Realtime<small>Metering lives in the send path — we own the messages table.</small></span></div>
+    </div>
+  </div>
+
+  <!-- 01 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>Who it's for</h2></div>
+    <p class="body">Two sides, and the marketplace only works when both show up. The whole design bends toward making the <em>client's</em> first paid interaction feel low-risk and the <em>coach's</em> earning feel effortless.</p>
+    <div class="cards">
+      <div class="card">
+        <span class="tag">Demand side</span>
+        <h4>The stuck dater</h4>
+        <p>Has matches but stalls — dead conversations, a bio that isn't landing, no reply to a great match. Won't commit to a $1,000/mo coach, but will pay $5–20 to get unstuck on <em>this</em> conversation, right now.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Supply side</span>
+        <h4>The specialist coach</h4>
+        <p>Good at one slice of dating and wants to monetize it without building a business. Signs up, sets prices, gets paid per reply. Reputation compounds through ratings and response-time badges.</p>
+      </div>
+    </div>
+    <div class="callout teal">
+      <span class="clab">Why this beats the incumbents</span>
+      <p>Willingness to pay is already proven at the premium end — ghostwriters charge <strong>~$2,000/mo</strong>, done-for-you services like VIDA Select run <strong>$995–2,995/mo</strong>, and Fiverr profile gigs sell at <strong>$99–400</strong>. Our wedge is <strong>unbundling</strong> that into per-message micro-help, reaching the far larger mass market that will never buy a monthly package but will happily pay for one good opener.</p>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>The core loop</h2></div>
+    <p class="body">Everything else is scaffolding around this one transaction. If this loop feels good, we have a product.</p>
+    <div class="flow">
+      <div class="step"><span class="n">1</span><p class="b"><b>Discover</b><span>Client browses coaches by specialty, price, rating, and response time; opens a profile.</span></p></div>
+      <div class="step"><span class="n">2</span><p class="b"><b>Pick an item &amp; pay in dollars</b><span>Client chooses off the coach's menu and pays right then via Stripe (saved card / Apple Pay) — a plain one-time charge, no credits or wallet to pre-fund. This opens the engagement with explicit terms.</span></p></div>
+      <div class="step"><span class="n">3</span><p class="b"><b>Start the chat</b><span>Client opens the thread with the coach, drops a screenshot of the match / conversation, asks their question.</span></p></div>
+      <div class="step"><span class="n">4</span><p class="b"><b>Coach fulfills — metered by the engagement</b><span>Free clarifying messages cost nothing; fulfilling replies consume the engagement's terms (per-reply, pack counter, timer). Funds move client → escrow → coach earnings, minus platform fee.</span></p></div>
+      <div class="step"><span class="n">5</span><p class="b"><b>Rate the item</b><span>Client reviews the completed item itself (the pack, the bio makeover, the call). Ratings aggregate at two levels — per offering (shown on menu rows) and per coach — and drive discovery.</span></p></div>
+      <div class="step"><span class="n">6</span><p class="b"><b>Coach cashes out</b><span>Earnings accrue to a Stripe Connect balance and pay out on schedule.</span></p></div>
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>Coach specialties</h2></div>
+    <p class="body">A coach picks one or more. Specialties power discovery filters and let people niche down and build a focused reputation — an "opener expert" reads more trustworthy than a generalist.</p>
+    <div class="cards">
+      <div class="card"><h4>Opener rescue</h4><p>Crafting the first message to a specific match so it actually gets a reply.</p></div>
+      <div class="card"><h4>Bio &amp; profile review</h4><p>Rewriting prompts and bios to land the right tone and hooks.</p></div>
+      <div class="card"><h4>Photo feedback</h4><p>Ordering, culling, and picking the shots that convert (async, screenshot-based).</p></div>
+      <div class="card"><h4>Conversation keeper</h4><p>Reviving a stalling chat and steering toward the ask-out.</p></div>
+      <div class="card"><h4>Date planning</h4><p>Turning a warm thread into a concrete, good first date.</p></div>
+      <div class="card"><h4>Full profile makeover</h4><p>A packaged deliverable across bio + photos + first openers.</p></div>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>Data model</h2></div>
+    <p class="body">The shape that makes metered chat + payouts + reviews work. Postgres, with row-level security so a client only ever reads their own threads and a coach only their own. <span class="lab">primary&nbsp;bits shown</span></p>
+
+    <div class="entity">
+      <div class="ehead"><b>profiles</b><span>one row per user; a user can be client and coach</span></div>
+      <div class="efields"><i>id</i> · display_name · avatar_url · <i>is_coach</i> · headline · bio · specialties[] · price_per_reply_cents · response_time_mins · rating_avg · rating_count · stripe_account_id</div>
+    </div>
+    <div class="entity">
+      <div class="ehead"><b>packages</b><span>optional fixed-scope offers a coach sells</span></div>
+      <div class="efields"><i>id</i> · coach_id → profiles · title · description · price_cents · specialty</div>
+    </div>
+    <div class="entity">
+      <div class="ehead"><b>threads</b><span>one client ↔ one coach conversation</span></div>
+      <div class="efields"><i>id</i> · client_id → profiles · coach_id → profiles · package_id? · status · created_at · last_message_at</div>
+    </div>
+    <div class="entity">
+      <div class="ehead"><b>messages</b><span>the metered unit</span></div>
+      <div class="efields"><i>id</i> · thread_id → threads · sender_id → profiles · body · attachment_url? · <i>amount_charged_cents</i> · is_billable · created_at</div>
+    </div>
+    <div class="entity">
+      <div class="ehead"><b>money_ledger</b><span>append-only; source of truth for all money movement</span></div>
+      <div class="efields"><i>id</i> · user_id → profiles · delta_cents · reason <span style="color:var(--ink-faint)">(purchase · charge · earning · payout · refund)</span> · ref_id · created_at</div>
+    </div>
+    <div class="entity">
+      <div class="ehead"><b>reviews</b><span>one per completed thread</span></div>
+      <div class="efields"><i>id</i> · thread_id → threads · client_id · coach_id · <i>stars</i> · body · created_at</div>
+    </div>
+    <div class="callout teal" style="margin-top:22px">
+      <span class="clab">Why a ledger, not a balance column</span>
+      <p>Escrow, pack units remaining, and coach earnings are all derived by summing <code style="font-family:var(--mono);font-size:0.9em">money_ledger</code>. Money-adjacent state that you can't reconstruct is how you end up with disputes you can't answer — an append-only ledger makes every cent traceable to a purchase, a delivery, or a payout.</p>
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2>Screens</h2></div>
+    <p class="body">The MVP surface — small on purpose. Everything not on this list is a v2 conversation.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Screen</th><th>Who</th><th>Job it does</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Browse coaches</strong></td><td class="mono-cell">client</td><td>Filter by specialty, price, rating, response time</td></tr>
+          <tr><td><strong>Coach profile</strong></td><td class="mono-cell">client</td><td>Specialties, pricing, sample work, reviews → "Start chat"</td></tr>
+          <tr><td><strong>Purchase sheet</strong></td><td class="mono-cell">client</td><td>One-tap Stripe payment (saved card / Apple Pay) for the chosen item</td></tr>
+          <tr><td><strong>Chat thread</strong></td><td class="mono-cell">both</td><td>Messages, screenshot upload, pinned engagement terms &amp; live meter</td></tr>
+          <tr><td><strong>Inbox</strong></td><td class="mono-cell">both</td><td>List of active threads, unread + last message</td></tr>
+          <tr><td><strong>Leave a review</strong></td><td class="mono-cell">client</td><td>Stars + outcome tags per completed item; rolls up to offering &amp; coach ratings</td></tr>
+          <tr><td><strong>Coach onboarding</strong></td><td class="mono-cell">coach</td><td>Specialties, pricing, Stripe Connect setup, sample work</td></tr>
+          <tr><td><strong>Coach earnings</strong></td><td class="mono-cell">coach</td><td>Balance, ledger, payout status</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2>Money mechanics</h2></div>
+    <p class="body">Everything is <strong>plain dollars, charged per item at the moment of purchase</strong> via Stripe (saved card / Apple Pay). No credit currency, no wallet to pre-fund — customers see prices they recognize and card charges they trust. Per-reply items charge the saved card per fulfillment (batched into one daily charge when several land the same day, keeping statements clean and per-transaction fees sane); packs are just items that include N units. A stored-balance wallet is a possible <em>later</em> optimization for heavy users, not the launch mental model. Platform take rate: <strong>20%</strong>.</p>
+    <h3>Worked example — a $25 pack purchase</h3>
+    <div class="ledger">
+      <div class="lrow"><span>Client buys "10 replies" pack (one card charge)</span><span class="v">$25.00</span></div>
+      <div class="lrow"><span>Held in escrow, consumed as coach delivers</span><span class="v neg">10 replies</span></div>
+      <div class="lrow"><span>Platform take (20%)</span><span class="v pos">+$5.00</span></div>
+      <div class="lrow total"><span>Coach payout (pre-Stripe fee)</span><span class="v">$16.00</span></div>
+    </div>
+    <h3>Flexible messaging: the client sets the terms; the coach fulfills within them</h3>
+    <p class="body">A purchase always starts with the client: they pick an item off the coach's menu (or accept a coach's proposal), which opens an <strong>engagement</strong> in the thread — a pinned purchase context with explicit terms. The coach's responses then <em>consume</em> the engagement according to its type: per-reply items consume a unit per answer, timed items run a visible timer started by mutual tap, packs decrement a pinned counter ("7 of 10 left"), flat deliverables move through an order card, and custom requests become a coach proposal the client accepts first. Delivery is what completes the purchase. Within an active engagement the coach keeps the flexibility that matters — but it only ever points <strong>downward or through consent</strong>:</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Coach send mode</th><th>What happens</th><th>Use case</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Free message</strong></td><td>No charge</td><td>Clarifying questions, follow-ups, goodwill</td></tr>
+          <tr><td><strong>Fulfilling reply</strong></td><td>Consumes the engagement at its agreed terms, cost badged in thread</td><td>The actual advice</td></tr>
+          <tr><td><strong>Discounted reply</strong></td><td>Coach waives or under-charges a consumption</td><td>"Quick one — on the house"</td></tr>
+          <tr><td><strong>Proposal</strong></td><td>New item/price as a card → only charged if client accepts</td><td>"This needs real strategy — $10, ok?"</td></tr>
+          <tr><td><strong>Grouped answer</strong></td><td>Several bubbles, one charge</td><td>A 3-message answer shouldn't cost 3×</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>One thread, many items — the engagement tray</h3>
+    <p class="body">A thread is the <strong>relationship</strong> between one client and one coach, and any number of engagements attach to it over time — an active pack, a delivered bio awaiting approval, a booked call, completed items. Card-scoped work (deliverables, live sessions, quotes) is addressed by its own card and is never ambiguous. Chat metering follows one rule: <strong>at most one chat-metered engagement is "armed" per thread, and only the client can arm it</strong> (a new chat purchase auto-arms itself; switching happens in the engagement tray — a pinned bar showing the armed item's meter that expands to list every item in the thread). Fulfilling replies consume the armed item only, and every consumption badge names its source ("1 used · Convo pack · 5 left"), so thread history doubles as a receipt trail. If nothing is armed or units run out, the coach can only send free messages or proposals — the consent invariant holds structurally.</p>
+    <p class="body" style="margin-top:16px">The invariant that makes the system trustworthy: <strong>a coach's action can cost the client exactly what they already agreed to — or less. Never more.</strong> Trust stays symmetric: every consumption is visibly badged against its engagement with a running total; a low-balance client can still receive free messages (no dead-end threads) but can't open new engagements; "first reply free for new clients" is just an offering default — a trial mechanic with zero new machinery; and client messages — uploads included — are always free, since consumption attaches to the coach's <em>fulfillment</em>, never the client's act of sending.</p>
+    <div class="callout amber">
+      <span class="clab">Design tension to watch</span>
+      <p><strong>Disintermediation.</strong> Once a client trusts a coach, both are tempted to take it off-platform and skip the fee. The defenses are practical, not legal: keep chat + screenshots + history in-app, don't surface contact info, make in-app purchase the only way to pay, and let reputation (reviews, badges) be something a coach loses by leaving. Convenience is the moat — the moment off-platform is easier, we've lost.</p>
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">07</span><h2>Trust &amp; the ghostwriting line</h2></div>
+    <p class="body">This category has one genuine landmine, and we should decide where we stand before writing code, because it shapes copy, moderation, and terms.</p>
+    <div class="callout amber">
+      <span class="clab">The line we draw</span>
+      <p>There's a difference between <strong>coaching</strong> ("here's a better opener, here's why your bio isn't landing") and <strong>impersonation</strong> ("log into my account and message my matches as me"). The impersonation model is where catfishing complaints, platform bans, and PR risk live.</p>
+      <p><strong>MVP stance:</strong> we're a <em>coaching</em> product. Coaches advise and draft <em>suggestions the client sends themselves</em> — they never operate the client's dating account. Same revenue, far less liability. We can revisit done-for-you later, deliberately, with real guardrails.</p>
+    </div>
+    <p class="body" style="margin-top:22px">Beyond that, standard marketplace trust hygiene:</p>
+    <ul class="clean">
+      <li><strong>Reviews &amp; ratings are per item</strong> — each review attaches to the completed engagement and its offering, so every menu row carries its own rating ("Opener rescue ★4.9 · 120") and the coach's overall score is the honest roll-up. A coach can't hide a weak offering behind a strong average, and buyers judge exactly the thing they're about to buy.</li>
+      <li><strong>Fake-review defense in depth</strong> — every review requires a completed <em>paid</em> engagement, so self-reviewing taxes the coach the platform fee + card fees per fake; Stripe card fingerprints link sock-puppet "clients" sharing a payment method; behavioral tripwires (review bursts, zero-consumption engagements, instant reviews) feed the admin queue and quietly de-weight suspect reviews; and confirmed fraud is clawed back from escrow before payout and delists a KYC-verified coach identity — a trade no rational coach takes.</li>
+      <li><strong>The negative tail is the real signal</strong> — positive stars inflate toward uselessness on every marketplace, so ranking runs primarily on <em>defect rate per completed engagement</em> (refunds, disputes, non-repeat rate, abandonment, reports) with Bayesian shrinkage, then repeat rate and clean volume; stars are displayed but demoted. Negatives are structurally fraud-resistant here: attacking a rival requires paying them full price per attempt through a fingerprinted card. Profiles surface a "most critical recent" review unburied — visible, reasonable negatives convert better than suspicious walls of fives, and "1,408 clients · 0.4% refunds · 71% buy again" is a claim no coach can purchase.</li>
+      <li><strong>Response-time badge</strong> — sets client expectations and rewards active coaches.</li>
+      <li><strong>Escrow on every purchase</strong> — the client's dollars are captured at purchase but only released to the coach on delivery/approval; enables clean refunds for disputes.</li>
+      <li><strong>Report / block</strong> — table-stakes safety on any chat product.</li>
+    </ul>
+  </section>
+
+  <!-- 08 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">08</span><h2>Architecture &amp; what we reuse</h2></div>
+    <p class="body">Honest framing: no single open-source repo <em>is</em> this product, because the novel part — metering dollars against engagements on each coach delivery — is exactly what off-the-shelf chat and marketplace repos don't do. But the reuse is still heavy; it's just at the component level.</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Need</th><th>What we use</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><strong>App framework</strong></td><td class="mono-cell">Next.js + TS</td><td>Full-stack in one repo; API routes for the money paths</td></tr>
+          <tr><td><strong>Auth · DB · storage · realtime</strong></td><td class="mono-cell">Supabase</td><td>One dependency: users, Postgres + RLS, screenshot uploads, live chat transport. OSS &amp; self-hostable</td></tr>
+          <tr><td><strong>Payments &amp; payouts</strong></td><td class="mono-cell">Stripe Connect</td><td>Marketplace split, coach KYC, scheduled payouts — nothing OSS competes here</td></tr>
+          <tr><td><strong>UI components</strong></td><td class="mono-cell">shadcn/ui + Tailwind</td><td>Fast, clean, un-templated primitives we own the code for</td></tr>
+          <tr><td><strong>Forms &amp; validation</strong></td><td class="mono-cell">react-hook-form + zod</td><td>One schema validates client, server, and DB edges</td></tr>
+          <tr><td><strong>Marketplace patterns</strong></td><td class="mono-cell">Sharetribe template</td><td>Read it for listings/search/review ideas — don't adopt wholesale (hosted paid backend, non-metered chat)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout teal" style="margin-top:22px">
+      <span class="clab">The one rule that keeps money correct</span>
+      <p>Every money-moving action — purchase, delivery consumption, escrow release, payout, refund — runs <strong>server-side in a single database transaction</strong> that writes the ledger. The client UI never mutates money state directly. Get this boundary right and the rest of the app can move fast without risking someone's money.</p>
+    </div>
+  </section>
+
+  <!-- 09 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">09</span><h2>Build sequence</h2></div>
+    <p class="body">Ordered to de-risk the scary parts first (payments, metering) and leave the pretty parts for when the loop is proven.</p>
+    <div class="mile">
+      <div class="mstep">
+        <span class="mtag">Milestone 0 · Foundation</span>
+        <h4>Auth, roles, coach profiles</h4>
+        <p>Next.js + Supabase project, sign-up, profile with specialties &amp; pricing, browse/coach-profile screens with seeded data.</p>
+        <p class="ships">ships → a browsable (fake) marketplace</p>
+      </div>
+      <div class="mstep">
+        <span class="mtag">Milestone 1 · Money rails</span>
+        <h4>Dollars + Stripe</h4>
+        <p>The purchase sheet (saved card / Apple Pay per item), the ledger, Stripe Connect coach onboarding &amp; payouts. No chat yet — just verify dollars go in and money comes out.</p>
+        <p class="ships">ships → real money moves correctly</p>
+      </div>
+      <div class="mstep">
+        <span class="mtag">Milestone 2 · The core loop</span>
+        <h4>Metered chat</h4>
+        <p>Threads, realtime messages, screenshot upload, and the charge-on-reply transaction. This is the product.</p>
+        <p class="ships">ships → a paid coaching conversation end-to-end</p>
+      </div>
+      <div class="mstep">
+        <span class="mtag">Milestone 3 · Trust surface</span>
+        <h4>Reviews, ratings, discovery filters</h4>
+        <p>Post-thread reviews, aggregate ratings on profiles, real search/filter, response-time badges.</p>
+        <p class="ships">ships → a marketplace that ranks itself</p>
+      </div>
+      <div class="mstep">
+        <span class="mtag">Milestone 4 · Polish &amp; launch</span>
+        <h4>Onboarding, safety, seed supply</h4>
+        <p>Report/block, coach earnings dashboard, recruit the first handful of coaches, tighten the client first-run.</p>
+        <p class="ships">ships → private beta</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section>
+    <div class="sec-head"><span class="sec-num">10</span><h2>Open questions</h2></div>
+    <ul class="clean">
+      <li><strong>Where does the code live?</strong> A fresh dedicated repo is the clean answer — this product is unrelated to <code style="font-family:var(--mono)">capbit</code>'s Rust auth library. (Or, if you want to dogfood capbit as the permissions layer, that's a deliberate and interesting choice we'd make on purpose.)</li>
+      <li><strong>Cold-start:</strong> which niche do we seed first? Narrower is better — e.g. "men, Hinge, opener + conversation help" — so early supply and demand actually meet.</li>
+      <li><strong>Pricing:</strong> confirm the 20% take rate, and the micro-charge batching window for per-reply items (daily feels right).</li>
+      <li><strong>Coach vetting:</strong> open sign-up vs. light application for the first cohort (I lean light application to protect early quality).</li>
+    </ul>
+    <p class="body" style="margin-top:26px"><strong>Recommended next step:</strong> confirm this direction, then I scaffold Milestone 0 in a fresh repo — Next.js + Supabase + shadcn, with the profile and browse screens on seeded data — so you have something clickable within the first pass.</p>
+  </section>
+
+  <footer>
+    <span>Dating Coaching Marketplace — Product Design v0.1</span>
+    <span>Working doc · figures are directional</span>
+  </footer>
+
+</div>

@@ -1,0 +1,939 @@
+<title>Wing — Interactive Prototype</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+  :root{
+    --bg:#FFFBF8; --surface:#FFFFFF; --ink:#2A2230; --ink-soft:#6E6068; --ink-faint:#9A8C93;
+    --line:#F0E4DD; --line-soft:#F6ECE6; --accent:#D6456A; --accent-soft:#FBEEF1;
+    --positive:#2F5D62; --positive-soft:#E9F2F0; --gold:#E0A03C; --warn:#B77410; --warn-soft:#F5E9D6;
+    --chip:#F4EBE7; --shadow:0 2px 10px -6px rgba(60,30,45,.2);
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#17131A; --surface:#201A22; --ink:#F1EAEE; --ink-soft:#C4B8C0; --ink-faint:#8E8390;
+    --line:#362E3B; --line-soft:#2A232F; --accent:#F2718F; --accent-soft:#3A2530;
+    --positive:#7FC0C3; --positive-soft:#1E2E30; --gold:#E0A64E; --warn:#E0A64E; --warn-soft:#2E2515;
+    --chip:#2A232F; --shadow:0 2px 10px -6px rgba(0,0,0,.5);
+  }}
+  :root[data-theme="light"]{--bg:#FFFBF8;--surface:#FFFFFF;--ink:#2A2230;--ink-soft:#6E6068;--ink-faint:#9A8C93;--line:#F0E4DD;--line-soft:#F6ECE6;--accent:#D6456A;--accent-soft:#FBEEF1;--positive:#2F5D62;--positive-soft:#E9F2F0;--gold:#E0A03C;--warn:#B77410;--warn-soft:#F5E9D6;--chip:#F4EBE7;}
+  :root[data-theme="dark"]{--bg:#17131A;--surface:#201A22;--ink:#F1EAEE;--ink-soft:#C4B8C0;--ink-faint:#8E8390;--line:#362E3B;--line-soft:#2A232F;--accent:#F2718F;--accent-soft:#3A2530;--positive:#7FC0C3;--positive-soft:#1E2E30;--gold:#E0A64E;--warn:#E0A64E;--warn-soft:#2E2515;--chip:#2A232F;}
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);overscroll-behavior:none;
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .serif{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif}
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  button{font:inherit;border:none;background:none;color:inherit;padding:0;cursor:pointer;text-align:left}
+  input,textarea{font:inherit;color:var(--ink)}
+
+  #app{max-width:520px;margin:0 auto;height:100vh;height:100svh;display:flex;flex-direction:column;position:relative;overflow:hidden}
+  .screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none;flex-direction:column}
+  .screen.on{display:flex}
+  /* Screens are flex columns, so children default to flex-shrink:1 and get
+     COMPRESSED when the screen overflows — horizontally-scrolling rows
+     (chip filters, coach strips) collapsed to slivers. Everything keeps its
+     natural height and the screen scrolls instead. .chat is the one exception:
+     it must flex to fill and scroll internally. */
+  .screen > *:not(.chat){flex:0 0 auto}
+
+  .demobar{background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:600;padding:7px 14px;display:flex;justify-content:space-between;align-items:center;flex:0 0 auto}
+  .coachrule{height:3px;background:var(--positive);flex:0 0 auto;display:none}
+  .coachrule.on{display:block}
+
+  .apphead{padding:14px 16px 8px}
+  .greet{font-size:11px;color:var(--ink-faint);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .apphead h1{margin:2px 0 0;font-size:25px;font-weight:600;letter-spacing:-.01em}
+  .topbar{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5}
+  /* was 13x31 for the bare chevron — below any usable tap target */
+  .backbtn{font-size:15px;color:var(--ink-faint);min-width:44px;min-height:40px;display:inline-flex;align-items:center;margin-left:-8px;padding-left:8px}
+  .sechead{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint);padding:16px 16px 7px;display:flex;justify-content:space-between;align-items:center}
+
+  .av{border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;flex:0 0 auto}
+  .av-lg{width:66px;height:66px;font-size:23px}.av-md{width:46px;height:46px;font-size:17px}
+  .av-sm{width:32px;height:32px;font-size:13px}.av-xs{width:44px;height:44px;font-size:16px}
+  .row{display:flex;gap:11px;align-items:center}
+  .nm{font-weight:700;font-size:15px;display:flex;gap:6px;align-items:center}
+  .vtick{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;background:#2F8C6A;color:#fff;font-size:9px;font-weight:800}
+  .hl{font-size:12.5px;color:var(--ink-faint);margin-top:1px}
+  .stars{color:var(--gold);letter-spacing:1px}
+
+  /* home */
+  .needs{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:14px;padding:12px 13px;margin:0 14px 8px;display:flex;gap:11px;align-items:center;width:calc(100% - 28px);box-shadow:var(--shadow)}
+  .needs .ni{width:30px;height:30px;border-radius:9px;background:var(--accent-soft);display:grid;place-items:center;font-size:14px;flex:0 0 auto}
+  .needs b{font-size:13.5px;display:block}
+  .needs span{font-size:11.5px;color:var(--ink-faint)}
+  .needs .arr{margin-left:auto;color:var(--ink-faint);flex:0 0 auto}
+  .throw{display:flex;gap:11px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line-soft);width:100%}
+  .throw .iw{min-width:0;flex:1}
+  .throw .tnm{display:flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700}
+  .meter{margin-left:auto;font-size:9.5px;font-weight:700;padding:2.5px 8px;border-radius:999px;font-family:ui-monospace,Menlo,monospace;letter-spacing:.03em;flex:0 0 auto}
+  .meter.a{background:var(--accent-soft);color:var(--accent)}
+  .meter.d{background:var(--positive-soft);color:var(--positive)}
+  .meter.w{background:var(--warn-soft);color:var(--warn)}
+  /* display:block is required — inline elements ignore overflow/text-overflow,
+     so the snippet ran off the right edge instead of truncating */
+  .snip{display:block;min-width:0;font-size:12.5px;color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .throw .tnm{min-width:0}
+  .throw .tnm > :first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .udot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:0 0 auto}
+  .rtime{font-size:10px;color:var(--ink-faint);font-family:ui-monospace,Menlo,monospace;flex:0 0 auto;align-self:flex-start;padding-top:3px}
+  .coachstrip{display:flex;gap:14px;padding:4px 16px 12px;overflow-x:auto;scrollbar-width:none}
+  .coachstrip::-webkit-scrollbar{display:none}
+  .cs{text-align:center;flex:0 0 auto;width:58px}
+  .cs .av{margin:0 auto 4px;position:relative}
+  .cs .csn{font-size:10.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cs .fav{position:absolute;right:-2px;bottom:-2px;background:var(--bg);border-radius:50%;width:17px;height:17px;display:grid;place-items:center;font-size:9px;color:var(--accent)}
+  .cs.addc .av{background:var(--chip)!important;color:var(--ink-faint);border:1px dashed var(--ink-faint)}
+
+  /* discover */
+  .chiprow{display:flex;gap:7px;padding:10px 16px 4px;overflow-x:auto;scrollbar-width:none}
+  .chiprow::-webkit-scrollbar{display:none}
+  .fchip{flex:0 0 auto;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--ink-soft)}
+  .fchip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+  /* Urgency row — the primary way in. Situations with a deadline first. */
+  .urgrow{display:flex;gap:8px;padding:4px 16px 2px;overflow-x:auto;scrollbar-width:none}
+  .urgrow::-webkit-scrollbar{display:none}
+  .ub{flex:0 0 auto;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:9px 13px;min-width:132px}
+  .ub b{display:block;font-size:13px;color:var(--ink)}
+  .ub span{display:block;font-size:10.5px;color:var(--ink-faint);margin-top:2px;line-height:1.35}
+  .ub.on{border-color:var(--accent);background:var(--accent-soft)}
+  .ub.on b{color:var(--accent)}
+  .search{margin:8px 16px 0;display:block;width:calc(100% - 32px);background:var(--chip);border:none;border-radius:12px;padding:11px 14px;font-size:16px}
+  .search::placeholder{color:var(--ink-faint)}
+  .search:focus{outline:2px solid var(--accent)}
+  .list{padding:10px 14px 24px;display:flex;flex-direction:column;gap:10px}
+  .ccard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow);position:relative}
+  /* 44px minimum tap target — the heart was 19x27 and hard to hit */
+  .heart{position:absolute;right:4px;top:4px;width:44px;height:44px;display:grid;place-items:center;font-size:20px;line-height:1;color:var(--ink-faint)}
+  .heart.on{color:var(--accent)}
+  .ccard .fromp{margin-left:auto;text-align:right;flex:0 0 auto;padding-right:26px}
+  .ccard .fromp b{display:block;font-size:15px;color:var(--accent)}
+  .ccard .fromp span{font-size:10.5px;color:var(--ink-faint)}
+  .meta{display:flex;gap:10px;margin-top:10px;font-size:12px;color:var(--ink-soft);align-items:center;flex-wrap:wrap}
+  .signals{font-size:11px;color:var(--positive);margin-top:4px;font-family:ui-monospace,Menlo,monospace}
+  .spec{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+  .schip{font-size:10.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+  .schip.t{background:var(--positive-soft);color:var(--positive)}
+
+  /* profile */
+  .phero{text-align:center;padding:18px 16px 4px}
+  .phero .av{margin:0 auto}
+  .phero h2{font-size:22px;margin:9px 0 2px;font-weight:600}
+  .statrow{display:flex;margin:14px 16px 4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:11px 0}
+  .stat{flex:1;text-align:center}
+  .stat+.stat{border-left:1px solid var(--line-soft)}
+  .stat b{display:block;font-size:15px}
+  .stat span{font-size:10.5px;color:var(--ink-faint)}
+  .offer{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 14px 8px;width:calc(100% - 28px)}
+  .oi{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:var(--accent-soft);flex:0 0 auto}
+  .oi.t{background:var(--positive-soft)}.oi.a{background:var(--warn-soft)}
+  .ow{min-width:0}.ow b{font-size:13.5px;display:block}
+  .ow span{font-size:11px;color:var(--ink-faint)}
+  .op{margin-left:auto;font-weight:700;font-size:13.5px;color:var(--accent);white-space:nowrap}
+  .rev{margin:2px 14px 9px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .rev .rt{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:700;flex-wrap:wrap}
+  .rev p{font-size:12.5px;color:var(--ink-soft);margin:5px 0 0}
+  .cta{display:block;width:calc(100% - 28px);margin:6px 14px 16px;background:var(--accent);color:#fff;text-align:center;font-weight:700;font-size:15px;border-radius:14px;padding:14px;box-shadow:0 6px 16px -8px rgba(214,69,106,.6)}
+  .cta.dark{background:var(--ink);color:var(--bg);box-shadow:none}
+
+  /* thread */
+  .tw b{font-size:14.5px;display:block}.tw span{font-size:10.5px;color:#2F8C6A;font-weight:600}
+  .itembar{display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--accent-soft);border-bottom:1px solid var(--line);font-size:12px;font-weight:600;color:var(--accent);width:100%}
+  .itembar .edot{width:6px;height:6px;border-radius:50%;background:#2F8C6A;flex:0 0 auto}
+  .itembar .cnt{margin-left:auto;flex:0 0 auto;opacity:.8}
+  .itembar.warn{background:var(--warn-soft);color:var(--warn);border-bottom-color:var(--warn-soft)}
+  .itembar.calm{background:var(--positive-soft);color:var(--positive)}
+  /* min-height:0 lets the chat shrink and scroll internally instead of growing
+     the screen and pushing the composer below the fold in long threads */
+  #s-thread{overflow:hidden}
+  .chat{flex:1;min-height:0;padding:12px 12px 8px;display:flex;flex-direction:column;gap:9px;overflow-y:auto}
+  /* without this, flex children shrink to fit and messages get squashed
+     instead of the chat scrolling */
+  .chat > *{flex:0 0 auto}
+  .msg{max-width:84%;padding:9px 13px;border-radius:16px;font-size:14px}
+  .msg.me{align-self:flex-end;background:var(--ink);color:var(--bg);border-bottom-right-radius:5px}
+  .msg.them{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
+  .freetag{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.05em;color:var(--positive);background:var(--positive-soft);padding:2px 7px;border-radius:999px;margin-top:6px;font-family:ui-monospace,Menlo,monospace}
+  .shot{align-self:flex-end;width:62%;border-radius:13px;border:1px solid var(--line);overflow:hidden;background:var(--surface)}
+  .shot .simg{height:62px;background:linear-gradient(160deg,#EFE2DA 25%,#E5D3CE 25% 50%,#EFE2DA 50% 75%,#E5D3CE 75%);position:relative}
+  .shot .simg::after{content:"⌁ hinge_convo.png";position:absolute;inset:auto 0 0 0;font-size:9px;padding:3px 8px;background:rgba(42,34,48,.82);color:#FFF7F2;font-family:ui-monospace,Menlo,monospace}
+
+  /* ANSWER CARD — the headline of v2 */
+  .acard{align-self:flex-start;width:93%;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .ahead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;background:var(--accent-soft);font-family:ui-monospace,Menlo,monospace;font-size:9.5px;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+  .ahead .who{opacity:.75;font-weight:600}
+  .abody{padding:11px 12px 4px;font-size:14px;line-height:1.5}
+  .ablock{margin:8px 12px 4px;border:1px solid var(--line);border-radius:11px;background:var(--bg);padding:10px 12px;font-size:13.5px;line-height:1.45}
+  .ablock .blab{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.07em;color:var(--ink-faint);display:block;margin-bottom:4px}
+  .ablock .bcopy{display:block;width:100%;margin-top:8px;text-align:center;font-size:11.5px;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:9px 6px}
+  .aacts{display:flex;gap:6px;padding:9px 12px 11px}
+  .aact{flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--chip);border-radius:9px;padding:7px 0}
+  .aact.on{color:var(--accent);background:var(--accent-soft)}
+  .aact.dots{flex:0 0 44px}
+
+  /* THE CALL — an answer whose advice is to send nothing. The one thing no
+     generator will ever tell you, so it gets its own register rather than
+     looking like an answer with its payload missing. */
+  .acard.call{border-left-color:var(--positive)}
+  .acard.call .ahead{background:var(--positive-soft);color:var(--positive)}
+  .vblock{margin:8px 12px 4px;border:1px dashed var(--positive);border-radius:11px;background:var(--positive-soft);padding:10px 12px}
+  .vblock .blab{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.07em;color:var(--positive);display:block;margin-bottom:3px;font-weight:700}
+  .vblock .vtxt{font-size:12.5px;line-height:1.45;color:var(--ink-soft)}
+
+  /* Outcome capture — feeds the defect-rate ranking, and is the only way to
+     know whether a human answer actually beat a machine one. */
+  .outrow{display:flex;align-items:center;gap:6px;padding:0 12px 11px;flex-wrap:wrap}
+  .outrow .olab{font-size:11px;color:var(--ink-faint);font-weight:600;flex:0 0 auto}
+  .obtn{font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft)}
+  .obtn.picked{border-color:var(--positive);background:var(--positive-soft);color:var(--positive)}
+  .odone{font-size:11px;color:var(--positive);font-weight:600;padding:0 12px 11px}
+
+  .icard{align-self:flex-start;width:93%;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 13px}
+  .icard.warn{border-color:var(--warn)}
+  .icard .ot{display:flex;align-items:center;gap:9px}
+  .icard .ot b{font-size:13.5px;display:block}.icard .ot span{font-size:10.5px;color:var(--ink-faint)}
+  .os{margin-left:auto;font-size:9px;font-weight:700;padding:3px 8px;border-radius:999px;font-family:ui-monospace,Menlo,monospace;background:var(--positive-soft);color:var(--positive);flex:0 0 auto}
+  .os.w{background:var(--warn-soft);color:var(--warn)}
+  .tline{display:flex;margin:11px 2px 3px}
+  .tstep{flex:1;text-align:center;font-size:8.5px;color:var(--ink-faint);font-family:ui-monospace,Menlo,monospace}
+  .tstep::before{content:"";display:block;width:9px;height:9px;border-radius:50%;background:var(--positive);margin:0 auto 4px}
+  .tstep.pend::before{background:var(--line)}
+  .tstep.cur::before{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .filechip{display:flex;align-items:center;gap:8px;background:var(--chip);border-radius:10px;padding:8px 10px;margin-top:10px;font-size:11.5px;font-weight:600}
+  .obtns{display:flex;gap:7px;margin-top:10px}
+  .qb{flex:1;text-align:center;font-size:12.5px;font-weight:700;padding:9px 0;border-radius:10px}
+  .qb.yes{background:var(--accent);color:#fff}
+  .qb.no{background:var(--chip);color:var(--ink-soft)}
+  .onote{text-align:center;font-size:10px;color:var(--ink-faint);margin-top:8px;font-family:ui-monospace,Menlo,monospace}
+  .compose{display:flex;gap:8px;align-items:center;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line);flex:0 0 auto}
+  .cfield{flex:1;min-width:0;background:var(--chip);border:none;border-radius:999px;padding:11px 15px;font-size:16px}
+  .cfield:focus{outline:2px solid var(--accent)}
+  .csend{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:15px;flex:0 0 auto}
+
+  /* saved */
+  .scard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 13px;margin:0 14px 9px}
+  .scard .sh{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;font-weight:700;letter-spacing:.06em;color:var(--accent);display:flex;justify-content:space-between;gap:8px}
+  .scard .sb{font-size:13.5px;margin-top:6px;line-height:1.45}
+  .scard .sacts{display:flex;gap:6px;margin-top:9px}
+
+  /* you */
+  .yrow{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line-soft);width:100%;font-size:14.5px}
+  .yrow .yi{width:22px;text-align:center;font-size:16px;flex:0 0 auto}
+  .yrow .arr{margin-left:auto;color:var(--ink-faint)}
+  .modecard{margin:12px 14px;background:var(--positive-soft);border:1px solid var(--positive);border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:11px;width:calc(100% - 28px)}
+  .modecard b{font-size:14px;display:block;color:var(--positive)}
+  .modecard span{font-size:11.5px;color:var(--ink-soft)}
+
+  /* coach */
+  .etile{margin:10px 14px;background:var(--ink);border-radius:16px;padding:16px 18px;color:var(--bg)}
+  .etile .el{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.7;font-weight:600}
+  .etile .ev{font-family:ui-monospace,Menlo,monospace;font-size:30px;font-weight:700;margin-top:2px}
+  .etile .es{font-size:11.5px;opacity:.75;margin-top:4px}
+  .etiles2{display:flex;gap:8px;margin:0 14px 10px}
+  .et2{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 13px}
+  .et2 b{font-family:ui-monospace,Menlo,monospace;font-size:16px;display:block}
+  .et2 span{font-size:9.5px;color:var(--ink-faint)}
+  .qrow{margin:0 14px 8px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 13px}
+  .qrow.late{border-color:var(--warn);background:var(--warn-soft)}
+  .due{margin-left:auto;font-size:9px;color:var(--warn);font-weight:700;background:var(--bg);padding:3px 8px;border-radius:999px;white-space:nowrap;font-family:ui-monospace,Menlo,monospace;flex:0 0 auto}
+  .due.ok{color:var(--positive)}
+
+  .empty{text-align:center;color:var(--ink-faint);padding:40px 30px;font-size:13.5px}
+  .empty .serif{font-size:20px;color:var(--ink);display:block;margin-bottom:8px}
+
+  /* tabs + sheets */
+  .tabbar{display:flex;border-top:1px solid var(--line);background:var(--surface);padding-bottom:env(safe-area-inset-bottom);flex:0 0 auto}
+  .tab{flex:1;text-align:center;padding:9px 0 7px;font-size:10px;font-weight:600;color:var(--ink-faint)}
+  .tab .ticon{display:block;font-size:19px;margin-bottom:1px}
+  .tab.on{color:var(--accent)}
+  .scrim{position:absolute;inset:0;background:rgba(20,12,18,.45);z-index:20;display:none}
+  .scrim.on{display:block}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:22px 22px 0 0;padding:14px 18px calc(20px + env(safe-area-inset-bottom));z-index:21;transform:translateY(105%);transition:transform .28s cubic-bezier(.3,.9,.3,1);max-height:84%;overflow-y:auto}
+  .sheet.on{transform:translateY(0)}
+  @media (prefers-reduced-motion:reduce){.sheet{transition:none}}
+  .grab{width:38px;height:4px;border-radius:999px;background:var(--line);margin:0 auto 14px}
+  .srow{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line-soft);padding:11px 2px;font-size:13px;color:var(--ink-soft)}
+  .srow b{color:var(--ink);font-weight:600}
+  .paybtn{display:block;width:100%;margin-top:14px;background:#000;color:#fff;border-radius:14px;text-align:center;padding:15px;font-weight:700;font-size:16px}
+  .paynote{text-align:center;font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.5}
+  .trayrow{display:flex;gap:11px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:13px;padding:12px 13px;margin-bottom:8px;width:100%}
+  .trayrow.inuse{border-color:var(--accent)}
+  .trayrow.done{opacity:.55}
+  .radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);flex:0 0 auto}
+  .trayrow.inuse .radio{border-color:var(--accent);background:radial-gradient(circle,var(--accent) 42%,transparent 48%)}
+  .bigstars{display:flex;justify-content:center;gap:8px;font-size:34px;color:var(--line);margin:12px 0 4px}
+  .bigstars button.lit{color:var(--gold)}
+  .outchips{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:12px 0 4px}
+  .ochip{font-size:12px;font-weight:600;padding:7px 13px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--ink-soft)}
+  .ochip.on{background:var(--positive-soft);border-color:var(--positive);color:var(--positive)}
+  .revfield{width:100%;margin-top:12px;background:var(--chip);border:none;border-radius:12px;padding:12px 13px;font-size:16px;min-height:64px;resize:none}
+  .toast{position:absolute;left:50%;transform:translateX(-50%) translateY(20px);bottom:92px;background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;padding:10px 18px;border-radius:999px;opacity:0;transition:all .25s;z-index:40;pointer-events:none;white-space:nowrap;box-shadow:var(--shadow)}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+
+<div id="app">
+  <div class="demobar" id="demobar"><span>Clickable demo — payments simulated, nothing is real</span><button onclick="this.parentNode.style.display='none'" style="font-size:15px;padding:0 2px">✕</button></div>
+  <div class="coachrule" id="coachrule"></div>
+
+  <div class="screen on" id="s-home"></div>
+  <div class="screen" id="s-discover">
+    <div class="apphead"><div class="greet">tell us where you are</div><h1 class="serif">What's happening?</h1></div>
+    <div class="urgrow" id="urg"></div>
+    <input class="search" id="q" placeholder="Search coaches, e.g. openers…" oninput="state.query=this.value;renderDiscover()">
+    <div class="chiprow" id="chips"></div>
+    <div id="favstrip"></div>
+    <div class="list" id="coachlist"></div>
+  </div>
+  <div class="screen" id="s-profile"></div>
+  <div class="screen" id="s-thread"></div>
+  <div class="screen" id="s-saved"></div>
+  <div class="screen" id="s-you"></div>
+  <div class="screen" id="s-coach"></div>
+  <div class="screen" id="s-menu"></div>
+  <div class="screen" id="s-earn"></div>
+
+  <div class="scrim" id="scrim" onclick="closeSheets()"></div>
+  <div class="sheet" id="paysheet"></div>
+  <div class="sheet" id="traysheet"></div>
+  <div class="sheet" id="revsheet"></div>
+  <div class="toast" id="toast"></div>
+  <div class="tabbar" id="tabbar"></div>
+</div>
+
+<script>
+/* ---------------- data ---------------- */
+const COACHES={
+ maya:{h:"maya",name:"Maya R.",head:"Opener & conversation specialist",tag:"I fix dead conversations.",g:["#E4506F","#B23A6E"],rating:4.9,count:212,clients:1408,resp:"~5 min",refunds:"0.3%",repeat:"71%",specs:["openers","conversations"],badges:["First answer free"],
+  answers:[{r:"Good news, this is recoverable. Your last two texts were both questions — that reads needy after a gap.",c:"just saw a golden retriever argue with a pigeon and thought of your dog-park story"},
+           {r:"She used an emoji, that's momentum. Mirror her energy but shorter — she wrote three lines, you write one good one. Ask nothing this time.",c:"ok the pigeon has officially replaced my alarm clock. how was the market?"},
+           {r:"Now you ask her out. Specific, low-stakes, one option not three — options make it feel like scheduling.",c:"there's a tiny coffee place near the park doing pour-overs. thursday evening?"},
+           {r:"Do nothing for 24 hours. Seriously. The silence does more work than any message I could write here.",c:null,
+            hold:"Don't message her until tomorrow evening. If you send something now it reads as anxious, and you'll undo the last three days."}],
+  frees:["Quick one before I dig in — how long since her last reply?","Got it. Give me two minutes.","Nice, that's the right instinct."]},
+ dev:{h:"dev",name:"Dev K.",head:"Bio doctor · ex-copywriter",tag:"Bios that get right-swipes.",g:["#2F5D62","#4E8C7F"],rating:4.8,count:167,clients:640,resp:"~2 hr",refunds:"0.6%",repeat:"54%",specs:["bio"],badges:[],
+  answers:[{r:"Your bio is a list of adjectives. Nobody swipes on adjectives — they swipe on a scene they can picture.",c:"Potter by weekend, decent cook by necessity. Looking for someone to argue with about whether pineapple belongs anywhere."}],
+  frees:["Got everything I need — two versions by tonight.","Version 1 leans on your pottery thing. It's your best hook by far."]},
+ sam:{h:"sam",name:"Sam T.",head:"Photo lineup strategist",tag:"Keep, cut, or reshoot — with reasons.",g:["#B77410","#D6A03F"],rating:4.7,count:94,clients:410,resp:"~1 hr",refunds:"1.1%",repeat:"48%",specs:["photos"],badges:["Pack deals"],
+  answers:[{r:"Photo 1 — KEEP, lead with it. Warm light, real smile, mid-laugh. Photo 2 — CUT. Gym mirror reads try-hard and costs you more than it earns.",c:null},
+           {r:"Photo 3 — RESHOOT. Great setting, bad crop. Landscape, step back two metres, same time of day.",c:null}],
+  frees:["Send them over whenever.","Looking now."]},
+ elena:{h:"elena",name:"Elena V.",head:"Strategy for women — screening & standards",tag:"Invest only in matches worth your time.",g:["#2F5D62","#7FA8A0"],rating:4.9,count:318,clients:1920,resp:"~10 min",refunds:"0.2%",repeat:"78%",specs:["conversations","dates"],badges:["Free intro call"],
+  answers:[{r:"He answers fast but never asks anything back. That's consumption, not interest. You don't need a cleverer reply — you need a filter question.",c:"what does your week actually look like?"}],
+  frees:["Send me the thread.","Reading it now."]},
+ marcus:{h:"marcus",name:"Marcus H.",head:"Dating again after divorce · 40+",tag:"Apps changed. Catch up without the cringe.",g:["#B77410","#8A5A2B"],rating:4.8,count:141,clients:380,resp:"~3 hr",refunds:"0.5%",repeat:"61%",specs:["bio","photos"],badges:[],
+  answers:[{r:"First rule of the restart: your profile should sound like you at dinner, not you at an interview.",c:null}],frees:["Take your time, send what you have."]},
+ priya:{h:"priya",name:"Priya N.",head:"Date planner · knows every city",tag:"First dates die in loud restaurants.",g:["#E4506F","#D6A03F"],rating:5.0,count:58,clients:210,resp:"~4 hr",refunds:"0%",repeat:"66%",specs:["dates","custom"],badges:["Quote anything"],
+  answers:[{r:"Three stops, ninety minutes, easy to extend or end gracefully. Museum of the Weird at 4:30, coffee at Cenote for golden hour, pinball if it's going well.",c:null}],
+  frees:["Give me the city and her interests and I'll quote you."]},
+ jo:{h:"jo",name:"Jo A.",head:"Queer dating specialist · they/them",tag:"Lived experience, not recycled advice.",g:["#E4506F","#7C4DBE"],rating:5.0,count:86,clients:340,resp:"~15 min",refunds:"0.4%",repeat:"69%",specs:["openers","conversations","dates"],badges:[],
+  answers:[{r:"They double-texted you — that's momentum, not desperation. Suggest the thing you both mentioned, casually, this week.",c:"you can't mention that record shop and then not take me. saturday?"}],
+  frees:["This thread is better than you think."]}
+};
+const OFFERS=[
+ {id:"maya-opener",c:"maya",icon:"💬",t:"Opener rescue",d:"Per answer · first one free",spec:"openers",scheme:"per_unit",unit:"answer",price:400,r:4.9,rc:120,qty:[1,3,5]},
+ {id:"maya-pack",c:"maya",icon:"💬",t:"Convo rescue pack",d:"10 answers, use anytime",spec:"conversations",scheme:"pack",unit:"answer",units:10,price:2500,r:4.9,rc:64},
+ {id:"maya-openers5",c:"maya",icon:"📝",t:"5 custom openers",d:"Written for one match",spec:"openers",scheme:"deliverable",price:1800,r:4.8,rc:41},
+ {id:"maya-call",c:"maya",icon:"⏱",t:"Live strategy call",d:"30 min · video",spec:"conversations",scheme:"live",price:5000,r:5.0,rc:28},
+ {id:"dev-bio",c:"dev",icon:"📝",t:"Full bio makeover",d:"Two versions + prompt picks",spec:"bio",scheme:"deliverable",price:3000,r:4.8,rc:129},
+ {id:"dev-prompts",c:"dev",icon:"📝",t:"Prompt punch-up",d:"Three prompts, rewritten",spec:"bio",scheme:"deliverable",price:1500,r:4.7,rc:38},
+ {id:"sam-photo",c:"sam",icon:"📸",t:"Photo verdicts",d:"Keep / cut / reshoot, per photo",spec:"photos",scheme:"per_unit",unit:"photo",price:500,r:4.7,rc:71,qty:[2,4,8]},
+ {id:"sam-lineup",c:"sam",icon:"📸",t:"Full lineup review",d:"8 photos → best 5, ordered",spec:"photos",scheme:"deliverable",price:2000,r:4.8,rc:23},
+ {id:"elena-reply",c:"elena",icon:"💬",t:"Screening second opinion",d:"Is he worth your time?",spec:"conversations",scheme:"per_unit",unit:"answer",price:600,r:4.9,rc:204,qty:[1,3,5]},
+ {id:"elena-call",c:"elena",icon:"⏱",t:"Free intro call",d:"15 min · see if we fit",spec:"dates",scheme:"live",price:0,r:4.9,rc:88},
+ {id:"marcus-restart",c:"marcus",icon:"📝",t:"Profile restart",d:"Bio + photos + app choice",spec:"bio",scheme:"deliverable",price:4500,r:4.8,rc:96},
+ {id:"priya-quote",c:"priya",icon:"✦",t:"Plan me a date",d:"Describe it — Priya quotes",spec:"dates",scheme:"quote",price:0,r:null,rc:0},
+ {id:"jo-reply",c:"jo",icon:"💬",t:"Conversation help",d:"Send the thread, get the next move",spec:"conversations",scheme:"per_unit",unit:"answer",price:500,r:5.0,rc:62,qty:[1,3,5]},
+ {id:"jo-firstdate",c:"jo",icon:"🗺",t:"First-date gameplan",d:"Venue, talking points, exit plan",spec:"dates",scheme:"deliverable",price:2200,r:5.0,rc:18}
+];
+const REVIEWS={maya:{s:5,who:"J., 2 days ago",item:"Convo rescue pack",body:"Sent her a convo that was dead for a week. Her two lines got a reply in an hour. Date's on Friday."},
+ dev:{s:5,who:"A., 3 days ago",item:"Full bio makeover",body:"Matches tripled in a week. The pottery hook was genius."},
+ sam:{s:5,who:"K., 4 days ago",item:"Photo verdicts",body:"Brutal and correct. Cut my gym selfie, matches went up."},
+ elena:{s:5,who:"S., yesterday",item:"Screening second opinion",body:"She spotted the breadcrumbing in one screenshot. Saved me a month."},
+ marcus:{s:5,who:"D., last week",item:"Profile restart",body:"First date in six years, two weeks after the rebuild."},
+ priya:{s:5,who:"L., 6 days ago",item:"Custom date plan",body:"Museum-then-pinball was perfect. Second date booked."},
+ jo:{s:5,who:"C., 2 days ago",item:"Conversation help",body:"Finally advice that gets how queer dating apps actually work."}};
+const SPECS={openers:"Openers",bio:"Bio",photos:"Photos",conversations:"Convos",dates:"Dates"};
+
+/* ---------------- state ---------------- */
+const state={screen:"home",mode:"client",filter:null,urgency:null,query:"",coach:null,
+  favs:new Set(["maya"]),threads:{},purchases:[],saved:[],savedFilter:null,outcomes:{},
+  pendingOffer:null,pendingQty:1,answerIdx:{},freeIdx:{},revTarget:null,msgSeq:0};
+/* Per-answer outcome. Reviews rate a whole item; this rates the individual
+   piece of advice, which is what the defect-rate ranking actually needs — and
+   the only way to test whether a person beats a generator. */
+const OUTCOMES={replied:"Replied",quiet:"No reply",unsent:"Didn't send"};
+/* What the client is dealing with right now, in their words. Ordered by how
+   fast they need an answer, not by which product it maps to. */
+const URGENCY=[
+  {k:"waiting",l:"They're waiting",sub:"Replied, ball's in your court",spec:"conversations"},
+  {k:"cooling",l:"Going quiet",sub:"Stalled mid-conversation",spec:"conversations"},
+  {k:"opening",l:"New match",sub:"Haven't written yet",spec:"openers"},
+  {k:"date",l:"Date coming up",sub:"Planning or deciding",spec:"dates"},
+  {k:"none",l:"No deadline",sub:"Profile, bio, photos",spec:null}
+];
+const $=id=>document.getElementById(id);
+const money=c=>c%100===0?"$"+c/100:"$"+(c/100).toFixed(2);
+const first=n=>n.split(" ")[0];
+const avatar=(c,cls)=>`<span class="av ${cls}" style="background:linear-gradient(135deg,${c.g[0]},${c.g[1]})">${c.name[0]}</span>`;
+const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const respMins=r=>{const n=parseFloat(r.replace(/[^\d.]/g,""))||99;return /hr/.test(r)?n*60:n;};
+let toastTimer;
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("on"),2200);}
+
+/* ---------------- nav ---------------- */
+const CLIENT_TABS=[["home","⌂","Home"],["discover","⌕","Discover"],["saved","♡","Saved"],["you","⊙","You"]];
+const COACH_TABS=[["coach","⚑","Queue"],["menu","☰","Menu"],["earn","$","Earnings"],["you","⊙","You"]];
+function renderTabs(){
+  const tabs=state.mode==="client"?CLIENT_TABS:COACH_TABS;
+  const unread=Object.values(state.threads).reduce((n,t)=>n+t.unread,0);
+  const needs=needsYou().length;
+  $("tabbar").innerHTML=tabs.map(([k,i,l])=>{
+    const badge=(state.mode==="client"&&k==="home"&&(unread+needs))?` (${unread+needs})`:"";
+    return `<button class="tab ${state.screen===k||(state.screen==="thread"&&k==="home")||(state.screen==="profile"&&k==="discover")?"on":""}" data-tab="${k}" onclick="go('${k}')"><span class="ticon">${i}</span>${l}${badge}</button>`;
+  }).join("");
+  $("coachrule").classList.toggle("on",state.mode==="coach");
+}
+function go(s){
+  state.screen=s;
+  document.querySelectorAll(".screen").forEach(x=>{x.classList.remove("on");x.style.display="";});
+  $("s-"+s).classList.add("on");
+  $("tabbar").style.display=(s==="profile")?"none":"flex";
+  if(s==="home")renderHome();
+  if(s==="discover")renderDiscover();
+  if(s==="saved")renderSaved();
+  if(s==="you")renderYou();
+  if(s==="coach")renderCoach();
+  if(s==="menu")renderMenu();
+  if(s==="earn")renderEarn();
+  renderTabs();
+}
+function closeSheets(){$("scrim").classList.remove("on");["paysheet","traysheet","revsheet"].forEach(s=>$(s).classList.remove("on"));}
+function openSheet(id){$("scrim").classList.add("on");$(id).classList.add("on");}
+
+/* ---------------- home ---------------- */
+function needsYou(){
+  const out=[];
+  Object.entries(state.threads).forEach(([h,t])=>t.engagements.forEach(e=>{
+    if(e.status==="delivered")out.push({h,e,kind:"approve"});
+    else if(e.status==="completed"&&!e.reviewed)out.push({h,e,kind:"rate"});
+  }));
+  return out;
+}
+function threadMeter(h){
+  const t=state.threads[h],a=inUse(h);
+  if(a)return{cls:"a",txt:`${a.unitsTotal-a.unitsUsed} ${a.unit==="photo"?"PHOTOS":"ANSWERS"}`};
+  const d=t.engagements.find(e=>e.status==="delivered");if(d)return{cls:"d",txt:"DELIVERED"};
+  const b=t.engagements.find(e=>e.status==="booked");if(b)return{cls:"w",txt:"FRI 7:00"};
+  const p=t.engagements.find(e=>e.status==="in_progress");if(p)return{cls:"w",txt:"IN PROGRESS"};
+  return null;
+}
+function renderHome(){
+  const ny=needsYou();
+  const active=Object.entries(state.threads).filter(([,t])=>t.messages.length);
+  const usedCoaches=[...new Set([...state.favs,...active.map(([h])=>h)])];
+  let html=`<div class="apphead"><div class="greet">${new Date().toLocaleDateString(undefined,{weekday:"long"})}</div><h1 class="serif">Your coaching</h1></div>`;
+  if(ny.length){
+    html+=`<div class="sechead">Needs you · ${ny.length}</div>`;
+    html+=ny.map(({h,e,kind})=>{
+      const c=COACHES[h];
+      return kind==="approve"
+       ?`<button class="needs" onclick="openThread('${h}')"><span class="ni">✓</span><span><b>Approve your ${e.title.toLowerCase()}</b><span>${c.name} · delivered · ${money(e.amount)} releases on approval</span></span><span class="arr">›</span></button>`
+       :`<button class="needs" onclick="promptReview('${h}','${e.id}')"><span class="ni">★</span><span><b>Rate your ${e.title.toLowerCase()}</b><span>${c.name} · completed</span></span><span class="arr">›</span></button>`;
+    }).join("");
+  }
+  if(active.length){
+    html+=`<div class="sechead">Active</div>`;
+    html+=active.map(([h,t])=>{
+      const c=COACHES[h],last=t.messages[t.messages.length-1],m=threadMeter(h);
+      const snip=last.kind==="me"?"You: "+last.text:last.kind==="answer"?first(c.name)+": "+last.a.r:last.kind==="coach"?first(c.name)+": "+last.text:last.text;
+      return `<button class="throw" onclick="openThread('${h}')">${avatar(c,"av-md")}<span class="iw"><span class="tnm">${c.name}${m?`<span class="meter ${m.cls}">${m.txt}</span>`:""}</span><span class="snip">${esc(snip)}</span></span><span class="rtime">${t.when||"now"}</span>${t.unread?'<span class="udot"></span>':""}</button>`;
+    }).join("");
+  }
+  if(usedCoaches.length){
+    html+=`<div class="sechead">Your coaches</div><div class="coachstrip">`;
+    html+=usedCoaches.map(h=>{const c=COACHES[h];
+      return `<button class="cs" onclick="openProfile('${h}')">${avatar(c,"av-xs")}${state.favs.has(h)?'<span class="fav">♥</span>':""}<span class="csn">${first(c.name)}</span></button>`;}).join("");
+    html+=`<button class="cs addc" onclick="go('discover')"><span class="av av-xs">+</span><span class="csn">find</span></button></div>`;
+  }
+  if(!ny.length&&!active.length){
+    html+=`<div class="empty"><span class="serif">Nothing here yet.</span>Find someone who's good at the part you're stuck on.<div class="cta" style="margin:16px auto 0;max-width:220px" onclick="go('discover')">Browse coaches</div></div>
+    <div class="sechead">Popular right now</div><div class="list">${["maya","elena"].map(h=>coachCard(COACHES[h])).join("")}</div>`;
+  }
+  $("s-home").innerHTML=html+`<div style="height:16px"></div>`;
+}
+
+/* ---------------- discover ---------------- */
+function coachCard(c){
+  const from=OFFERS.filter(o=>o.c===c.h&&o.price>0).sort((a,b)=>a.price-b.price)[0];
+  const fh=from?`<b>from ${money(from.price)}</b><span>${from.unit?"per "+from.unit:from.scheme==="deliverable"?"deliverable":"session"}</span>`:`<b>ask</b><span>custom quote</span>`;
+  return `<div class="ccard">
+    <button class="heart ${state.favs.has(c.h)?"on":""}" onclick="event.stopPropagation();toggleFav('${c.h}')">${state.favs.has(c.h)?"♥":"♡"}</button>
+    <button onclick="openProfile('${c.h}')" style="display:block;width:100%">
+      <span class="row">${avatar(c,"av-md")}<span style="min-width:0"><span class="nm">${c.name} <span class="vtick">✓</span></span><span class="hl">${c.head}</span></span><span class="fromp">${fh}</span></span>
+      <span class="meta"><span class="stars">${"★".repeat(Math.round(c.rating))}</span><span><b>${c.rating}</b> (${c.count})</span><span>${c.resp}</span></span>
+      <span class="signals">${c.refunds} refunds · ${c.repeat} come back</span>
+      <span class="spec">${c.specs.filter(s=>SPECS[s]).map(s=>`<span class="schip">${SPECS[s]}</span>`).join("")}${c.badges.map(b=>`<span class="schip t">${b}</span>`).join("")}</span>
+    </button></div>`;
+}
+function toggleFav(h){state.favs.has(h)?state.favs.delete(h):state.favs.add(h);
+  toast(state.favs.has(h)?"Added to your coaches":"Removed");
+  if(state.screen==="discover")renderDiscover();if(state.screen==="profile")openProfile(h,true);if(state.screen==="home")renderHome();}
+function pickUrgency(k){
+  const u=URGENCY.find(x=>x.k===k);
+  state.urgency=state.urgency===k?null:k;
+  state.filter=state.urgency?u.spec:null;
+  renderDiscover();
+}
+function renderDiscover(){
+  /* Urgency first, category second. People arrive with a situation and a
+     deadline, not with a product category in mind — and the situations that
+     carry a deadline are the ones that actually convert. */
+  $("urg").innerHTML=URGENCY.map(u=>`<button class="ub ${state.urgency===u.k?"on":""}" onclick="pickUrgency('${u.k}')">
+    <b>${u.l}</b><span>${u.sub}</span></button>`).join("");
+  const chips=[["all","All"],...Object.entries(SPECS),["fav","♥ Favourites"]];
+  $("chips").innerHTML=chips.map(([k,l])=>`<button class="fchip ${(state.filter||"all")===k?"on":""}" onclick="state.urgency=null;state.filter='${k}'==='all'?null:'${k}';renderDiscover()">${l}</button>`).join("");
+  const q=state.query.toLowerCase();
+  let list=Object.values(COACHES).filter(c=>{
+    const f=!state.filter||(state.filter==="fav"?state.favs.has(c.h):c.specs.includes(state.filter));
+    const m=!q||c.name.toLowerCase().includes(q)||c.head.toLowerCase().includes(q)||c.specs.some(s=>SPECS[s].toLowerCase().includes(q));
+    return f&&m;});
+  /* A waiting match is a deadline, so sort by who answers fastest. */
+  if(state.urgency&&state.urgency!=="none")
+    list=[...list].sort((a,b)=>respMins(a.resp)-respMins(b.resp));
+  const favs=[...state.favs];
+  $("favstrip").innerHTML=(favs.length&&!state.filter&&!q)?`<div class="sechead">Your coaches</div><div class="coachstrip">${favs.map(h=>{const c=COACHES[h];return `<button class="cs" onclick="openProfile('${h}')">${avatar(c,"av-xs")}<span class="fav">♥</span><span class="csn">${first(c.name)}</span></button>`;}).join("")}</div>`:"";
+  $("coachlist").innerHTML=list.length?list.map(coachCard).join(""):`<div class="empty"><span class="serif">No coaches for that yet</span>We're recruiting — try another filter.</div>`;
+}
+
+/* ---------------- profile ---------------- */
+function openProfile(h,keep){
+  state.coach=h;const c=COACHES[h],rv=REVIEWS[h];
+  // remember where the user came from so Back doesn't dump them on Discover
+  if(!keep&&state.screen!=="profile")state.profileFrom=state.screen==="thread"?"thread":state.screen;
+  const backTo=state.profileFrom||"discover";
+  const backLabel=backTo==="home"?"‹ Home":backTo==="thread"?"‹ Chat":"‹ Back";
+  $("s-profile").innerHTML=`<div class="topbar"><button class="backbtn" onclick="${backTo==="thread"?`openThread('${h}')`:`go('${backTo}')`}">${backLabel}</button>
+    <button class="heart ${state.favs.has(h)?"on":""}" style="position:static;margin-left:auto" onclick="toggleFav('${h}')">${state.favs.has(h)?"♥":"♡"}</button></div>
+    <div class="phero">${avatar(c,"av-lg")}<h2 class="serif">${c.name} <span class="vtick" style="vertical-align:3px">✓</span></h2><div class="hl">“${c.tag}”</div></div>
+    <div class="statrow"><div class="stat"><b>${c.rating} ★</b><span>${c.count} reviews</span></div><div class="stat"><b>${c.clients.toLocaleString()}</b><span>clients</span></div><div class="stat"><b>${c.resp}</b><span>response</span></div></div>
+    <div style="text-align:center;font-size:11.5px;color:var(--positive);font-family:ui-monospace,Menlo,monospace;margin-top:8px">${c.refunds} refunds · ${c.repeat} come back</div>
+    <div class="sechead">${first(c.name)}'s menu</div>
+    ${OFFERS.filter(o=>o.c===h).map(o=>`<button class="offer" onclick="startPurchase('${o.id}')"><span class="oi ${o.scheme==="live"?"t":o.scheme==="quote"?"a":""}">${o.icon}</span><span class="ow"><b>${o.t}</b><span>${o.d}${o.r?` · <span class="stars">★</span>${o.r} (${o.rc})`:""}</span></span><span class="op">${o.scheme==="quote"?"ask":o.price===0?"free":money(o.price)}</span></button>`).join("")}
+    <div class="sechead">Latest review · ${rv.item}</div>
+    <div class="rev"><div class="rt"><span class="stars">${"★".repeat(rv.s)}</span><span>— ${rv.who}</span></div><p>“${rv.body}”</p></div>
+    <button class="cta" onclick="openThread('${h}')">Message ${first(c.name)}</button>`;
+  go("profile");
+}
+
+/* ---------------- purchase ---------------- */
+function startPurchase(id){
+  const o=OFFERS.find(x=>x.id===id),c=COACHES[o.c];
+  /* Default to the middle quantity, not one. A single $4 answer pays Stripe
+     10.4%; three in one charge pays 5.4%. The client also gets a better deal
+     per answer, so this is not a dark pattern — it's the honest default. */
+  state.pendingOffer=o;state.pendingQty=o.qty?o.qty[Math.min(1,o.qty.length-1)]:1;
+  if(o.scheme==="quote"){ensureThread(o.c);addMsg(o.c,{kind:"sys",text:"Describe what you need — "+first(c.name)+" will send you a price."});openThread(o.c);return;}
+  renderPay();openSheet("paysheet");
+}
+function renderPay(){
+  const o=state.pendingOffer,c=COACHES[o.c],qty=state.pendingQty;
+  const total=o.scheme==="per_unit"?o.price*qty:o.price;
+  $("paysheet").innerHTML=`<div class="grab"></div>
+   <div class="row"><span class="oi" style="width:42px;height:42px;font-size:18px">${o.icon}</span><span style="min-width:0"><b style="font-size:15px">${o.t}</b><br><span style="font-size:12px;color:var(--ink-faint)">${c.name} · ${o.d}</span></span><span class="mono" style="margin-left:auto;font-weight:800;font-size:18px">${total===0?"free":money(total)}</span></div>
+   ${o.qty?`<div class="srow" style="margin-top:10px"><span>How many ${o.unit}s?</span><b>${o.qty.map(n=>`<button onclick="state.pendingQty=${n};renderPay()" style="padding:6px 13px;border-radius:9px;margin-left:5px;font-weight:700;${n===qty?"background:var(--ink);color:var(--bg)":"background:var(--chip)"}">${n}</button>`).join("")}</b></div>`:""}
+   <div class="srow"><span>Pay with</span><b class="mono">Visa ··4242 ›</b></div>
+   <div class="srow"><span>${first(c.name)} replies in</span><b>${c.resp}</b></div>
+   <div class="srow"><span>Protection</span><b>Refund if not delivered</b></div>
+   <button class="paybtn" onclick="confirmPurchase()"> Pay ${total===0?"$0":money(total)}</button>
+   <p class="paynote">Charged now, once. ${first(c.name)} starts after payment.<br>No subscription · no balance to top up</p>`;
+}
+function confirmPurchase(){
+  const o=state.pendingOffer,c=COACHES[o.c],qty=state.pendingQty;
+  const total=o.scheme==="per_unit"?o.price*qty:o.price;
+  closeSheets();ensureThread(o.c);const th=state.threads[o.c];
+  const eng={id:"e"+(++state.msgSeq),offerId:o.id,title:o.t,icon:o.icon,scheme:o.scheme,unit:o.unit||"answer",spec:o.spec,
+    unitsTotal:o.scheme==="pack"?o.units:o.scheme==="per_unit"?qty:1,unitsUsed:0,amount:total,
+    status:o.scheme==="deliverable"?"in_progress":o.scheme==="live"?"booked":"active"};
+  th.engagements.push(eng);
+  if(o.scheme==="per_unit"||o.scheme==="pack")th.inUseId=eng.id;
+  state.purchases.unshift({icon:o.icon,t:o.t,coach:c.name,amount:total,note:o.scheme==="pack"?`${o.units} ${o.unit}s`:o.scheme==="per_unit"?`${qty} ${o.unit}${qty>1?"s":""}`:o.scheme==="live"?"session":"deliverable"});
+  addMsg(o.c,{kind:"sys",text:`You bought ${o.t}${total?" · "+money(total):""}`});
+  if(o.scheme==="deliverable"){
+    addMsg(o.c,{kind:"item",engId:eng.id});
+    coachFree(o.c,"On it — you'll have this back shortly.");
+    setTimeout(()=>{eng.status="delivered";if(state.screen==="thread"&&state.coach===o.c)renderThread();
+      coachAnswer(o.c,true);renderTabs();},6500);
+  }else if(o.scheme==="live"){
+    addMsg(o.c,{kind:"item",engId:eng.id});
+    coachFree(o.c,"Booked. Bring your messiest conversation — that's where the gold is.");
+  }else{
+    coachFree(o.c,"Got it — send me the situation. Screenshot or just describe it.");
+  }
+  toast(total?"Paid "+money(total):"Booked — free");
+  openThread(o.c);
+}
+
+/* ---------------- thread ---------------- */
+function ensureThread(h){if(!state.threads[h])state.threads[h]={messages:[],engagements:[],inUseId:null,unread:0};}
+function addMsg(h,m){ensureThread(h);m.id="m"+(++state.msgSeq);state.threads[h].messages.push(m);}
+function inUse(h){const t=state.threads[h];if(!t)return null;return t.engagements.find(e=>e.id===t.inUseId&&e.status==="active"&&e.unitsUsed<e.unitsTotal)||null;}
+function coachFree(h,text){setTimeout(()=>{addMsg(h,{kind:"coach",text});bump(h);},1200+Math.random()*700);}
+function coachAnswer(h,forDeliverable){
+  setTimeout(()=>{
+    const c=COACHES[h],th=state.threads[h];
+    const i=(state.answerIdx[h]||0);state.answerIdx[h]=i+1;
+    const a=c.answers[i%c.answers.length];
+    const eng=forDeliverable?th.engagements.find(e=>e.status==="delivered"):inUse(h);
+    let label=null;
+    if(eng&&!forDeliverable){eng.unitsUsed++;
+      label=`${eng.unit==="photo"?"PHOTO":"ANSWER"} ${eng.unitsUsed} OF ${eng.unitsTotal}`;
+      if(eng.unitsUsed>=eng.unitsTotal){eng.status="completed";th.inUseId=null;setTimeout(()=>promptReview(h,eng.id),900);}
+    } else if(forDeliverable&&eng){label="DELIVERED · "+eng.title.toUpperCase();}
+    const msg={kind:"answer",a,label,engId:eng?eng.id:null,spec:eng?eng.spec:null,saved:true};
+    addMsg(h,msg);
+    state.saved.unshift({id:msg.id,h,spec:eng?eng.spec:"openers",title:eng?eng.title:"Answer",a,when:"just now",pinned:false});
+    bump(h);
+  },1500+Math.random()*800);
+}
+function bump(h){const th=state.threads[h];
+  if(state.screen==="thread"&&state.coach===h)renderThread();else{th.unread++;if(state.screen==="home")renderHome();}
+  renderTabs();}
+function openThread(h){state.coach=h;ensureThread(h);state.threads[h].unread=0;renderThread();go("thread");}
+function barFor(h){
+  const t=state.threads[h],c=COACHES[h],a=inUse(h);
+  const chat=t.engagements.filter(e=>e.scheme==="per_unit"||e.scheme==="pack");
+  const d=t.engagements.find(e=>e.status==="delivered");
+  if(a){const w=a.unit==="photo"?"photos":"answers";return{cls:"",txt:`Using · ${a.title} — ${a.unitsTotal-a.unitsUsed} ${w} left`};}
+  if(d)return{cls:"calm",txt:`${d.title} — approve to release ${money(d.amount)} →`};
+  if(chat.length)return{cls:"warn",txt:"No answers left · Buy more →"};
+  if(t.engagements.length)return{cls:"calm",txt:"Tap to see your items"};
+  return{cls:"calm",txt:`Browse ${first(c.name)}'s menu →`};
+}
+function renderThread(){
+  const h=state.coach,c=COACHES[h],t=state.threads[h];
+  const prev=$("cinput"),keep=prev?prev.value:"";
+  const bar=barFor(h);
+  $("s-thread").innerHTML=`<div class="topbar"><button class="backbtn" onclick="go('home')">‹</button>${avatar(c,"av-sm")}
+     <span class="tw"><b>${c.name}</b><span>● online now</span></span>
+     <button class="backbtn" style="margin-left:auto" onclick="openProfile('${h}')">menu</button></div>
+    <button class="itembar ${bar.cls}" onclick="openTray()"><span class="edot"></span>${bar.txt}<span class="cnt">${t.engagements.length>1?t.engagements.length+" items ⌄":""}</span></button>
+    <div class="chat" id="chatlog">${t.messages.map((m,i)=>renderMsg(m,h,i===t.messages.length-1)).join("")}</div>
+    <div class="compose"><input class="cfield" id="cinput" placeholder="Message ${first(c.name)}…" onkeydown="if(event.key==='Enter')sendMsg()"><button class="csend" onclick="sendMsg()">➤</button></div>`;
+  if(keep)$("cinput").value=keep;
+  const l=$("chatlog");l.scrollTop=l.scrollHeight;
+}
+function renderMsg(m,h,isLast){
+  const c=COACHES[h];
+  if(m.kind==="sys")return `<div class="onote" style="align-self:center">${esc(m.text)}</div>`;
+  if(m.kind==="me")return `<div class="msg me">${esc(m.text)}</div>`;
+  if(m.kind==="shot")return `<div class="shot"><div class="simg"></div></div>`;
+  if(m.kind==="coach")return `<div class="msg them">${esc(m.text)}<div><span class="freetag">FREE</span></div></div>`;
+  if(m.kind==="answer"){
+    const sv=state.saved.find(s=>s.id===m.id),isCall=!!m.a.hold,out=state.outcomes[m.id];
+    return `<div class="acard${isCall?" call":""}">
+      <div class="ahead"><span>${isCall?"THE CALL · ":""}${m.label||"ANSWER"}</span><span class="who">${first(c.name)} · now</span></div>
+      <div class="abody">${esc(m.a.r)}</div>
+      ${m.a.c?`<div class="ablock"><span class="blab">SEND THIS</span>${esc(m.a.c)}<button class="bcopy" onclick="copyMsg('${m.id}',this)">${state.copiedId===m.id?"✓ Copied":"⧉ Copy"}</button></div>`:""}
+      ${isCall?`<div class="vblock"><span class="blab">NOTHING TO SEND</span><span class="vtxt">${esc(m.a.hold)}</span></div>`:""}
+      <div class="aacts">
+        ${m.a.c?`<button class="aact" onclick="copyMsg('${m.id}',this)">⧉ Copy</button>`:""}
+        <button class="aact ${sv&&sv.pinned?"on":""}" onclick="pinMsg('${m.id}',this)">${sv&&sv.pinned?"♥ Saved":"♡ Save"}</button>
+        <button class="aact dots" onclick="toast('Opens a dispute about this answer')">⋯</button>
+      </div>
+      ${out?`<div class="odone">✓ Marked “${OUTCOMES[out]}” — this counts toward ${first(c.name)}'s score</div>`
+        /* Only ask once there's been time to act on it. Asking the instant the
+           answer arrives gets you noise, and the whole point is real outcomes. */
+        :(m.a.c&&!isLast)?`<div class="outrow"><span class="olab">Did it land?</span>${Object.entries(OUTCOMES).map(([k,l])=>
+          `<button class="obtn" onclick="setOutcome('${m.id}','${k}')">${l}</button>`).join("")}</div>`:""}
+      </div>`;
+  }
+  if(m.kind==="offer"){
+    return `<div class="icard" style="border-color:var(--accent)">
+      <div class="ot"><span class="oi">✦</span><span><b>${esc(m.o.title)}</b><span>Offer from ${c.name}</span></span><span class="os w">${m.o.state||"OFFER"}</span></div>
+      <div style="font-size:13px;color:var(--ink-soft);margin-top:8px">${esc(m.o.desc)}</div>
+      ${m.o.state?`<div class="onote" style="margin-top:9px">accepted · ${money(m.o.price)} paid</div>`
+        :`<div class="obtns"><button class="qb yes" onclick="acceptOffer('${h}','${m.id}')">Accept · ${money(m.o.price)}</button><button class="qb no" onclick="toast('Declined — no charge')">Not now</button></div>
+          <div class="onote">expires in 7 days · you're only charged if you accept</div>`}</div>`;
+  }
+  if(m.kind==="item"){
+    const e=state.threads[h].engagements.find(x=>x.id===m.engId);if(!e)return"";
+    const isCall=e.scheme==="live";
+    const steps=isCall?[]:["Paid","In prog","Deliv","Appr"];
+    const cur=e.status==="in_progress"?1:e.status==="delivered"?2:3;
+    return `<div class="icard"><div class="ot"><span class="oi t">${e.icon}</span><span><b>${e.title}</b><span>${c.name} · ${money(e.amount)}</span></span><span class="os ${e.status==="in_progress"?"w":""}">${isCall?"BOOKED":e.status.replace("_"," ").toUpperCase()}</span></div>
+      ${isCall?`<div class="onote" style="margin-top:9px">Friday 7:00 PM · reminder 15 min before</div>`
+      :`<div class="tline">${steps.map((s,i)=>`<span class="tstep ${i<cur?"":i===cur?"cur":"pend"}">${s}</span>`).join("")}</div>
+        ${e.status==="delivered"?`<div class="filechip">📎 ${e.title.toLowerCase().replace(/ /g,"_")}.txt</div>
+          <div class="obtns"><button class="qb yes" onclick="approveItem('${h}','${e.id}')">Approve</button><button class="qb no" onclick="toast('Change request sent')">Request changes</button></div>
+          <div class="onote">${money(e.amount)} releases on approval · auto-approves Friday</div>`
+        :e.status==="approved"||e.status==="completed"?`<div class="onote">approved · ${money(e.amount)} released to ${first(c.name)}</div>`
+        :`<div class="onote">in progress — usually ${c.resp}</div>`}`}
+      </div>`;
+  }
+  return "";
+}
+function sendMsg(){
+  const i=$("cinput"),txt=i.value.trim();if(!txt)return;
+  const h=state.coach;addMsg(h,{kind:"me",text:txt});i.value="";renderThread();
+  const n=(state.freeIdx[h]||0);state.freeIdx[h]=n+1;
+  const c=COACHES[h];
+  if(n===0&&inUse(h))coachFree(h,c.frees[0]);
+  else if(inUse(h))coachAnswer(h);
+  else coachFree(h,c.frees[Math.min(n,c.frees.length-1)]);
+}
+function setOutcome(id,k){
+  state.outcomes[id]=k;
+  toast(k==="replied"?"Nice. That counts toward their score."
+      :k==="quiet"?"Logged. Advice that doesn't land shows up in their defect rate."
+      :"Logged — not counted against them.");
+  renderThread(state.coach);
+}
+function copyMsg(id,btn){
+  state.copiedId=id;setTimeout(()=>{if(state.copiedId===id)state.copiedId=null;},1500);
+  const h=state.coach||(state.saved.find(s=>s.id===id)||{}).h;
+  let txt=null;
+  Object.values(state.threads).forEach(t=>t.messages.forEach(m=>{if(m.id===id&&m.a)txt=m.a.c||m.a.r;}));
+  if(!txt){const s=state.saved.find(x=>x.id===id);if(s)txt=s.a.c||s.a.r;}
+  try{navigator.clipboard&&navigator.clipboard.writeText(txt||"");}catch(e){}
+  if(btn){const o=btn.textContent;btn.textContent="✓ Copied";setTimeout(()=>btn.textContent=o,1500);}
+  toast("Copied — paste it in your dating app");
+}
+function pinMsg(id,btn){
+  const s=state.saved.find(x=>x.id===id);if(!s)return;
+  s.pinned=!s.pinned;
+  if(btn){btn.textContent=s.pinned?"♥ Saved":"♡ Save";btn.classList.toggle("on",s.pinned);}
+  toast(s.pinned?"Pinned to the top of Saved":"Unpinned");
+}
+function acceptOffer(h,mid){
+  const th=state.threads[h],c=COACHES[h];
+  const m=th.messages.find(x=>x.id===mid);if(!m||m.o.state)return;
+  m.o.state="ACCEPTED";
+  const eng={id:"e"+(++state.msgSeq),title:m.o.title,icon:"✦",scheme:"deliverable",unit:"answer",spec:"dates",
+    unitsTotal:1,unitsUsed:0,amount:m.o.price,status:"in_progress"};
+  th.engagements.push(eng);
+  state.purchases.unshift({icon:"✦",t:m.o.title,coach:c.name,amount:m.o.price,note:"custom quote",when:"just now"});
+  addMsg(h,{kind:"item",engId:eng.id});
+  toast("Paid "+money(m.o.price)+" · "+first(c.name)+" starts now");
+  renderThread();
+  coachFree(h,"On it — you'll have the full plan tonight.");
+  setTimeout(()=>{eng.status="delivered";if(state.screen==="thread"&&state.coach===h)renderThread();coachAnswer(h,true);renderTabs();},6500);
+}
+function approveItem(h,id){
+  const e=state.threads[h].engagements.find(x=>x.id===id);e.status="completed";
+  toast(money(e.amount)+" released to "+first(COACHES[h].name));
+  renderThread();setTimeout(()=>promptReview(h,id),700);
+}
+
+/* ---------------- items drawer ---------------- */
+function openTray(){
+  const h=state.coach,t=state.threads[h],c=COACHES[h];
+  if(!t.engagements.length){openProfile(h);return;}
+  $("traysheet").innerHTML=`<div class="grab"></div><div class="sechead" style="padding:0 2px 10px">Your items with ${first(c.name)}</div>
+   ${t.engagements.map(e=>{
+     const chat=e.scheme==="per_unit"||e.scheme==="pack";
+     const live=e.status==="active"&&e.unitsUsed<e.unitsTotal;
+     const use=t.inUseId===e.id&&live;
+     const w=e.unit==="photo"?"photos":"answers";
+     const meta=chat?(live?`${e.unitsTotal-e.unitsUsed} of ${e.unitsTotal} ${w} left`:`all ${e.unitsTotal} ${w} used`)
+       :e.status==="delivered"?"Delivered — needs your approval"
+       :e.status==="booked"?"Friday 7:00 PM"
+       :e.status==="completed"?"Completed":"In progress";
+     const tag=use?"IN USE":e.status==="delivered"?"APPROVE ›":e.status==="completed"?"DONE":chat&&live?"READY":e.status==="booked"?"BOOKED":"ACTIVE";
+     return `<button class="trayrow ${use?"inuse":""} ${e.status==="completed"?"done":""}" ${chat&&live&&!use?`onclick="useItem('${h}','${e.id}')"`:`onclick="closeSheets()"`}>
+       ${chat?'<span class="radio"></span>':`<span class="oi t" style="width:32px;height:32px;font-size:14px">${e.icon}</span>`}
+       <span style="min-width:0"><b style="font-size:13.5px">${e.title}</b><br><span style="font-size:11.5px;color:var(--ink-faint)">${meta}${use?" · in use":chat&&live?" · tap to use":""}</span></span>
+       <span class="meter ${use?"a":"d"}" style="margin-left:auto">${tag}</span></button>`;}).join("")}
+   <button class="cta dark" style="width:100%;margin:8px 0 0" onclick="closeSheets();openProfile('${h}')">+ Buy from ${first(c.name)}'s menu</button>`;
+  openSheet("traysheet");
+}
+function useItem(h,id){state.threads[h].inUseId=id;const e=state.threads[h].engagements.find(x=>x.id===id);
+  toast("Now using · "+e.title);openTray();renderThread();}
+
+/* ---------------- reviews ---------------- */
+function promptReview(h,engId){
+  const e=state.threads[h].engagements.find(x=>x.id===engId);if(!e)return;
+  state.revTarget={h,e,stars:5,tags:new Set(["got_reply"])};renderRev();openSheet("revsheet");
+}
+function renderRev(){
+  const {h,e,stars,tags}=state.revTarget,c=COACHES[h];
+  const defs=[["got_reply","Got a reply 🎉"],["date_set","Date set"],["faster","Fast"],["better_profile","Better profile"]];
+  $("revsheet").innerHTML=`<div class="grab"></div><div style="text-align:center">${avatar(c,"av-md")}
+    <h2 class="serif" style="margin:8px 0 2px;font-size:20px">How was ${first(c.name)}?</h2>
+    <div style="font-size:12px;color:var(--ink-faint)">${e.title} · completed</div></div>
+   <div class="bigstars">${[1,2,3,4,5].map(n=>`<button class="${n<=stars?"lit":""}" onclick="state.revTarget.stars=${n};renderRev()">★</button>`).join("")}</div>
+   <div class="outchips">${defs.map(([k,l])=>`<button class="ochip ${tags.has(k)?"on":""}" onclick="state.revTarget.tags.has('${k}')?state.revTarget.tags.delete('${k}'):state.revTarget.tags.add('${k}');renderRev()">${l}</button>`).join("")}</div>
+   <textarea class="revfield" placeholder="What happened? Results help other daters choose…"></textarea>
+   <button class="cta" style="width:100%;margin:12px 0 0" onclick="submitRev()">Post review</button>
+   <div class="onote" style="margin-top:10px">rates “${e.title}” and ${first(c.name)}'s overall score</div>`;
+}
+function submitRev(){const {h,e,stars}=state.revTarget;e.reviewed=true;closeSheets();
+  toast("★".repeat(stars)+" posted on "+e.title);if(state.screen==="home")renderHome();renderTabs();}
+
+/* ---------------- saved ---------------- */
+function renderSaved(){
+  const specs=[...new Set(state.saved.map(s=>s.spec))];
+  const list=state.saved.filter(s=>!state.savedFilter||s.spec===state.savedFilter)
+    .sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
+  $("s-saved").innerHTML=`<div class="apphead"><div class="greet">your advice, one tap away</div><h1 class="serif">Saved</h1></div>
+   ${specs.length?`<div class="chiprow"><button class="fchip ${!state.savedFilter?"on":""}" onclick="state.savedFilter=null;renderSaved()">All</button>
+     ${specs.map(s=>`<button class="fchip ${state.savedFilter===s?"on":""}" onclick="state.savedFilter='${s}';renderSaved()">${SPECS[s]||s}</button>`).join("")}</div>`:""}
+   ${list.length?`<div style="padding-top:10px">`+list.map(s=>{const c=COACHES[s.h];
+     return `<div class="scard"><div class="sh"><span>${(SPECS[s.spec]||"ANSWER").toUpperCase()} · ${c.name}</span><span style="opacity:.6">${s.when}</span></div>
+       <div class="sb">${esc(s.a.c||s.a.r)}</div>
+       <div class="sacts">${s.a.c?`<button class="aact" onclick="copyMsg('${s.id}',this)">⧉ Copy</button>`:""}
+        <button class="aact ${s.pinned?"on":""}" onclick="pinMsg('${s.id}',this);renderSaved()">${s.pinned?"♥ Pinned":"♡ Pin"}</button>
+        <button class="aact" onclick="openThread('${s.h}')">Open chat</button></div></div>`;}).join("")+`</div>`
+    :`<div class="empty"><span class="serif">Nothing saved yet</span>Answers you buy show up here so you can find them when you need them.</div>`}
+   <div style="height:20px"></div>`;
+}
+
+/* ---------------- you ---------------- */
+function renderYou(){
+  $("s-you").innerHTML=`<div class="apphead"><div class="greet">account</div><h1 class="serif">You</h1></div>
+   <div class="throw" style="border-bottom:none"><span class="av av-md" style="background:linear-gradient(135deg,#6E6068,#2A2230)">J</span>
+     <span class="iw"><span class="tnm">Jordan</span><span class="snip">jordan@demo.wing · Edit profile</span></span></div>
+   <button class="modecard" onclick="switchMode()"><span style="font-size:19px">⚑</span><span><b>${state.mode==="client"?"Switch to coach mode":"Back to client mode"}</b><span>${state.mode==="client"?"Your queue, menu and earnings":"Browse and buy as a client"}</span></span><span style="margin-left:auto">›</span></button>
+   <button class="yrow" onclick="toast('Receipts — '+state.purchases.length+' purchases')"><span class="yi">🧾</span>Purchases &amp; receipts<span class="arr">${state.purchases.length}  ›</span></button>
+   <button class="yrow" onclick="state.filter='fav';go('discover')"><span class="yi">♥</span>Favourite coaches<span class="arr">${state.favs.size}  ›</span></button>
+   <button class="yrow" onclick="toast('Notification settings')"><span class="yi">🔔</span>Notifications<span class="arr">›</span></button>
+   <button class="yrow" onclick="toast('Screenshots auto-delete after 30 days')"><span class="yi">🔒</span>Privacy &amp; data<span class="arr">›</span></button>
+   <button class="yrow" onclick="toast('Help centre')"><span class="yi">？</span>Help<span class="arr">›</span></button>
+   <button class="yrow" onclick="toggleTheme()"><span class="yi">⚙</span>Appearance<span class="arr">${document.documentElement.dataset.theme||"auto"}  ›</span></button>
+   ${state.purchases.length?`<div class="sechead">Recent purchases</div>${state.purchases.slice(0,4).map(p=>`<div class="throw"><span class="oi">${p.icon}</span><span class="iw"><span class="tnm" style="font-size:13.5px">${p.t}</span><span class="snip">${p.coach} · ${p.note}</span></span><span class="mono" style="font-weight:700">${p.amount?money(p.amount):"free"}</span></div>`).join("")}`:""}
+   <div style="height:20px"></div>`;
+}
+function switchMode(){state.mode=state.mode==="client"?"coach":"client";
+  toast(state.mode==="coach"?"Coach mode":"Client mode");go(state.mode==="coach"?"coach":"home");}
+function toggleTheme(){const d=document.documentElement;
+  d.dataset.theme=d.dataset.theme==="dark"?"light":d.dataset.theme==="light"?"":"dark";renderYou();}
+
+/* ---------------- coach ---------------- */
+function renderCoach(){
+  $("s-coach").innerHTML=`<div class="apphead"><div class="greet">coach mode · Maya R.</div><h1 class="serif">To fulfil</h1></div>
+   <div class="sechead" style="color:var(--warn)">⚠ Late · 1</div>
+   <div class="qrow late"><div class="row"><span class="oi a">📝</span><span style="min-width:0"><b style="font-size:13.5px">Alex — 5 opener bundle</b><br><span style="font-size:11.5px;color:var(--ink-soft)">Promised 2h · ordered 3 days ago</span></span><span class="due">AUTO-REFUNDS 4H</span></div></div>
+   <div class="sechead">Waiting</div>
+   <div class="qrow"><div class="row"><span class="oi">💬</span><span style="min-width:0"><b style="font-size:13.5px">Jordan — answer waiting</b><br><span style="font-size:11.5px;color:var(--ink-soft)">Convo pack · screenshot attached</span></span><span class="due ok">~5 MIN GOAL</span></div></div>
+   <div class="qrow"><div class="row"><span class="oi a">✦</span><span style="min-width:0"><b style="font-size:13.5px">Riley — custom request</b><br><span style="font-size:11.5px;color:var(--ink-soft)">“first date in Austin”</span></span></div>
+     <div class="obtns"><button class="qb yes" onclick="toast('Quote sent · $35')">Quote a price</button><button class="qb no" onclick="toast('Declined politely')">Decline</button></div></div>
+   <div class="sechead">Today</div>
+   <div class="etiles2"><div class="et2"><b>7</b><span>answers sent</span></div><div class="et2"><b>$46</b><span>earned</span></div><div class="et2"><b>4 min</b><span>avg reply</span></div></div>
+   <div style="height:20px"></div>`;
+}
+function renderMenu(){
+  const mine=OFFERS.filter(o=>o.c==="maya");
+  $("s-menu").innerHTML=`<div class="apphead"><div class="greet">coach mode · what you sell</div><h1 class="serif">Your menu</h1></div>
+   ${mine.map(o=>`<div class="offer" style="cursor:default"><span class="oi ${o.scheme==="live"?"t":o.scheme==="quote"?"a":""}">${o.icon}</span><span class="ow"><b>${o.t}</b><span>${o.d}${o.r?` · ★${o.r} (${o.rc})`:""}</span></span><span class="op">${o.scheme==="quote"?"ask":o.price===0?"free":money(o.price)}</span></div>`).join("")}
+   <div class="sechead">Add an item</div>
+   <div class="qrow"><div style="font-size:12.5px;color:var(--ink-soft)">
+     <b style="color:var(--ink)">1 · What do you help with?</b><br>[Openers ✓] [Bio] [Photos] [Convos] [Dates]<br><br>
+     <b style="color:var(--ink)">2 · How do you deliver it?</b><br>[In chat ✓] [Send back work] [Live call]<br><br>
+     <b style="color:var(--ink)">3 · How do you charge?</b><br>[Per answer ✓] [One price] [Pack] [Ask me]<br><br>
+     Price <b class="mono" style="color:var(--ink)">$4.00</b> per answer → you keep <b class="mono" style="color:var(--positive)">$3.20</b></div>
+     <button class="qb yes" style="margin-top:10px" onclick="toast('Published to your menu')">Publish</button></div>
+   <div style="height:20px"></div>`;
+}
+function renderEarn(){
+  $("s-earn").innerHTML=`<div class="apphead"><div class="greet">coach mode</div><h1 class="serif">This week</h1></div>
+   <div class="etile"><div class="el">You've earned</div><div class="ev">$312.40</div><div class="es">▲ 22% vs last week · after the 20% platform fee</div></div>
+   <div class="etiles2"><div class="et2"><b>4.9 ★</b><span>rating</span></div><div class="et2"><b>0.3%</b><span>refunds</span></div><div class="et2"><b>92%</b><span>repeat</span></div></div>
+   <div class="sechead">Next payout</div>
+   <div class="qrow"><div class="row"><span class="oi t">$</span><span><b style="font-size:13.5px">Friday</b><br><span style="font-size:11.5px;color:var(--ink-soft)">to bank ··1123</span></span><span class="mono" style="margin-left:auto;font-weight:700">$286.20</span></div></div>
+   <div class="sechead">Recent</div>
+   ${[["💬","Jordan — answer","Convo pack","+$2.00"],["📝","Priya — bio approved","released on approval","+$24.00"],["💬","Alex — openers delivered","5 openers","+$14.40"]].map(([i,t,d,a])=>
+     `<div class="throw"><span class="oi">${i}</span><span class="iw"><span class="tnm" style="font-size:13.5px">${t}</span><span class="snip">${d}</span></span><span class="mono" style="font-weight:700;color:var(--positive)">${a}</span></div>`).join("")}
+   <div style="height:20px"></div>`;
+}
+
+/* ---------------- demo seed ---------------- */
+function sMsg(h,m,when){ensureThread(h);m.id="m"+(++state.msgSeq);m.t=when;state.threads[h].messages.push(m);return m;}
+function sAns(h,a,label,spec,when,pinned){
+  const m=sMsg(h,{kind:"answer",a,label,spec},when);
+  state.saved.push({id:m.id,h,spec,title:label,a,when,pinned:!!pinned});
+  return m;
+}
+function sEng(h,e){ensureThread(h);state.threads[h].engagements.push(e);return e;}
+function seedDemo(){
+  state.favs=new Set(["maya","jo"]);
+
+  /* --- Maya: live pack, mid-conversation, unread --- */
+  const pack=sEng("maya",{id:"e-maya-pack",title:"Convo rescue pack",icon:"💬",scheme:"pack",unit:"answer",
+    spec:"conversations",unitsTotal:10,unitsUsed:4,amount:2500,status:"active"});
+  state.threads.maya.inUseId=pack.id;
+  sMsg("maya",{kind:"sys",text:"You bought Convo rescue pack · $25"},"Tue");
+  sMsg("maya",{kind:"me",text:"She stopped replying mid-convo 😩 can you look?"},"Tue");
+  sMsg("maya",{kind:"shot"},"Tue");
+  sMsg("maya",{kind:"coach",text:"Quick one before I dig in — how long since her last reply?"},"Tue");
+  sMsg("maya",{kind:"me",text:"3 days"},"Tue");
+  sAns("maya",COACHES.maya.answers[0],"ANSWER 1 OF 10","conversations","Tue",true);
+  sMsg("maya",{kind:"me",text:"sent it… she replied 😄"},"Wed");
+  sAns("maya",COACHES.maya.answers[1],"ANSWER 2 OF 10","conversations","Wed");
+  sMsg("maya",{kind:"me",text:"ok we've been going back and forth all day"},"Thu");
+  sAns("maya",COACHES.maya.answers[2],"ANSWER 3 OF 10","openers","Thu",true);
+  sMsg("maya",{kind:"me",text:"she said yes to thursday!!"},"Thu");
+  sMsg("maya",{kind:"coach",text:"Told you it was recoverable. Don't over-plan it — I'll help with the date if you want."},"Thu");
+  sAns("maya",COACHES.maya.answers[3],"ANSWER 4 OF 10","conversations","2m");
+  state.threads.maya.unread=1;state.threads.maya.when="2m";
+  state.answerIdx.maya=4;state.freeIdx.maya=2;
+
+  /* --- Dev: bio makeover DELIVERED, awaiting approval → Needs you --- */
+  const bio=sEng("dev",{id:"e-dev-bio",title:"Full bio makeover",icon:"📝",scheme:"deliverable",unit:"answer",
+    spec:"bio",unitsTotal:1,unitsUsed:0,amount:3000,status:"delivered"});
+  sMsg("dev",{kind:"sys",text:"You bought Full bio makeover · $30"},"Mon");
+  sMsg("dev",{kind:"me",text:"Here's my current bio + what I do for work"},"Mon");
+  sMsg("dev",{kind:"coach",text:"Perfect, all I need. Two versions by tonight — one playful, one grounded."},"Mon");
+  sMsg("dev",{kind:"item",engId:bio.id},"Mon");
+  sAns("dev",COACHES.dev.answers[0],"DELIVERED · FULL BIO MAKEOVER","bio","1h");
+  state.threads.dev.when="1h";state.threads.dev.unread=1;
+
+  /* --- Sam: photo verdicts part-used --- */
+  const ph=sEng("sam",{id:"e-sam-photos",title:"Photo verdicts",icon:"📸",scheme:"per_unit",unit:"photo",
+    spec:"photos",unitsTotal:4,unitsUsed:2,amount:2000,status:"active"});
+  state.threads.sam.inUseId=ph.id;
+  sMsg("sam",{kind:"sys",text:"You bought Photo verdicts · 4 photos · $20"},"Sun");
+  sMsg("sam",{kind:"me",text:"Be brutal — which ones are hurting me?"},"Sun");
+  sMsg("sam",{kind:"shot"},"Sun");
+  sAns("sam",COACHES.sam.answers[0],"PHOTO 1 OF 4","photos","Sun");
+  sAns("sam",COACHES.sam.answers[1],"PHOTO 2 OF 4","photos","Sun",true);
+  sMsg("sam",{kind:"coach",text:"Send the other two whenever — no rush."},"Sun");
+  state.threads.sam.when="Sun";state.answerIdx.sam=2;
+
+  /* --- Elena: completed, NOT rated → Needs you --- */
+  const el=sEng("elena",{id:"e-elena",title:"Screening second opinion",icon:"💬",scheme:"per_unit",unit:"answer",
+    spec:"conversations",unitsTotal:1,unitsUsed:1,amount:600,status:"completed"});
+  sMsg("elena",{kind:"sys",text:"You bought Screening second opinion · $6"},"Sat");
+  sMsg("elena",{kind:"me",text:"Is this guy wasting my time? 3 weeks of texting, no plan"},"Sat");
+  sAns("elena",COACHES.elena.answers[0],"ANSWER 1 OF 1","conversations","Sat");
+  sMsg("elena",{kind:"coach",text:"Let me know what he says. If he dodges again you have your answer."},"Sat");
+  state.threads.elena.when="Sat";
+
+  /* --- Priya: custom quote awaiting your decision --- */
+  sMsg("priya",{kind:"me",text:"She said yes to Saturday! Can you plan something that isn't dinner-boring? She likes weird museums & good coffee"},"Fri");
+  sMsg("priya",{kind:"coach",text:"Love it. Austin, right? Give me an hour."},"Fri");
+  sMsg("priya",{kind:"offer",o:{title:"First-date plan, Austin",desc:"3-stop plan with timing, a rain backup, and how to suggest it.",price:3500}},"Fri");
+  state.threads.priya.when="Fri";state.threads.priya.unread=1;
+
+  /* --- Jo: completed and rated (the quiet, happy past) --- */
+  const jo=sEng("jo",{id:"e-jo",title:"First-date gameplan",icon:"🗺",scheme:"deliverable",unit:"answer",
+    spec:"dates",unitsTotal:1,unitsUsed:0,amount:2200,status:"completed",reviewed:true});
+  sMsg("jo",{kind:"sys",text:"You bought First-date gameplan · $22"},"Jul 12");
+  sAns("jo",COACHES.jo.answers[0],"DELIVERED · FIRST-DATE GAMEPLAN","dates","Jul 12");
+  sMsg("jo",{kind:"me",text:"that record shop line worked lol"},"Jul 13");
+  sMsg("jo",{kind:"coach",text:"Of course it did 😌 come back anytime."},"Jul 13");
+  state.threads.jo.when="Jul 13";
+
+  /* --- purchase history --- */
+  state.purchases=[
+    {icon:"📝",t:"Full bio makeover",coach:"Dev K.",amount:3000,note:"awaiting your approval",when:"Mon"},
+    {icon:"💬",t:"Convo rescue pack",coach:"Maya R.",amount:2500,note:"6 of 10 answers left",when:"Tue"},
+    {icon:"📸",t:"Photo verdicts",coach:"Sam T.",amount:2000,note:"2 of 4 photos left",when:"Sun"},
+    {icon:"💬",t:"Screening second opinion",coach:"Elena V.",amount:600,note:"completed",when:"Sat"},
+    {icon:"🗺",t:"First-date gameplan",coach:"Jo A.",amount:2200,note:"completed · you rated ★★★★★",when:"Jul 12"},
+    {icon:"💬",t:"Opener rescue",coach:"Maya R.",amount:0,note:"first answer free",when:"Jul 10"}
+  ];
+  state.saved.reverse();
+}
+
+/* ---------------- boot ---------------- */
+seedDemo();renderTabs();renderHome();
+</script>

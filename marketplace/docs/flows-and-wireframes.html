@@ -1,0 +1,705 @@
+<title>Wing — Flows & Wireframes</title>
+<style>
+  :root{
+    --paper:#FBF7F4; --surface:#FFFFFF; --surface-2:#F4ECE7; --ink:#241E26; --ink-soft:#5A5058;
+    --ink-faint:#8A7F84; --line:#E7DCD5; --line-soft:#F0E7E1; --accent:#D6456A; --accent-ink:#A32C4C;
+    --teal:#2F5D62; --teal-soft:#E3EDEC; --amber:#B77410; --amber-soft:#F5E9D6;
+    --maxw:1000px; --read:700px;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --paper:#17131A; --surface:#201A22; --surface-2:#292230; --ink:#F1EAEE; --ink-soft:#C4B8C0;
+    --ink-faint:#8E8390; --line:#362E3B; --line-soft:#2A232F; --accent:#F2718F; --accent-ink:#F79DB2;
+    --teal:#7FC0C3; --teal-soft:#1E2E30; --amber:#E0A64E; --amber-soft:#2E2515;
+  }}
+  :root[data-theme="light"]{--paper:#FBF7F4;--surface:#FFFFFF;--surface-2:#F4ECE7;--ink:#241E26;--ink-soft:#5A5058;--ink-faint:#8A7F84;--line:#E7DCD5;--line-soft:#F0E7E1;--accent:#D6456A;--accent-ink:#A32C4C;--teal:#2F5D62;--teal-soft:#E3EDEC;--amber:#B77410;--amber-soft:#F5E9D6;}
+  :root[data-theme="dark"]{--paper:#17131A;--surface:#201A22;--surface-2:#292230;--ink:#F1EAEE;--ink-soft:#C4B8C0;--ink-faint:#8E8390;--line:#362E3B;--line-soft:#2A232F;--accent:#F2718F;--accent-ink:#F79DB2;--teal:#7FC0C3;--teal-soft:#1E2E30;--amber:#E0A64E;--amber-soft:#2E2515;}
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px 110px}
+  header.mast{padding:60px 0 30px;border-bottom:2px solid var(--ink)}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  h1.title{font-family:var(--serif);font-weight:600;font-size:clamp(30px,5.4vw,46px);line-height:1.08;letter-spacing:-.015em;margin:0 0 18px;text-wrap:balance}
+  .lede{font-size:clamp(17px,2.2vw,20px);color:var(--ink-soft);max-width:var(--read);margin:0;line-height:1.55}
+
+  section{padding-top:52px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:18px}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;padding-top:4px;flex:0 0 auto}
+  h2{font-family:var(--serif);font-weight:600;font-size:clamp(22px,3.2vw,28px);letter-spacing:-.01em;margin:0;line-height:1.15;text-wrap:balance}
+  h3{font-weight:680;font-size:16.5px;margin:30px 0 10px}
+  h4{font-weight:680;font-size:14.5px;margin:22px 0 8px;color:var(--ink-soft)}
+  p{max-width:var(--read);margin:0 0 15px}
+  strong{font-weight:680}
+  code{font-family:var(--mono);font-size:.87em;background:var(--surface-2);border-radius:5px;padding:1px 6px}
+  ul.clean{padding-left:20px;max-width:var(--read)}
+  ul.clean li{margin:7px 0}
+  ul.clean li::marker{color:var(--accent)}
+
+  .part{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);border-top:1px solid var(--line);padding-top:30px;margin-top:58px}
+  .part b{color:var(--accent-ink)}
+
+  .tbl-wrap{overflow-x:auto;margin:10px 0 6px;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+  th,td{text-align:left;padding:10px 14px;border-top:1px solid var(--line-soft);vertical-align:top}
+  thead th{border-top:none;background:var(--surface-2);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;white-space:nowrap}
+  tbody tr:first-child td{border-top:none}
+  td.mono,.mono{font-family:var(--mono);font-size:12.5px}
+  td.old{color:var(--ink-faint);text-decoration:line-through}
+  td.new{color:var(--teal);font-weight:600;font-family:var(--mono);font-size:13px}
+
+  .callout{border-radius:10px;padding:16px 20px;margin:20px 0 6px;font-size:14.5px;line-height:1.55;max-width:var(--read)}
+  .callout.teal{background:var(--teal-soft);border:1px solid color-mix(in srgb,var(--teal) 30%,transparent)}
+  .callout.amber{background:var(--amber-soft);border:1px solid color-mix(in srgb,var(--amber) 34%,transparent)}
+  .callout .clab{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:6px}
+  .callout.teal .clab{color:var(--teal)} .callout.amber .clab{color:var(--amber)}
+  .callout p{margin:0;max-width:none} .callout p+p{margin-top:8px}
+
+  /* ---------- wireframes ---------- */
+  .wfrow{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;margin:14px 0 6px}
+  .wf{width:272px;flex:0 0 auto;border:1.5px solid var(--ink-faint);border-radius:12px;background:var(--surface);overflow:hidden;font-family:var(--mono);font-size:11.5px;line-height:1.45}
+  .wf.wide{width:340px}
+  .wfcap{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:8px 2px 0;text-align:center}
+  .wf-top{background:var(--surface-2);padding:6px 10px;border-bottom:1.5px solid var(--ink-faint);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);display:flex;justify-content:space-between;gap:8px}
+  .wf-sec{padding:9px 10px;border-bottom:1px dashed var(--line)}
+  .wf-sec:last-child{border-bottom:none}
+  .wf-lab{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  .wf-box{border:1px dashed var(--ink-faint);border-radius:6px;padding:7px 9px;color:var(--ink-soft);margin-bottom:6px}
+  .wf-box:last-child{margin-bottom:0}
+  .wf-box b{color:var(--ink)}
+  .wf-btn{border:1.5px solid var(--ink);border-radius:6px;padding:7px;text-align:center;font-weight:700;color:var(--ink);margin-bottom:6px}
+  .wf-btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+  .wf-btn.gho{border-style:dashed;color:var(--ink-faint);border-color:var(--ink-faint);font-weight:400}
+  .wf-btn.half{display:inline-block;width:calc(50% - 3px)}
+  .wf-strip{background:var(--accent);color:#fff;padding:6px 10px;font-size:10px;letter-spacing:.05em;display:flex;justify-content:space-between;gap:8px;font-weight:700}
+  .wf-strip.t{background:var(--teal)}
+  .wf-strip.n{background:var(--surface-2);color:var(--ink-soft)}
+  .wf-msg{border:1px solid var(--line);border-radius:9px;padding:6px 9px;margin-bottom:5px;max-width:86%}
+  .wf-msg.me{margin-left:auto;background:var(--surface-2);border-color:var(--surface-2)}
+  .wf-tag{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.04em;padding:1.5px 6px;border-radius:999px;margin-top:4px}
+  .wf-tag.paid{background:var(--accent);color:#fff}
+  .wf-tag.free{background:var(--teal-soft);color:var(--teal);border:1px solid var(--teal)}
+  .wf-note{font-size:9.5px;color:var(--accent-ink);padding:2px 10px 8px;font-style:italic}
+  .wf-in{border:1px dashed var(--ink-faint);border-radius:999px;padding:6px 10px;color:var(--ink-faint);font-size:10.5px}
+
+  .ann{flex:1 1 250px;min-width:230px;max-width:340px;padding-top:4px}
+  .ann h4{margin:0 0 8px;font-size:14.5px;color:var(--ink)}
+  .an{display:grid;grid-template-columns:20px 1fr;gap:9px;margin-bottom:10px;font-size:13.5px;color:var(--ink-soft);line-height:1.45}
+  .an .n{font-family:var(--mono);font-size:10.5px;font-weight:700;color:#fff;background:var(--accent);border-radius:50%;width:19px;height:19px;display:grid;place-items:center;margin-top:2px}
+  .an b{color:var(--ink)}
+
+  pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;overflow-x:auto;margin:14px 0}
+
+  footer{margin-top:70px;padding-top:20px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--ink-faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  @media (max-width:640px){body{font-size:15.5px}.wf{width:100%}.wf.wide{width:100%}}
+</style>
+
+<div class="wrap">
+<header class="mast">
+  <p class="eyebrow"><span class="dot"></span> Flows &amp; Wireframes · v1 · companion to the build spec</p>
+  <h1 class="title">Every screen, every path, both sides</h1>
+  <p class="lede">Low-fidelity wireframes and flow diagrams for the whole platform — client and coach, happy paths and failure paths, every option each side has. Opens with a vocabulary fix: the thread used to speak in implementation terms ("armed", "units consumed"). It now speaks in <strong>answers</strong>.</p>
+</header>
+
+<!-- 00 VOCAB -->
+<section>
+  <div class="sec-head"><span class="sec-num">00</span><h2>The vocabulary fix</h2></div>
+  <p>The thread was confusing because engine words leaked into the interface. A user does not think "which engagement is armed" — they think "I bought ten answers from Maya, six are left." Every internal concept now has a plain-language surface word, and the UI only ever uses the right column.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Internal concept</th><th>Old UI wording</th><th>New UI wording</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">engagement</td><td class="old">engagement</td><td class="new">item</td></tr>
+        <tr><td class="mono">armed_engagement_id</td><td class="old">ARMED: CONVO PACK</td><td class="new">Using · Convo pack</td></tr>
+        <tr><td class="mono">armEngagement()</td><td class="old">arm this engagement</td><td class="new">Switch</td></tr>
+        <tr><td class="mono">consumption / usage_event</td><td class="old">1 UNIT CONSUMED</td><td class="new">Answer 5 of 10</td></tr>
+        <tr><td class="mono">units_total / units_used</td><td class="old">7 of 10 units left</td><td class="new">6 answers left</td></tr>
+        <tr><td class="mono">fulfilling message</td><td class="old">billable reply</td><td class="new">Answer</td></tr>
+        <tr><td class="mono">free message</td><td class="old">non-billable reply</td><td class="new">Message</td></tr>
+        <tr><td class="mono">engagement tray</td><td class="old">engagement tray</td><td class="new">Your items with Maya</td></tr>
+        <tr><td class="mono">proposal</td><td class="old">proposal</td><td class="new">Offer from Maya</td></tr>
+        <tr><td class="mono">offering</td><td class="old">offering</td><td class="new">menu item</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout teal">
+    <span class="clab">Why "answer" is the right word</span>
+    <p>It maps to how people already think about paid advice: you ask a question, you get an <em>answer</em>, and that's the thing of value you bought. It makes the free/paid split self-explanatory — a clarifying question from the coach is obviously not an answer — and it's countable, so "6 answers left" needs no explanation. Where a coach sells a different unit, the unit label carries through verbatim: Sam's photo review reads <span class="mono">"3 of 4 photos left"</span>, a live call reads <span class="mono">"18:42 left"</span>.</p>
+  </div>
+</section>
+
+<!-- 01 THREAD -->
+<section>
+  <div class="sec-head"><span class="sec-num">01</span><h2>The thread, redesigned</h2></div>
+  <p>One bar at the top answers the only question the client has: <strong>what am I using, and how much is left?</strong> Everything else moves into a sheet they can open when they want it. The <em>Switch</em> control only exists when there is more than one chat item — most users never see it.</p>
+
+  <div class="wfrow">
+    <div>
+      <div class="wf">
+        <div class="wf-top"><span>‹ Maya R.</span><span>online</span></div>
+        <div class="wf-strip"><span>Using · Convo pack</span><span>6 answers left</span></div>
+        <div class="wf-sec">
+          <div class="wf-msg me">She stopped replying 😩</div>
+          <div class="wf-msg me">[screenshot]</div>
+          <div class="wf-msg">How long since her last reply?<br><span class="wf-tag free">Free</span></div>
+          <div class="wf-msg me">3 days</div>
+          <div class="wf-msg"><b>Your last two texts were both questions…</b><br>Send this instead: "just saw a golden retriever argue with a pigeon"<br><span class="wf-tag paid">Answer 5 of 10</span></div>
+        </div>
+        <div class="wf-sec"><div class="wf-in">Message Maya…&nbsp;&nbsp;➤</div></div>
+      </div>
+      <p class="wfcap">Client · one item in use</p>
+    </div>
+    <div>
+      <div class="wf">
+        <div class="wf-top"><span>‹ Maya R.</span><span>online</span></div>
+        <div class="wf-strip"><span>Using · Convo pack ▾</span><span>6 left · 3 items</span></div>
+        <div class="wf-sec">
+          <div class="wf-lab">tapping the bar opens</div>
+          <div class="wf-box"><b>Your items with Maya</b></div>
+          <div class="wf-box">◉ <b>Convo pack</b><br>6 of 10 answers left<br><span style="color:var(--accent)">— in use —</span></div>
+          <div class="wf-box">○ <b>Opener rescue</b><br>2 answers left · tap to use</div>
+          <div class="wf-box">▣ <b>Bio makeover · $30</b><br>Delivered — needs your approval ›</div>
+          <div class="wf-box">▤ <b>Live call · $50</b><br>Friday 7:00 PM ›</div>
+          <div class="wf-btn">+ Buy from Maya's menu</div>
+        </div>
+      </div>
+      <p class="wfcap">Client · items sheet</p>
+    </div>
+    <div class="ann">
+      <h4>What changed and why</h4>
+      <div class="an"><span class="n">1</span><span><b>"Using · Convo pack — 6 answers left."</b> Plain sentence, no jargon. It states the one fact that matters before the client types anything.</span></div>
+      <div class="an"><span class="n">2</span><span><b>Badges are positional, not arithmetic.</b> "Answer 5 of 10" reads like a page number and implies the remainder. The old "1 USED · CONVO PACK · 5 LEFT" made the reader do bookkeeping.</span></div>
+      <div class="an"><span class="n">3</span><span><b>Switching is progressive disclosure.</b> With one chat item there is no control at all — the bar is a status line. The ▾ and item count appear only when a second item exists.</span></div>
+      <div class="an"><span class="n">4</span><span><b>Radio = in use; icon = card-scoped.</b> Chat items get a selector because they compete for the next answer. Deliverables and calls never compete, so they are just links to their card.</span></div>
+      <div class="an"><span class="n">5</span><span><b>Free is labelled, not silent.</b> Coach generosity stays visible — it is the strongest trust signal in the thread.</span></div>
+    </div>
+  </div>
+
+  <h3>Every state the bar can be in</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Situation</th><th>Client sees</th><th>Coach sees</th></tr></thead>
+      <tbody>
+        <tr><td>One chat item, answers left</td><td class="mono">Using · Convo pack — 6 answers left</td><td class="mono">Jordan: Convo pack — 6 answers left</td></tr>
+        <tr><td>Two or more chat items</td><td class="mono">Using · Convo pack ▾ — 6 left · 3 items</td><td class="mono">Jordan is using: Convo pack — 6 left</td></tr>
+        <tr><td>Answers exhausted</td><td class="mono">No answers left · Buy more →</td><td class="mono">No answers left — messages are free</td></tr>
+        <tr><td>Never purchased</td><td class="mono">Browse Maya's menu →</td><td class="mono">No items yet — you can message free</td></tr>
+        <tr><td>Only a deliverable open</td><td class="mono">Bio makeover — in progress</td><td class="mono">Bio makeover — due in 22h</td></tr>
+        <tr><td>Live call booked</td><td class="mono">Live call — Friday 7:00 PM</td><td class="mono">Call with Jordan — Friday 7:00 PM</td></tr>
+        <tr><td>Session running</td><td class="mono">Live call — 18:42 left</td><td class="mono">Live call — 18:42 left</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The coach's composer — the other half of the fix</h3>
+  <p>The coach's send control now says exactly what will happen, in the client's own units. There is no mode to remember and no way to charge by accident.</p>
+  <div class="wfrow">
+    <div>
+      <div class="wf">
+        <div class="wf-top"><span>‹ Jordan</span><span>coach view</span></div>
+        <div class="wf-strip t"><span>Jordan is using · Convo pack</span><span>6 left</span></div>
+        <div class="wf-sec"><div class="wf-msg">she replied 😄 now what?</div></div>
+        <div class="wf-sec">
+          <div class="wf-in">Type a reply…</div>
+          <div style="margin-top:6px">
+            <div class="wf-btn half gho" style="margin-right:4px">Send free</div>
+            <div class="wf-btn half pri">Send answer · 1 of 6</div>
+          </div>
+        </div>
+        <div class="wf-note">two explicit buttons — never a hidden toggle</div>
+      </div>
+      <p class="wfcap">Coach · answers available</p>
+    </div>
+    <div>
+      <div class="wf">
+        <div class="wf-top"><span>‹ Jordan</span><span>coach view</span></div>
+        <div class="wf-strip n"><span>Jordan has no answers left</span></div>
+        <div class="wf-sec"><div class="wf-msg">one more thing…</div></div>
+        <div class="wf-sec">
+          <div class="wf-in">Type a reply…</div>
+          <div style="margin-top:6px">
+            <div class="wf-btn half" style="margin-right:4px">Send free</div>
+            <div class="wf-btn half gho">Send answer</div>
+          </div>
+          <div class="wf-btn">Offer more help →</div>
+        </div>
+        <div class="wf-note">answer disabled; the coach can still help free or send an offer</div>
+      </div>
+      <p class="wfcap">Coach · nothing left to draw from</p>
+    </div>
+    <div class="ann">
+      <h4>Why two buttons beat a toggle</h4>
+      <div class="an"><span class="n">1</span><span><b>State is in the button, not in the coach's memory.</b> A toggle has a hidden position you can misread; a labelled button tells you the consequence at the moment you press it.</span></div>
+      <div class="an"><span class="n">2</span><span><b>"Send answer · 1 of 6"</b> names the cost in the client's units, so both sides read the same number.</span></div>
+      <div class="an"><span class="n">3</span><span><b>Disabled, not hidden,</b> when nothing is left — the coach learns why, and the route to fix it ("Offer more help") sits right beneath.</span></div>
+      <div class="an"><span class="n">4</span><span><b>The invariant is now visible in the UI:</b> there is no control anywhere on this screen that charges more than the client already bought.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- PART I -->
+<p class="part"><b>Part I</b> — Client flows</p>
+
+<section style="padding-top:30px">
+  <div class="sec-head"><span class="sec-num">02</span><h2>The client journey, end to end</h2></div>
+<pre class="mermaid">
+flowchart TD
+  A["Land / sign up"] --> B["Discover coaches"]
+  B --> C["Coach profile and menu"]
+  C --> D{"Pick an item"}
+  D -->|"Chat: per answer or pack"| E["Purchase sheet"]
+  D -->|"Deliverable"| E
+  D -->|"Live session"| F["Pick a time"] --> E
+  D -->|"Custom: ask"| G["Describe the need"] --> H["Wait for offer"]
+  H --> I{"Coach sends offer"} -->|"Accept"| E
+  I -->|"Decline"| J["Thread stays open, free"]
+  E --> K["Pay - one charge"]
+  K --> L["Thread opens, item in use"]
+  L --> M["Client asks, coach answers"]
+  M --> N{"How does it end?"}
+  N -->|"Answers used up"| O["Item complete"]
+  N -->|"Deliverable approved"| O
+  N -->|"Session finished"| O
+  N -->|"Problem"| P["Get help"]
+  O --> Q["Review the item"]
+  Q --> R{"Buy again?"}
+  R -->|"Yes"| C
+  R -->|"No"| S["Thread stays, free messages ok"]
+  P --> T{"What kind?"}
+  T -->|"Needs changes"| U["Coach revises"] --> O
+  T -->|"Refund"| V["Admin decides"] --> W["Money returns"]
+  T -->|"Coach went silent"| X["Auto refund at SLA breach"] --> W
+</pre>
+
+  <h3>2.1 First run — discover to first answer</h3>
+  <div class="wfrow">
+    <div><div class="wf">
+      <div class="wf-top"><span>Wing</span><span>welcome</span></div>
+      <div class="wf-sec">
+        <div class="wf-lab">value prop</div>
+        <div class="wf-box"><b>Real experts, not AI.</b><br>Help with openers, bios, photos and dead conversations.</div>
+        <div class="wf-btn pri">Continue with Apple</div>
+        <div class="wf-btn">Continue with Google</div>
+        <div class="wf-btn gho">Use email</div>
+        <div class="wf-box" style="border:none;padding:0;font-size:9.5px">✓ real humans ✓ plain prices ✓ private<br>we never touch your dating accounts</div>
+      </div>
+    </div><p class="wfcap">C1 · welcome</p></div>
+    <div><div class="wf">
+      <div class="wf-top"><span>Who do you need?</span><span>≡</span></div>
+      <div class="wf-sec">
+        <div class="wf-in">Search coaches…</div>
+        <div class="wf-lab" style="margin-top:8px">filters</div>
+        <div class="wf-box">[Openers] [Bio] [Photos] [Convos] [Live]</div>
+      </div>
+      <div class="wf-sec">
+        <div class="wf-box"><b>Maya R. ✓</b> — from $4/answer<br>Opener &amp; conversation specialist<br>★4.9 (212) · ~5 min · 0.3% refunds</div>
+        <div class="wf-box"><b>Dev K. ✓</b> — from $30<br>Bio doctor · ex-copywriter<br>★4.8 (167) · ~2 hr</div>
+        <div class="wf-box"><b>Sam T. ✓</b> — from $5/photo<br>Photo lineup strategist<br>★4.7 (94) · ~1 hr</div>
+      </div>
+    </div><p class="wfcap">C2 · discover</p></div>
+    <div><div class="wf">
+      <div class="wf-top"><span>‹ Maya R. ✓</span><span></span></div>
+      <div class="wf-sec">
+        <div class="wf-box" style="text-align:center">(avatar)<br><b>Maya R.</b><br>"I fix dead conversations."</div>
+        <div class="wf-box">★4.9 · 212 reviews │ 1,408 clients │ ~5 min</div>
+      </div>
+      <div class="wf-sec">
+        <div class="wf-lab">maya's menu</div>
+        <div class="wf-box"><b>Opener rescue</b> — $4<br>per answer · first one free · ★4.9 (120)</div>
+        <div class="wf-box"><b>Convo rescue pack</b> — $25<br>10 answers · ★4.9 (64)</div>
+        <div class="wf-box"><b>5 custom openers</b> — $18<br>deliverable · ★4.8 (41)</div>
+        <div class="wf-box"><b>Live strategy call</b> — $50<br>30 min · ★5.0 (28)</div>
+        <div class="wf-box"><b>Something else?</b> — ask<br>describe it, Maya quotes</div>
+      </div>
+      <div class="wf-sec"><div class="wf-btn pri">Start with Maya</div></div>
+    </div><p class="wfcap">C3 · profile · per-item ratings</p></div>
+    <div><div class="wf">
+      <div class="wf-top"><span>(dimmed profile)</span><span></span></div>
+      <div class="wf-sec">
+        <div class="wf-lab">purchase sheet</div>
+        <div class="wf-box"><b>Convo rescue pack</b><br>Maya R. · 10 answers, use anytime<br><b style="font-size:15px">$25</b></div>
+        <div class="wf-box">Pay with — Visa ··4242 ›</div>
+        <div class="wf-box">Maya replies in ~5 min</div>
+        <div class="wf-box">Refund if she does not deliver</div>
+        <div class="wf-btn pri"> Pay $25</div>
+        <div class="wf-box" style="border:none;padding:0;font-size:9.5px;text-align:center">Charged now, once. Maya starts after payment.<br>No subscription · no balance to top up</div>
+      </div>
+    </div><p class="wfcap">C4 · pay</p></div>
+  </div>
+
+  <h3>2.2 Buying each kind of item — what differs</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Item type</th><th>Before paying</th><th>After paying, client sees</th><th>Ends when</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Per answer</strong></td><td>Quantity picker: 1 / 3 / 5 answers</td><td>Thread opens · "Using · Opener rescue — 3 answers left"</td><td>Answers run out → review</td></tr>
+        <tr><td><strong>Pack</strong></td><td>Fixed bundle, price and count shown</td><td>Same bar, larger count, cheaper per answer</td><td>Answers run out, or expiry</td></tr>
+        <tr><td><strong>Deliverable</strong></td><td>Input form first: text and/or photos the coach needs</td><td>Order card: Paid → In progress → Delivered</td><td>Client approves, or auto-approves in 3 days</td></tr>
+        <tr><td><strong>Live session</strong></td><td>Time slot picker, then pay</td><td>Booking card + reminder; timer during call</td><td>Session ends</td></tr>
+        <tr><td><strong>Custom / ask</strong></td><td>Describe the need — no payment yet</td><td>Offer card arrives with a price → accept → pay</td><td>Delivered like the type the coach chose</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Deliverable — the input step and the order card</h4>
+  <div class="wfrow">
+    <div><div class="wf">
+      <div class="wf-top"><span>‹ Bio makeover · $30</span><span></span></div>
+      <div class="wf-sec">
+        <div class="wf-lab">dev needs these to start</div>
+        <div class="wf-box"><b>Your current bio *</b><br>[ paste it here ]</div>
+        <div class="wf-box"><b>What you do / hobbies *</b><br>[ text ]</div>
+        <div class="wf-box"><b>Screenshots (optional)</b><br>[ + add photos ]</div>
+        <div class="wf-btn pri">Continue to payment</div>
+      </div>
+      <div class="wf-note">required inputs are declared per menu item by the coach</div>
+    </div><p class="wfcap">C5 · deliverable inputs</p></div>
+    <div><div class="wf">
+      <div class="wf-top"><span>‹ Dev K.</span><span></span></div>
+      <div class="wf-strip t"><span>Bio makeover · $30</span><span>delivered</span></div>
+      <div class="wf-sec">
+        <div class="wf-box"><b>Bio makeover</b> — Dev K.<br>● Paid ─ ● In progress ─ ◉ Delivered ─ ○ Approved<br><br>📎 your_new_bio_2_versions.txt<br><br><span style="color:var(--accent)">[ Approve ]</span> [ Request changes ]<br><br>$30 releases to Dev on approval<br>auto-approves Friday</div>
+        <div class="wf-msg">Version 1 leans on your pottery thing — it is your best hook.<br><span class="wf-tag free">Free</span></div>
+      </div>
+    </div><p class="wfcap">C6 · order card in thread</p></div>
+    <div class="ann">
+      <h4>Rules that make this safe</h4>
+      <div class="an"><span class="n">1</span><span><b>Inputs are collected before payment,</b> so a coach never sits blocked and a client never pays for something that cannot start.</span></div>
+      <div class="an"><span class="n">2</span><span><b>The card updates in place</b> — one card per item for its whole life, not a new message per state change.</span></div>
+      <div class="an"><span class="n">3</span><span><b>Approval is what releases money,</b> and the card says so plainly, with the auto-approve date visible so neither side is hostage.</span></div>
+      <div class="an"><span class="n">4</span><span><b>Request changes</b> keeps money in escrow and returns the item to In progress; unlimited rounds are not allowed — two, then it escalates to help.</span></div>
+    </div>
+  </div>
+
+  <h3>2.3 Running out, and buying again</h3>
+  <div class="wfrow">
+    <div><div class="wf">
+      <div class="wf-top"><span>‹ Maya R.</span><span></span></div>
+      <div class="wf-strip n"><span>No answers left</span><span>Buy more →</span></div>
+      <div class="wf-sec">
+        <div class="wf-msg"><b>…that is the last one from this pack.</b><br><span class="wf-tag paid">Answer 10 of 10</span></div>
+        <div class="wf-box" style="border-color:var(--accent)"><b>Out of answers</b><br>Buy 3 more — $12<br>or view Maya's full menu<br><br><span style="color:var(--accent)">[ Buy 3 · $12 ]</span> [ Menu ]</div>
+        <div class="wf-msg">No rush — message me free anytime.<br><span class="wf-tag free">Free</span></div>
+      </div>
+      <div class="wf-sec"><div class="wf-in">Message Maya…&nbsp;&nbsp;➤</div></div>
+    </div><p class="wfcap">C7 · exhausted, one-tap rebuy</p></div>
+    <div><div class="wf">
+      <div class="wf-top"><span>How was Maya?</span><span>✕</span></div>
+      <div class="wf-sec" style="text-align:center">
+        <div class="wf-box" style="border:none">Convo rescue pack · completed<br><b style="font-size:16px">★ ★ ★ ★ ☆</b></div>
+        <div class="wf-lab">what happened</div>
+        <div class="wf-box">[Got a reply 🎉] [Date set]<br>[Fast] [Better profile]</div>
+        <div class="wf-box">Tell other daters what happened…</div>
+        <div class="wf-btn pri">Post review</div>
+        <div class="wf-btn gho">Skip</div>
+        <div class="wf-box" style="border:none;font-size:9.5px">rates this item and Maya's overall score</div>
+      </div>
+    </div><p class="wfcap">C8 · review the item</p></div>
+    <div class="ann">
+      <h4>Repeat purchase is the metric</h4>
+      <div class="an"><span class="n">1</span><span><b>The rebuy card appears in-thread</b> at the exact moment of need, priced at the same rate — no trip back to the menu.</span></div>
+      <div class="an"><span class="n">2</span><span><b>Free messaging never stops.</b> Running out ends the meter, not the relationship — this is what makes returning feel natural rather than transactional.</span></div>
+      <div class="an"><span class="n">3</span><span><b>Reviews are per item</b> and prompted once, on completion. Outcome chips are the structured proof that powers discovery.</span></div>
+      <div class="an"><span class="n">4</span><span><b>First → second purchase</b> is the number that decides whether this business exists. Every screen in this flow is instrumented for it.</span></div>
+    </div>
+  </div>
+
+  <h3>2.4 When something goes wrong</h3>
+  <div class="wfrow">
+    <div><div class="wf">
+      <div class="wf-top"><span>‹ Get help</span><span></span></div>
+      <div class="wf-sec">
+        <div class="wf-lab">bio makeover · dev k. · $30</div>
+        <div class="wf-box" style="border-color:var(--accent)">◉ <b>Request changes</b><br>Dev revises — most issues end here</div>
+        <div class="wf-box">○ <b>Request a refund</b><br>Your $30 is still in escrow — nothing paid out yet</div>
+        <div class="wf-box">○ <b>Report this coach</b><br>Something felt off — tell us privately</div>
+        <div class="wf-box">What happened? [ … ]</div>
+        <div class="wf-btn pri">Send</div>
+        <div class="wf-box" style="border:none;font-size:9.5px;text-align:center">If you cannot work it out, our team steps in within 24h.<br>Money never moves while a request is open.</div>
+      </div>
+    </div><p class="wfcap">C9 · help — repair first</p></div>
+    <div><div class="wf">
+      <div class="wf-top"><span>‹ Maya R.</span><span></span></div>
+      <div class="wf-strip n"><span>5 custom openers · $18</span><span>late</span></div>
+      <div class="wf-sec">
+        <div class="wf-box" style="border-color:var(--accent)"><b>This is taking longer than promised</b><br>Maya's usual turnaround: 2 hours<br>Ordered: 3 days ago<br><br><span style="color:var(--accent)">[ Refund me $18 ]</span> [ Keep waiting ]</div>
+        <div class="wf-box" style="border:none;font-size:9.5px">automatic full refund at 3× stated turnaround<br>if you do nothing</div>
+      </div>
+    </div><p class="wfcap">C10 · coach went silent (SLA)</p></div>
+    <div class="ann">
+      <h4>Failure paths, spelled out</h4>
+      <div class="an"><span class="n">1</span><span><b>Repair before refund.</b> Options are ordered by how often they are the right answer, not by severity.</span></div>
+      <div class="an"><span class="n">2</span><span><b>Escrow makes the promise concrete:</b> "your $30 is still in escrow" is a fact about where the money physically is, not a customer-service posture.</span></div>
+      <div class="an"><span class="n">3</span><span><b>A silent coach is the platform's problem, not the client's.</b> Every item carries an SLA clock from the coach's own stated turnaround; breach surfaces a one-tap refund and auto-refunds if ignored.</span></div>
+      <div class="an"><span class="n">4</span><span><b>Nothing dead-ends.</b> Every failure has a visible next action and a deadline attached to it.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- PART II -->
+<p class="part"><b>Part II</b> — Coach flows</p>
+
+<section style="padding-top:30px">
+  <div class="sec-head"><span class="sec-num">03</span><h2>The coach journey, end to end</h2></div>
+<pre class="mermaid">
+flowchart TD
+  A["Apply to coach"] --> B["Audition: rescue a real dead conversation"]
+  B --> C{"Admin review"}
+  C -->|"Rejected"| D["Feedback, may reapply in 30 days"]
+  C -->|"Approved"| E["Set up payouts with Stripe"]
+  E --> F["Build menu: what, how delivered, how priced"]
+  F --> G["Go live in Discover"]
+  G --> H["Work arrives in the queue"]
+  H --> I{"What kind?"}
+  I -->|"Answer waiting"| J["Reply free or send an answer"]
+  I -->|"Deliverable"| K["Do the work, mark delivered"]
+  I -->|"Booking"| L["Run the session"]
+  I -->|"Custom request"| M["Quote a price or decline"]
+  M -->|"Client accepts"| K
+  J --> N["Answers used up"]
+  K --> O["Client approves or auto-approves"]
+  L --> O
+  N --> P["Earnings released, minus fee"]
+  O --> P
+  P --> Q["Weekly payout to bank"]
+  H --> R{"Problem raised?"}
+  R -->|"Changes"| K
+  R -->|"Refund or report"| S["Admin decides"] --> T["Refund, or release"]
+</pre>
+
+  <h3>3.1 Becoming a coach</h3>
+  <div class="wfrow">
+    <div><div class="wf">
+      <div class="wf-top"><span>Become a coach</span><span></span></div>
+      <div class="wf-sec">
+        <div class="wf-lab">1 · what you help with</div>
+        <div class="wf-box">[Openers ✓] [Convos ✓] [Bio] [Photos] [Dates]</div>
+        <div class="wf-lab" style="margin-top:8px">2 · proof you are good</div>
+        <div class="wf-box">Links, results, before/afters, a community you help…</div>
+        <div class="wf-lab" style="margin-top:8px">3 · the audition</div>
+        <div class="wf-box"><b>Here is a real anonymised dead conversation.</b> Write the rescue reply and explain your thinking in two lines.</div>
+        <div class="wf-box">[ your rescue reply ]</div>
+        <div class="wf-btn pri">Apply</div>
+        <div class="wf-box" style="border:none;font-size:9.5px;text-align:center">Reviewed by hand · payouts take ~5 min to set up once you are in</div>
+      </div>
+    </div><p class="wfcap">W1 · application</p></div>
+    <div><div class="wf">
+      <div class="wf-top"><span>You are in 🎉</span><span></span></div>
+      <div class="wf-sec">
+        <div class="wf-lab">before you can be listed</div>
+        <div class="wf-box">◉ <b>Set up payouts</b> — required<br>ID + bank via Stripe · ~5 min</div>
+        <div class="wf-box">○ <b>Build your menu</b> — at least one item</div>
+        <div class="wf-box">○ <b>Profile photo &amp; headline</b></div>
+        <div class="wf-btn pri">Set up payouts</div>
+        <div class="wf-box" style="border:none;font-size:9.5px">you appear in Discover once all three are done</div>
+      </div>
+    </div><p class="wfcap">W2 · onboarding checklist</p></div>
+    <div class="ann">
+      <h4>Supply-side design notes</h4>
+      <div class="an"><span class="n">1</span><span><b>The audition is the quality bar.</b> Every applicant answers the same prompt, giving directly comparable work samples — the first cohort's quality is the product's reputation.</span></div>
+      <div class="an"><span class="n">2</span><span><b>Payouts before listing,</b> not after the first sale. A coach who cannot be paid must never be able to take money.</span></div>
+      <div class="an"><span class="n">3</span><span><b>Three explicit gates</b> beat a vague "complete your profile" — the coach always knows what stands between them and earning.</span></div>
+    </div>
+  </div>
+
+  <h3>3.2 Building the menu — every option a coach has</h3>
+  <div class="wfrow">
+    <div><div class="wf wide">
+      <div class="wf-top"><span>New menu item</span><span></span></div>
+      <div class="wf-sec">
+        <div class="wf-lab">1 · what do you help with?</div>
+        <div class="wf-box">[Openers ✓] [Bio] [Photos] [Convos] [Dates] [Custom…]</div>
+      </div>
+      <div class="wf-sec">
+        <div class="wf-lab">2 · how do you deliver it?</div>
+        <div class="wf-box">[In chat ✓] [Send back work] [Live call] [Bundle]</div>
+      </div>
+      <div class="wf-sec">
+        <div class="wf-lab">3 · how do you charge?</div>
+        <div class="wf-box">[Per answer ✓] [One price] [Pack] [Ask me — I quote]</div>
+        <div class="wf-box">Price <b>$4.00</b> per answer &nbsp;→&nbsp; you keep $3.20</div>
+      </div>
+      <div class="wf-sec">
+        <div class="wf-lab">options</div>
+        <div class="wf-box">☑ First answer free for new clients</div>
+        <div class="wf-box">☐ Require inputs before starting <span style="color:var(--ink-faint)">(deliverables)</span></div>
+        <div class="wf-box">Turnaround promise: <b>~5 min</b> ▾</div>
+      </div>
+      <div class="wf-sec">
+        <div class="wf-lab">live preview — as clients see it</div>
+        <div class="wf-box"><b>Opener rescue</b> — $4<br>per answer · first one free</div>
+        <div class="wf-btn pri">Publish to my menu</div>
+      </div>
+    </div><p class="wfcap">W3 · the composer</p></div>
+    <div class="ann">
+      <h4>Three questions, any business model</h4>
+      <div class="an"><span class="n">1</span><span><b>What × how delivered × how priced</b> generates every offering in the marketplace — including combinations we never anticipated.</span></div>
+      <div class="an"><span class="n">2</span><span><b>"Ask me — I quote" is the escape hatch.</b> Anything a coach dreams up that the three dials cannot express becomes a quote, so no coach is ever blocked by our roadmap.</span></div>
+      <div class="an"><span class="n">3</span><span><b>"You keep $3.20"</b> shows the fee at the moment of pricing, in the coach's favour-framing. No payout-day surprises.</span></div>
+      <div class="an"><span class="n">4</span><span><b>The turnaround promise is a commitment,</b> not a badge: it sets the SLA clock that protects clients and it is measured against reality.</span></div>
+      <div class="an"><span class="n">5</span><span><b>Live preview</b> is WYSIWYG — it doubles as quality control on the coach's own copywriting.</span></div>
+    </div>
+  </div>
+
+  <h3>3.3 The queue — how work arrives</h3>
+  <div class="wfrow">
+    <div><div class="wf">
+      <div class="wf-top"><span>To fulfil</span><span>Maya</span></div>
+      <div class="wf-sec">
+        <div class="wf-box" style="border-color:var(--accent)"><b>Jordan — answer waiting</b><br>Convo pack · screenshot attached<br><span style="color:var(--accent)">goal ~5 min · 2 min elapsed</span></div>
+        <div class="wf-box"><b>Alex — 5 opener bundle</b><br>Paid $18 · inputs received<br>due in 22h</div>
+        <div class="wf-box"><b>Riley — custom request</b><br>"Plan a first date in Austin"<br>[ Quote a price ] [ Decline ]</div>
+        <div class="wf-box"><b>Sam — changes requested</b><br>Bio makeover · round 1 of 2</div>
+      </div>
+      <div class="wf-sec">
+        <div class="wf-lab">today</div>
+        <div class="wf-box">7 answers · $46 earned · 4 min avg</div>
+      </div>
+    </div><p class="wfcap">W4 · queue, sorted by urgency</p></div>
+    <div><div class="wf">
+      <div class="wf-top"><span>‹ Riley — quote</span><span></span></div>
+      <div class="wf-sec">
+        <div class="wf-lab">their request</div>
+        <div class="wf-box">"Help planning a first date in Austin — she likes weird museums and good coffee"</div>
+        <div class="wf-lab" style="margin-top:8px">your offer</div>
+        <div class="wf-box">Title: <b>First-date plan, Austin</b></div>
+        <div class="wf-box">What they get: 3-stop plan, timing, rain backup</div>
+        <div class="wf-box">Deliver as: [Send back work ▾]</div>
+        <div class="wf-box">Price: <b>$35</b> → you keep $28</div>
+        <div class="wf-btn pri">Send offer</div>
+        <div class="wf-box" style="border:none;font-size:9.5px">expires in 7 days · they pay when they accept</div>
+      </div>
+    </div><p class="wfcap">W5 · quoting a custom request</p></div>
+    <div><div class="wf">
+      <div class="wf-top"><span>‹ Alex</span><span></span></div>
+      <div class="wf-strip"><span>5 custom openers · $18</span><span>due 22h</span></div>
+      <div class="wf-sec">
+        <div class="wf-lab">their inputs</div>
+        <div class="wf-box">[profile screenshot] + "she's into climbing, has a corgi"</div>
+        <div class="wf-lab" style="margin-top:8px">deliver</div>
+        <div class="wf-box">1. [ opener text … ]<br>2. [ opener text … ]<br>3. [ … ]<br>[ + add ]</div>
+        <div class="wf-box">📎 attach a file (optional)</div>
+        <div class="wf-btn pri">Mark delivered</div>
+        <div class="wf-box" style="border:none;font-size:9.5px">$18 releases when Alex approves, or in 3 days</div>
+      </div>
+    </div><p class="wfcap">W6 · delivering</p></div>
+  </div>
+
+  <h3>3.4 Earnings and payouts</h3>
+  <div class="wfrow">
+    <div><div class="wf">
+      <div class="wf-top"><span>Earnings</span><span>this week</span></div>
+      <div class="wf-sec">
+        <div class="wf-box" style="border-color:var(--accent)"><b style="font-size:17px">$312.40</b><br>after the 20% fee · ▲22% vs last week</div>
+        <div class="wf-box">★4.9 rating │ 38 clients │ 92% repeat</div>
+        <div class="wf-box">0.3% refund rate — top 10% of coaches</div>
+      </div>
+      <div class="wf-sec">
+        <div class="wf-lab">next payout</div>
+        <div class="wf-box">Friday · $286.20 → bank ··1123</div>
+      </div>
+      <div class="wf-sec">
+        <div class="wf-lab">recent</div>
+        <div class="wf-box">Jordan — answer · Convo pack &nbsp;+$2.00</div>
+        <div class="wf-box">Priya — bio approved &nbsp;+$24.00</div>
+        <div class="wf-box">Alex — openers delivered &nbsp;+$14.40</div>
+      </div>
+    </div><p class="wfcap">W7 · earnings</p></div>
+    <div class="ann">
+      <h4>Design rules</h4>
+      <div class="an"><span class="n">1</span><span><b>Every figure is post-fee.</b> A coach should never see a number that later shrinks.</span></div>
+      <div class="an"><span class="n">2</span><span><b>Refund rate is displayed to the coach</b> because it drives their ranking. Making the ranking input visible is what makes it fair.</span></div>
+      <div class="an"><span class="n">3</span><span><b>Repeat rate sits beside rating</b> — it steers coaches toward relationships rather than volume.</span></div>
+      <div class="an"><span class="n">4</span><span><b>Each line traces to a fulfilment</b> ("bio approved"), so escrow is explained by the receipt itself.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- PART III -->
+<p class="part"><b>Part III</b> — Reference</p>
+
+<section style="padding-top:30px">
+  <div class="sec-head"><span class="sec-num">04</span><h2>Options reference — everything each side can do</h2></div>
+  <h4>What a coach controls</h4>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Decision</th><th>Options</th><th>Changeable later?</th></tr></thead>
+      <tbody>
+        <tr><td>Specialties</td><td>openers · bio · photos · convos · dates · custom</td><td>Yes</td></tr>
+        <tr><td>Delivery mode per item</td><td>in chat · send back work · live call · bundle</td><td>New items only — live items keep their terms</td></tr>
+        <tr><td>Pricing per item</td><td>per answer · one price · pack of N · ask me (quote)</td><td>Yes; existing purchases keep frozen terms</td></tr>
+        <tr><td>First answer free</td><td>on / off per item</td><td>Yes</td></tr>
+        <tr><td>Required inputs</td><td>text and/or photo fields, each optional or required</td><td>Yes</td></tr>
+        <tr><td>Turnaround promise</td><td>minutes / hours / days — sets the SLA clock</td><td>Yes</td></tr>
+        <tr><td>Per message</td><td>send free · send answer (uses one) · send an offer</td><td>Per message</td></tr>
+        <tr><td>Availability</td><td>pause an item · pause whole profile</td><td>Yes, anytime</td></tr>
+        <tr><td>Requests</td><td>accept · quote · decline politely</td><td>Per request</td></tr>
+        <tr><td>Cannot do</td><td>charge beyond agreed terms · choose which item a client uses · edit or delete a review</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h4>What a client controls</h4>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Decision</th><th>Options</th></tr></thead>
+      <tbody>
+        <tr><td>What to buy</td><td>any menu item; quantity where the coach sells per answer</td></tr>
+        <tr><td>Which item is in use</td><td>switch between chat items at any time (only shown with 2+)</td></tr>
+        <tr><td>Messaging</td><td>unlimited free messages and uploads, always</td></tr>
+        <tr><td>On a deliverable</td><td>approve · request changes (up to 2 rounds) · do nothing (auto-approves)</td></tr>
+        <tr><td>On a problem</td><td>request changes · request refund · report the coach</td></tr>
+        <tr><td>When a coach is late</td><td>one-tap refund at SLA breach; automatic refund at 3× turnaround</td></tr>
+        <tr><td>Reviews</td><td>one per completed item; may update it after a repeat purchase</td></tr>
+        <tr><td>Privacy</td><td>delete uploads early; delete account and purge attachments</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Item lifecycle — what each side sees at every stage</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Stage</th><th>Client sees</th><th>Coach sees</th><th>Money</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">awaiting payment</td><td>Purchase sheet open</td><td>Nothing yet</td><td>Not charged</td></tr>
+        <tr><td class="mono">in use / in progress</td><td>Bar: "Using · N answers left" or order card "In progress"</td><td>Queue row with SLA clock</td><td>Held in escrow</td></tr>
+        <tr><td class="mono">delivered</td><td>Order card + Approve / Request changes</td><td>"Awaiting approval"</td><td>Still escrow</td></tr>
+        <tr><td class="mono">complete</td><td>Review prompt</td><td>Earnings line appears</td><td>Released, minus fee</td></tr>
+        <tr><td class="mono">late</td><td>"Taking longer than promised" + refund button</td><td>Overdue warning, ranking impact</td><td>Escrow, refundable</td></tr>
+        <tr><td class="mono">disputed</td><td>"Our team is looking at this"</td><td>"Client raised an issue"</td><td>Frozen</td></tr>
+        <tr><td class="mono">refunded</td><td>Refund confirmation + receipt</td><td>Reversal on earnings, defect recorded</td><td>Returned to card</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Empty, loading and error states</h3>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Screen</th><th>Empty</th><th>Error</th></tr></thead>
+      <tbody>
+        <tr><td>Discover</td><td>"No coaches for that filter yet — we're recruiting." + clear filters</td><td>Retry button; cached list if available</td></tr>
+        <tr><td>Inbox</td><td>"No conversations yet — find a coach; a first answer is often free."</td><td>Retry</td></tr>
+        <tr><td>Thread</td><td>"Say hi — messages are always free."</td><td>Message marked "not sent · tap to retry"</td></tr>
+        <tr><td>Purchases</td><td>"Everything you buy shows up here in plain dollars."</td><td>Retry</td></tr>
+        <tr><td>Payment</td><td>—</td><td>"Card declined — try another card." Item not created; nothing charged.</td></tr>
+        <tr><td>Coach queue</td><td>"Nothing waiting. Nice work."</td><td>Retry</td></tr>
+        <tr><td>Earnings</td><td>"No earnings yet — your first sale shows here."</td><td>Retry</td></tr>
+        <tr><td>Upload</td><td>—</td><td>"That file is too large (max 10 MB)."</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout amber">
+    <span class="clab">Two product decisions assumed here</span>
+    <p><strong>Unused pack answers</strong> are refunded at the coach's à-la-carte rate, not the discounted pack rate — otherwise abandoning a pack early is cheaper per answer than buying singles, which quietly penalises coaches for offering bundles.</p>
+    <p><strong>Free first answers</strong> may be reviewed, but those reviews carry near-zero weight and do not count toward the review total — otherwise a coach could farm reviews through free items at no cost, defeating the rule that every review costs real money to fake.</p>
+  </div>
+</section>
+
+<footer>
+  <span>Wing — Flows &amp; Wireframes v1</span>
+  <span>Companion to ARCHITECTURE.md · wireframes are structural, not visual design</span>
+</footer>
+</div>
