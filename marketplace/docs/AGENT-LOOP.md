@@ -54,6 +54,8 @@ The sketch lists "full conversation" under per-match memory. Correct as **storag
 
 Keep everything; **load a distillation**. Conflating the two is the single easiest way to reintroduce the context-rot failure this design exists to avoid. The view assembler is a real component with a hard budget asserted in CI.
 
+> **⚑ Memory storage is Graphiti, not hand-rolled — see `BUILD-VS-BUY.md`.** The scope typing, caps and portraiture policy below all stand; what changes is that **staleness, invalidation, pruning and relevance retrieval come from the framework**, and the markdown files described here become *rendered views* rather than the store. Graphiti's bi-temporal edges (`t_valid`/`t_invalid` alongside `t_created`/`t_expired`, invalidating rather than deleting) solve the stale-state problem structurally and make trend detection a query rather than a feature.
+
 ## 2.5 Raw is truth, derived is cache
 
 The distinction that everything else in memory depends on.

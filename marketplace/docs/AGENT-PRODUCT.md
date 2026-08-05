@@ -4,6 +4,8 @@
 
 A standalone agentic dating coach: skills, subagents, durable memory, scoped context, and question generation that verifies its own understanding. No human marketplace.
 
+**What to build versus adopt is `BUILD-VS-BUY.md`** — memory storage goes to Graphiti (15-point LongMemEval lead on exactly the temporal axis this domain runs on), extraction is a hosted VLM with a JSON schema plus a geometry pass for sender attribution, and several previously-specified components get deleted.
+
 **The buildable architecture is `AGENT-LOOP.md`** — three layers (perception always runs, selection is code, skills load on trigger), the nine-stage model, the perception signal set, output modes, and the control loop. Read it alongside this document; it is the spine, this is the product.
 
 **Status of the other documents.** The marketplace research in `MARKET-ANALYSIS.md`, `GO-TO-MARKET.md`, `COACH-RECRUITING.md` and `MATCH-THREADS-DESIGN.md` is **parked, not deleted** — the market sizing, competitor pricing, regulatory findings and unit-economics work all still apply, and the human layer may return later as a premium tier. Where those documents assume a marketplace, this one supersedes them. `AGENT-HARNESS.md`, `CONTEXT-STRATEGY.md` and `AGENT-MODEL.md` remain fully in force; this document is the layer above them.
