@@ -54,6 +54,36 @@ The sketch lists "full conversation" under per-match memory. Correct as **storag
 
 Keep everything; **load a distillation**. Conflating the two is the single easiest way to reintroduce the context-rot failure this design exists to avoid. The view assembler is a real component with a hard budget asserted in CI.
 
+## 2.5 Raw is truth, derived is cache
+
+The distinction that everything else in memory depends on.
+
+| | **Raw** | **Derived** |
+|---|---|---|
+| What | Messages, timestamps, screenshots, what the user typed | Facts, signals, reads |
+| Mutability | **Append-only. Never edited** | Overwritten freely |
+| Correctness | Ground truth | **Can be wrong, can go stale** |
+| Carries | — | Timestamp, pointer to the raw evidence, confidence |
+
+**Rule: everything derived must be regenerable from raw.** If a piece of memory cannot be rebuilt by re-running extraction over the messages, it is not an insight — it is an assertion, and there is no way to correct it when the extraction prompt improves.
+
+That property is worth more than it sounds. Extraction prompts will change dozens of times. Each change should be followed by a **rebuild**, not a migration, and users on the old extraction should silently get the better one. A memory layer that can't be re-derived freezes your quality at whatever the prompt was on the day the user signed up.
+
+## 2.6 "Insights" is three different things
+
+The single most useful split in the memory model, because these have different reliability, different update cadence, different producers, and different rendering.
+
+| | **Facts** | **Signals** | **Reads** |
+|---|---|---|---|
+| Example | "she has a sister in Leeds", "works nights" | latency deltas, length ratio, initiation ratio | "he's more invested than she is" |
+| Produced by | Extraction agent | **Ordinary code — arithmetic** | Inference agent |
+| Changes | Rarely — accumulates | Every new message | Revised constantly |
+| Reliability | High | **Exact** | Uncertain, hedged |
+| Goes stale? | No | No — recomputed | **Yes. The main stale risk** |
+| Rendered as | Stated | Never shown raw (§9) | *"It looks like…"* + verification question |
+
+**Signals must not be LLM-generated.** Time deltas, ratios and counts are arithmetic. Handing them to a model gets you plausible numbers rather than correct ones, and they are the substrate every read is built on. Compute them in a function, feed them to the agent as inputs. This is the largest single correction to a memory design that describes all of it as "agents generating insights."
+
 ## 3. The scopes, refined
 
 ```
@@ -68,6 +98,22 @@ platform/RULES.md          always, user-unwritable    ~400 tok
 - What they habitually do wrong — over-questioning, double-texting, disappearing when anxious
 - What has actually worked for them, from outcome data
 - Standing goals and dealbreakers
+
+### The insight grid
+
+Scope × subject, which is the sharper way to organise it than a flat list:
+
+| | **Global** (all matches) | **Per match** |
+|---|---|---|
+| **About the user** | How he writes, what he habitually gets wrong, what has worked for him | **How he behaves *with her specifically*** — often different, and the gap is itself the insight |
+| **About the other person** | *(nothing — never aggregate across matches)* | Facts she volunteered, her behavioural signals |
+| **About the interaction** | Patterns across his conversations | This conversation's stage, momentum, open loops |
+
+Two things this grid makes visible that a flat list hides.
+
+**User-global versus user-per-match is a real and useful distinction.** A man who is relaxed and funny across four conversations and stilted in the fifth is telling you something important about the fifth. *"You're more careful with her than you are with anyone else"* is an observation only this cell can produce, and it is exactly the kind of line that makes a product feel like it is paying attention.
+
+**The top-right cell is deliberately empty.** Never aggregate insights about the people the user dates into a cross-match model — that is building a general theory of women from one man's inbox, it is the portraiture line at its worst, and it has no product justification.
 
 **Per-match (`MATCH.md`)** — five things, matching the sketch with one caveat:
 - **Conversation state** — stage, open loops, who owes whom a reply
@@ -228,6 +274,35 @@ on turn:
 ```
 
 Four properties worth preserving. **Perception always runs**, so state stays fresh whether or not a skill fires. **Selection is code**, so routing is unit-testable rather than prompt-dependent. **Output never blocks on a question** — the fork carries both answers. And **every output is recorded against a pending outcome**, which is what makes `you/` compound.
+
+## 10.5 Runtime: who runs when, and how often
+
+Splitting runtime into *memory agents* and *reply agents* is the right first cut — it is the read/write split, and they have genuinely different latency budgets. Refined into five roles with explicit cadence, because cadence is what determines cost:
+
+| Role | When | Sync? | Producer |
+|---|---|---|---|
+| **Ingest** | New screenshot or pasted messages | Sync | Vision/extraction agent → raw + facts |
+| **Signals** | Every new message | Sync | **Plain code.** Deltas, ratios, counts |
+| **Perceive** | Every turn | Sync | One cheap structured call → stage, reads, gaps |
+| **Respond** | On user request | Sync | The main agent + skill + tactics |
+| **Verify** | Before output | Sync, parallel | Her-eyes and Consistency, separate model family |
+| **Mine** | **Async, batched — weekly or every N events** | No | Pattern miner → global user insights |
+
+The one that matters for cost is the last row. **Global insight mining does not need freshness**, and running it per message would be the single most expensive mistake available. Nothing about "you tend to double-text when anxious" changes hour to hour. Batch it, run it cheap, off the request path.
+
+## 10.6 The missing piece: the outcome loop
+
+The sketch has no place for *did the advice work*, and without it none of the memory compounds — it accumulates, which is not the same thing.
+
+```
+advice given  →  answer_outcomes (replied / no reply / didn't send)
+                        │
+                        ├→ per-match: was this read correct?
+                        └→ global:    what works for THIS user  →  you/MEMORY.md
+                                      what works generally      →  tactic evidence
+```
+
+That last branch is the one that turns usage into product (`SKILLS.md` §4). Without the outcome loop the memory layer is a diary; with it, it is a training signal.
 
 ## 11. On "generate skills wherever needed"
 
